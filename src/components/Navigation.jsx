@@ -51,6 +51,20 @@ const Navigation = () => {
             >
               Search Queries
             </Button>
+            <Button
+              color="inherit"
+              component={RouterLink}
+              to="/ai-prompts"
+            >
+              AI Prompts
+            </Button>
+            <Button
+              color="inherit"
+              component={RouterLink}
+              to="/settings"
+            >
+              Settings
+            </Button>
             <IconButton
               color="inherit"
               onClick={handleLogoutClick}

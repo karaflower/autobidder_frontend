@@ -47,6 +47,7 @@ const BidLinks = () => {
   const [selectedBidLinkResumes, setSelectedBidLinkResumes] = useState([]);
   const [showDisabled, setShowDisabled] = useState(false);
   const [currentUserId, setCurrentUserId] = useState('user123'); // Replace with actual user ID
+  const [users, setUsers] = useState({});  // Add this state for users lookup
 
   const fetchBidLinks = async () => {
     try {
@@ -57,6 +58,19 @@ const BidLinks = () => {
       setBidLinks(sortedLinks);
     } catch (err) {
       console.error('Failed to fetch bid links:', err);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/friends/all`);
+      const usersMap = response.data.reduce((acc, user) => {
+        acc[user._id] = user.name;
+        return acc;
+      }, {});
+      setUsers(usersMap);
+    } catch (err) {
+      console.error('Failed to fetch users:', err);
     }
   };
 
@@ -72,6 +86,7 @@ const BidLinks = () => {
 
     fetchBidLinks();
     fetchAvailableResumes();
+    fetchUsers();  // Add this function call
     setCurrentUserId(Cookies.get('userid'));
   }, []);
 
@@ -131,6 +146,7 @@ const BidLinks = () => {
         }
       }
     } catch (error) {
+      toast.error('Failed to generate resumes');
       console.error('Failed to generate resumes:', error);
     }
 
@@ -187,9 +203,7 @@ const BidLinks = () => {
         window.open(`${link.url}${separator}${bidLinkParam}`, '_blank');
       }
       
-      await axios.post(`${process.env.REACT_APP_API_URL}/bid-links/${linkId}/bid`, {
-        userid: currentUserId
-      });
+      await axios.post(`${process.env.REACT_APP_API_URL}/bid-links/${linkId}/bid`);
       
       setBidLinks(prevLinks => prevLinks.map(link => {
         if (link._id === linkId) {
@@ -207,9 +221,7 @@ const BidLinks = () => {
 
   const handleCancelBid = async (linkId) => {
     try {
-      await axios.delete(`${process.env.REACT_APP_API_URL}/bid-links/${linkId}/bid`, {
-        data: { userid: currentUserId }
-      });
+      await axios.delete(`${process.env.REACT_APP_API_URL}/bid-links/${linkId}/bid`);
       
       setBidLinks(prevLinks => prevLinks.map(link => {
         if (link._id === linkId) {
@@ -316,7 +328,11 @@ const BidLinks = () => {
                       label=""
                     />
                     <Typography variant="h6" sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-                      <Link href={link.url} target="_blank" rel="noopener noreferrer">
+                      <Link 
+                        href={`${link.url}${link.url.includes('?') ? '&' : '?'}bidLinkId=${link._id}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                      >
                         {link.title}
                       </Link>
                       {hasUserBid(link) && (
@@ -356,7 +372,10 @@ const BidLinks = () => {
                     </Button>
                   </Box>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Posted: {link.date || 'N/A'} | Added: {new Date(link.created_at).toLocaleString()}
+                    Posted: {link.date || 'N/A'} | Added: {new Date(link.created_at).toLocaleString()} 
+                    {link.created_by && users[link.created_by] && (
+                      <> | Searched by: {users[link.created_by]}</>
+                    )}
                   </Typography>
                   <Typography variant="body2" color="text.secondary" paragraph>
                     {link.description}

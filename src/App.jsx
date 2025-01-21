@@ -12,6 +12,8 @@ import Resume from './components/Resume';
 import Navigation from './components/Navigation';
 import SearchQueries from './components/SearchQueries';
 import Login from './components/Login';
+import AiPrompts from './components/AiPrompts';
+import Settings from './components/Settings';
 
 const theme = createTheme({
   palette: {
@@ -62,6 +64,8 @@ function App() {
                         <Route path="/" element={<BidLinks />} />
                         <Route path="/resume" element={<Resume />} />
                         <Route path="/search-queries" element={<SearchQueries />} />
+                        <Route path="/ai-prompts" element={<AiPrompts />} />
+                        <Route path="/settings" element={<Settings />} />
                       </Routes>
                     </Container>
                   </>
