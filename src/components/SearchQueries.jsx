@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Card,
   CardContent,
@@ -25,6 +25,7 @@ import {
   ScatterChart,
   Scatter,
 } from 'recharts';
+import { useAuth } from '../context/AuthContext';
 
 
 const TIME_OPTIONS = [
@@ -201,15 +202,41 @@ const useSearchQueries = () => {
     message: '',
     severity: 'success',
   });
+  const [autoSearchInProgress, setAutoSearchInProgress] = useState(false);
+  const [lastAutoSearch, setLastAutoSearch] = useState(null);
+  const { user } = useAuth();
+
+  const pollingInterval = useRef(null);
 
   const fetchQueries = async () => {
     try {
       const response = await axios.get(`${process.env.REACT_APP_API_URL}/search-queries`);
       setQueries(response.data);
+      setLastAutoSearch(user.last_auto_search);
       setLoading(false);
     } catch (err) {
       setError('Failed to fetch search queries');
       setLoading(false);
+    }
+  };
+
+  // Modified polling functions
+  const startPolling = () => {
+    if (pollingInterval.current) return;
+    pollingInterval.current = setInterval(async () => {
+      try {
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/search-queries`);
+        setQueries(response.data);
+      } catch (err) {
+        console.error('Polling failed:', err);
+      }
+    }, 15000);
+  };
+
+  const stopPolling = () => {
+    if (pollingInterval.current) {
+      clearInterval(pollingInterval.current);
+      pollingInterval.current = null;
     }
   };
 
@@ -247,12 +274,14 @@ const useSearchQueries = () => {
       await fetchQueries();
       return response.data;
     } catch (err) {
-      throw new Error('Failed to execute search');
+      throw new Error('Failed to execute search: ' + err.message);
     }
   };
 
   const executeAutoSearch = async (timeUnit) => {
     try {
+      setAutoSearchInProgress(true);
+      startPolling();
       const response = await axios.post(
         `${process.env.REACT_APP_API_URL}/auto-search/auto-bid`,
         null,
@@ -261,9 +290,18 @@ const useSearchQueries = () => {
       await fetchQueries();
       return response.data;
     } catch (err) {
-      throw new Error('Failed to execute auto-search');
+      console.log(err);
+      throw new Error('Failed to execute auto-search: ' + err.response.data.error);
+    } finally {
+      setAutoSearchInProgress(false);
+      stopPolling();
     }
   };
+
+  // Clean up interval on unmount
+  useEffect(() => {
+    return () => stopPolling();
+  }, []);
 
   useEffect(() => {
     fetchQueries();
@@ -280,6 +318,8 @@ const useSearchQueries = () => {
     executeSearch,
     executeAutoSearch,
     fetchQueries,
+    autoSearchInProgress,
+    lastAutoSearch,
   };
 };
 
@@ -295,6 +335,8 @@ const SearchQueries = () => {
     executeSearch,
     executeAutoSearch,
     fetchQueries,
+    autoSearchInProgress,
+    lastAutoSearch,
   } = useSearchQueries();
 
   const [openDialog, setOpenDialog] = useState(false);
@@ -311,6 +353,46 @@ const SearchQueries = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editQuery, setEditQuery] = useState('');
   const [queryToEdit, setQueryToEdit] = useState(null);
+  const [nextAutoSearchTime, setNextAutoSearchTime] = useState(null);
+  const [canAutoSearch, setCanAutoSearch] = useState(false);
+
+  useEffect(() => {
+    const calculateNextAutoSearch = () => {
+      if (!lastAutoSearch) {
+        setCanAutoSearch(true);
+        return;
+      }
+
+      const lastSearch = new Date(lastAutoSearch);
+      const now = new Date();
+      const nextSearch = new Date(lastSearch.getTime() + 12 * 60 * 60 * 1000); // Add 24 hours
+      const timeDiff = nextSearch.getTime() - now.getTime();
+
+      if (timeDiff <= 0) {
+        setCanAutoSearch(true);
+        setNextAutoSearchTime(null);
+      } else {
+        setCanAutoSearch(false);
+        setNextAutoSearchTime(nextSearch);
+      }
+    };
+
+    calculateNextAutoSearch();
+    const interval = setInterval(calculateNextAutoSearch, 1000);
+    return () => clearInterval(interval);
+  }, [lastAutoSearch]);
+
+  const getTimeRemaining = () => {
+    if (!nextAutoSearchTime) return '';
+    const now = new Date();
+    const diff = nextAutoSearchTime.getTime() - now.getTime();
+    
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+    return `${hours}h ${minutes}m ${seconds}s`;
+  };
 
   const handleAddQuery = async () => {
     const success = await addQuery(newQuery);
@@ -371,7 +453,7 @@ const SearchQueries = () => {
     } catch (err) {
       setSnackbar({
         open: true,
-        message: 'Failed to execute auto-search',
+        message: err.message,
         severity: 'error',
       });
     } finally {
@@ -420,18 +502,61 @@ const SearchQueries = () => {
   return (
     <>
       <Box display="flex" justifyContent="space-between" mb={3}>
-        <Button
-          variant="contained"
-          color="secondary"
-          onClick={handleAutoSearchClick}
-          disabled={autoSearchLoading}
-        >
-          {autoSearchLoading ? (
-            <CircularProgress size={24} color="inherit" />
-          ) : (
-            'Run Auto Search'
-          )}
-        </Button>
+        <Box display="flex" alignItems="center" gap={2}>
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={handleAutoSearchClick}
+            disabled={autoSearchLoading || !canAutoSearch}
+            sx={{ minWidth: 200 }}
+          >
+            {autoSearchLoading ? (
+              <>
+                <Box sx={{ position: 'relative', display: 'inline-flex', mr: 1 }}>
+                  <CircularProgress
+                    variant="determinate"
+                    value={100}
+                    size={24}
+                    sx={{
+                      color: (theme) => theme.palette.grey[300],
+                      position: 'absolute',
+                    }}
+                  />
+                  <CircularProgress
+                    variant="determinate"
+                    value={75}
+                    size={24}
+                    color="inherit"
+                  />
+                </Box>
+                Searching...
+              </>
+            ) : !canAutoSearch ? (
+              <Box display="flex" alignItems="center" gap={1}>
+                <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+                  <CircularProgress
+                    variant="determinate"
+                    value={100}
+                    size={20}
+                    sx={{
+                      color: (theme) => theme.palette.grey[300],
+                      position: 'absolute',
+                    }}
+                  />
+                  <CircularProgress
+                    variant="determinate"
+                    value={(nextAutoSearchTime - new Date()) / (24 * 60 * 60 * 1000) * 100}
+                    size={20}
+                    color="inherit"
+                  />
+                </Box>
+                Next auto search in: {getTimeRemaining()}
+              </Box>
+            ) : (
+              'Run Auto Search'
+            )}
+          </Button>
+        </Box>
         <Button
           variant="contained"
           color="primary"

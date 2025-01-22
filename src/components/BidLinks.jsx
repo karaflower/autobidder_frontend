@@ -272,7 +272,7 @@ const BidLinks = () => {
                         onChange={handleSelectAll}
                       />
                     }
-                    label="Select All"
+                    label={`Select All (${filteredBidLinks.length})`}
                   />
                 </Box>
                 <Box>
