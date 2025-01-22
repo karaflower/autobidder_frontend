@@ -122,7 +122,8 @@ const Resume = () => {
       setResumes(updatedResumes);
       setIsEditing(false);
       setFileToUpload(null);
-      fetchResumes();
+      setError('');
+      await fetchResumes();
     } catch (err) {
       setError('Failed to save resume');
     }
@@ -228,11 +229,6 @@ const Resume = () => {
           description: ''
         }],
         skillset: [
-          { category: 'Languages', skills: '' },
-          { category: 'Cloud Services', skills: '' },
-          { category: 'Databases', skills: '' },
-          { category: 'Web Development', skills: '' },
-          { category: 'Web3/Blockchain Development', skills: '' }
         ]
       }
     };
