@@ -33,58 +33,59 @@ const Resume = () => {
   const [editedResume, setEditedResume] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [resumeToDelete, setResumeToDelete] = useState(null);
+  const [fileToUpload, setFileToUpload] = useState(null);
+  const fetchResumes = async () => {
+    try { 
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/resumes`);
+      if (Array.isArray(response.data) && response.data.length > 0) {
+        const formattedResumes = response.data.map((resumeData) => {
+          const content = resumeData.content;
+          const experienceEntries = content.experience.map((exp, index) => ({
+            id: index + 1,
+            company: exp.company,
+            position: exp.position,
+            duration: exp.duration,
+            description: exp.description
+          }));
+
+          const educationEntries = content.education.map((edu, index) => ({
+            id: index + 1,
+            institution: edu.institution,
+            degree: edu.degree,
+            year: edu.year
+          }));
+
+          const skillEntries = content.skillset.map((skill, index) => ({
+            id: index + 1,
+            category: skill.category,
+            skills: skill.skills
+          }));
+
+          return {
+            _id: resumeData._id,
+            owner: resumeData.owner,
+            personal_info: content.personal_info,
+            profile: content.profile,
+            education: educationEntries,
+            experience: experienceEntries,
+            skillset: skillEntries,
+            path: resumeData.path
+          };
+        });
+
+        setResumes(formattedResumes);
+      } else {
+        setError('No resume data found');
+      }
+      setLoading(false);
+    } catch (err) {
+      console.log(err);
+      setError('Failed to fetch resumes');
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchResumes = async () => {
-      try { 
-        const response = await axios.get(`${process.env.REACT_APP_API_URL}/resumes`);
-        if (Array.isArray(response.data) && response.data.length > 0) {
-          const formattedResumes = response.data.map((resumeData) => {
-            const content = resumeData.content;
-            const experienceEntries = content.experience.map((exp, index) => ({
-              id: index + 1,
-              company: exp.company,
-              position: exp.position,
-              duration: exp.duration,
-              description: exp.description
-            }));
-
-            const educationEntries = content.education.map((edu, index) => ({
-              id: index + 1,
-              institution: edu.institution,
-              degree: edu.degree,
-              year: edu.year
-            }));
-
-            const skillEntries = content.skillset.map((skill, index) => ({
-              id: index + 1,
-              category: skill.category,
-              skills: skill.skills
-            }));
-
-            return {
-              _id: resumeData._id,
-              owner: resumeData.owner,
-              personal_info: content.personal_info,
-              profile: content.profile,
-              education: educationEntries,
-              experience: experienceEntries,
-              skillset: skillEntries
-            };
-          });
-
-          setResumes(formattedResumes);
-        } else {
-          setError('No resume data found');
-        }
-        setLoading(false);
-      } catch (err) {
-        console.log(err);
-        setError('Failed to fetch resumes');
-        setLoading(false);
-      }
-    };
-
     fetchResumes();
   }, []);
 
@@ -92,26 +93,36 @@ const Resume = () => {
     if (!editedResume) return;
     
     try {
-      const formattedResume = {
-        owner: editedResume.owner,
-        content: {
-          personal_info: editedResume.personal_info,
-          profile: editedResume.profile,
-          education: editedResume.education,
-          experience: editedResume.experience,
-          skillset: editedResume.skillset
-        }
-      };
+      const formData = new FormData();
+      formData.append('owner', editedResume.owner);
+      formData.append('content', JSON.stringify({
+        personal_info: editedResume.personal_info,
+        profile: editedResume.profile,
+        education: editedResume.education,
+        experience: editedResume.experience,
+        skillset: editedResume.skillset
+      }));
+
+      if (fileToUpload) {
+        formData.append('resume', fileToUpload);
+      }
 
       await axios.put(
         `${process.env.REACT_APP_API_URL}/resumes/${editedResume._id}`,
-        formattedResume
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
       );
       
       const updatedResumes = [...resumes];
       updatedResumes[selectedResumeIndex] = editedResume;
       setResumes(updatedResumes);
       setIsEditing(false);
+      setFileToUpload(null);
+      fetchResumes();
     } catch (err) {
       setError('Failed to save resume');
     }
@@ -227,16 +238,26 @@ const Resume = () => {
     };
 
     try {
+      const formData = new FormData();
+      formData.append('owner', emptyResume.owner);
+      formData.append('content', JSON.stringify(emptyResume.content));
+      
       const response = await axios.post(
         `${process.env.REACT_APP_API_URL}/resumes`,
-        emptyResume
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
       );
       
       const newResume = {
         _id: response.data._id,
         owner: emptyResume.owner,
         ...emptyResume.content,
-        skills: emptyResume.content.skillset
+        skills: emptyResume.content.skillset,
+        path: response.data.path
       };
       
       setResumes([...resumes, newResume]);
@@ -359,6 +380,15 @@ const Resume = () => {
           <Box display="flex" justifyContent="flex-end" mb={2}>
             {!isEditing ? (
               <>
+                {selectedResume.path && (
+                  <Button
+                    variant="outlined"
+                    onClick={() => window.open(`${process.env.REACT_APP_API_URL}/resumefiles/${selectedResume.path}`, '_blank')}
+                    sx={{ mr: 1 }}
+                  >
+                    View Resume File
+                  </Button>
+                )}
                 <Button
                   startIcon={<EditIcon />}
                   variant="contained"
@@ -378,6 +408,23 @@ const Resume = () => {
               </>
             ) : (
               <>
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx"
+                  onChange={(e) => setFileToUpload(e.target.files[0])}
+                  style={{ display: 'none' }}
+                  id="resume-file-input"
+                />
+                <label htmlFor="resume-file-input">
+                  <Button
+                    variant="outlined"
+                    component="span"
+                    startIcon={<AddIcon />}
+                    sx={{ mr: 1 }}
+                  >
+                    {fileToUpload ? fileToUpload.name : 'Upload Resume File'}
+                  </Button>
+                </label>
                 <Button
                   startIcon={<SaveIcon />}
                   variant="contained"
