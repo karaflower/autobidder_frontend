@@ -28,15 +28,14 @@ import 'react-toastify/dist/ReactToastify.css';
 
 const BidLinks = () => {
   const [bidLinks, setBidLinks] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState(() => {
     const date = new Date();
     date.setDate(date.getDate());
-    return date.toISOString().split('T')[0];
+    return date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
   });
-  const [endDate, setEndDate] = useState(() => {
-    return new Date().toISOString().split('T')[0];
-  });
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedLinks, setSelectedLinks] = useState([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [generating, setGenerating] = useState(false);
@@ -51,6 +50,7 @@ const BidLinks = () => {
 
   const fetchBidLinks = async () => {
     try {
+      setIsLoading(true);
       const response = await axios.get(`${process.env.REACT_APP_API_URL}/bid-links`);
       const sortedLinks = response.data.sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -58,6 +58,8 @@ const BidLinks = () => {
       setBidLinks(sortedLinks);
     } catch (err) {
       console.error('Failed to fetch bid links:', err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -106,9 +108,9 @@ const BidLinks = () => {
   const filteredBidLinks = bidLinks.filter(link => {
     const linkDate = new Date(link.created_at);
     const start = startDate ? new Date(startDate) : null;
-    const end = endDate ? new Date(endDate + 'T23:59:59.999Z') : null;
+    const end = endDate ? new Date(endDate) : null;
     
-    const meetsDateCriteria = (start && end) ? (linkDate >= start && linkDate <= end)
+    const meetsDateCriteria = (start && end) ? (linkDate >= start && linkDate <= end.setDate(end.getDate() + 1))
       : start ? (linkDate >= start)
       : end ? (linkDate <= end)
       : true;
@@ -245,23 +247,27 @@ const BidLinks = () => {
           <Grid container spacing={2}>
             {/* Date Range Box */}
             <Grid item xs={12}>
-              <Box sx={{ p: 2, border: '1px solid #ddd', borderRadius: 1, display: 'flex', gap: 2, alignItems: 'center' }}>
+              <Box sx={{ p: 2, border: 0, display: 'flex', gap: 2, alignItems: 'center' }}>
                 <Box sx={{ maxWidth: '200px' }}>
                   <Typography variant="body2">From:</Typography>
-                  <input
+                  <TextField
+                    variant='standard'
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    style={{ width: '100%', padding: '8px' }}
+                    size="small"
+                    fullWidth
                   />
                 </Box>
                 <Box sx={{ maxWidth: '200px' }}>
                   <Typography variant="body2">To:</Typography>
-                  <input
+                  <TextField
                     type="date"
+                    variant='standard'
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    style={{ width: '100%', padding: '8px' }}
+                    size="small"
+                    fullWidth
                   />
                 </Box>
                 <Box sx={{ maxWidth: '180px' }}>
@@ -313,77 +319,83 @@ const BidLinks = () => {
         </Box>
 
         <Grid container spacing={2}>
-          {filteredBidLinks.map((link) => (
-            <Grid item xs={12} key={link._id}>
-              <Card sx={{ opacity: link.disabled ? 0.7 : 1 }}>
-                <CardContent>
-                  <Box display="flex" alignItems="center" justifyContent="space-between">
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={selectedLinks.includes(link._id)}
-                          onChange={() => handleLinkSelection(link._id)}
-                        />
-                      }
-                      label=""
-                    />
-                    <Typography variant="h6" sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-                      <Link 
-                        href={`${link.url}${link.url.includes('?') ? '&' : '?'}bidLinkId=${link._id}`} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
+          {isLoading ? (
+            <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+              <CircularProgress />
+            </Grid>
+          ) : (
+            filteredBidLinks.map((link) => (
+              <Grid item xs={12} key={link._id}>
+                <Card sx={{ opacity: link.disabled ? 0.7 : 1 }}>
+                  <CardContent>
+                    <Box display="flex" alignItems="center" justifyContent="space-between">
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={selectedLinks.includes(link._id)}
+                            onChange={() => handleLinkSelection(link._id)}
+                          />
+                        }
+                        label=""
+                      />
+                      <Typography variant="h6" sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+                        <Link 
+                          href={`${link.url}${link.url.includes('?') ? '&' : '?'}bidLinkId=${link._id}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                        >
+                          {link.title}
+                        </Link>
+                        {hasUserBid(link) && (
+                          <CheckCircleIcon 
+                            color="success" 
+                            sx={{ ml: 1, fontSize: 20 }} 
+                          />
+                        )}
+                      </Typography>
+                      <Button
+                        variant={hasUserBid(link) ? "outlined" : "contained"}
+                        color={hasUserBid(link) ? "error" : "success"}
+                        size="small"
+                        onClick={() => hasUserBid(link) ? handleCancelBid(link._id) : handleBidSubmit(link._id)}
+                        startIcon={hasUserBid(link) ? '✓' : null}
+                        sx={{ ml: 2 }}
                       >
-                        {link.title}
-                      </Link>
-                      {hasUserBid(link) && (
-                        <CheckCircleIcon 
-                          color="success" 
-                          sx={{ ml: 1, fontSize: 20 }} 
-                        />
+                        {hasUserBid(link) ? 'Cancel' : 'Apply'}
+                      </Button>
+                      {(link.resumes || []).length > 0 && (
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() => handleShowResumes(link.resumes)}
+                          sx={{ ml: 2 }}
+                        >
+                          Show Resumes ({(link.resumes || []).length})
+                        </Button>
                       )}
-                    </Typography>
-                    <Button
-                      variant={hasUserBid(link) ? "outlined" : "contained"}
-                      color={hasUserBid(link) ? "error" : "success"}
-                      size="small"
-                      onClick={() => hasUserBid(link) ? handleCancelBid(link._id) : handleBidSubmit(link._id)}
-                      startIcon={hasUserBid(link) ? '✓' : null}
-                      sx={{ ml: 2 }}
-                    >
-                      {hasUserBid(link) ? 'Cancel' : 'Apply'}
-                    </Button>
-                    {(link.resumes || []).length > 0 && (
                       <Button
                         variant="outlined"
                         size="small"
-                        onClick={() => handleShowResumes(link.resumes)}
+                        onClick={() => handleToggleDisabled(link._id, link.disabled)}
                         sx={{ ml: 2 }}
                       >
-                        Show Resumes ({(link.resumes || []).length})
+                        {link.disabled ? 'Enable' : 'Disable'}
                       </Button>
-                    )}
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={() => handleToggleDisabled(link._id, link.disabled)}
-                      sx={{ ml: 2 }}
-                    >
-                      {link.disabled ? 'Enable' : 'Disable'}
-                    </Button>
-                  </Box>
-                  <Typography variant="body2" color="text.secondary" gutterBottom>
-                    Posted: {link.date || 'N/A'} | Added: {new Date(link.created_at).toLocaleString()} 
-                    {link.created_by && users[link.created_by] && (
-                      <> | Searched by: {users[link.created_by]}</>
-                    )}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary" paragraph>
-                    {link.description}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
+                    </Box>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      Posted: {link.date || 'N/A'} | Added: {new Date(link.created_at).toLocaleString()} 
+                      {link.created_by && users[link.created_by] && (
+                        <> | Searched by: {users[link.created_by]}</>
+                      )}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" paragraph>
+                      {link.description}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))
+          )}
         </Grid>
       </Grid>
 
