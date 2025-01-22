@@ -14,6 +14,7 @@ import SearchQueries from './components/SearchQueries';
 import Login from './components/Login';
 import AiPrompts from './components/AiPrompts';
 import Settings from './components/Settings';
+import BidHistory from './components/BidHistory';
 
 const theme = createTheme({
   palette: {
@@ -66,6 +67,7 @@ function App() {
                         <Route path="/search-queries" element={<SearchQueries />} />
                         <Route path="/ai-prompts" element={<AiPrompts />} />
                         <Route path="/settings" element={<Settings />} />
+                        <Route path="/bid-history" element={<BidHistory />} />
                       </Routes>
                     </Container>
                   </>

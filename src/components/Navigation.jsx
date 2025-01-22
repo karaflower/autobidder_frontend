@@ -8,6 +8,7 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import SearchIcon from '@mui/icons-material/Search';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import SettingsIcon from '@mui/icons-material/Settings';
+import HistoryIcon from '@mui/icons-material/History';
 
 const Navigation = () => {
   const { logout, user } = useAuth();
@@ -43,6 +44,14 @@ const Navigation = () => {
               startIcon={<LinkIcon />}
             >
               Bid Links
+            </Button>
+            <Button
+              color="inherit"
+              component={RouterLink}
+              to="/bid-history"
+              startIcon={<HistoryIcon />}
+            >
+              Bid History
             </Button>
             <Button
               color="inherit"

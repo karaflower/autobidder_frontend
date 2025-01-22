@@ -247,7 +247,7 @@ const BidLinks = () => {
             <Grid item xs={12}>
               <Box sx={{ p: 2, border: '1px solid #ddd', borderRadius: 1, display: 'flex', gap: 2, alignItems: 'center' }}>
                 <Box sx={{ maxWidth: '200px' }}>
-                  <Typography variant="body2">Start Date:</Typography>
+                  <Typography variant="body2">From:</Typography>
                   <input
                     type="date"
                     value={startDate}
@@ -256,7 +256,7 @@ const BidLinks = () => {
                   />
                 </Box>
                 <Box sx={{ maxWidth: '200px' }}>
-                  <Typography variant="body2">End Date:</Typography>
+                  <Typography variant="body2">To:</Typography>
                   <input
                     type="date"
                     value={endDate}
@@ -264,7 +264,7 @@ const BidLinks = () => {
                     style={{ width: '100%', padding: '8px' }}
                   />
                 </Box>
-                <Box sx={{ maxWidth: '150px' }}>
+                <Box sx={{ maxWidth: '180px' }}>
                   <FormControlLabel
                     control={
                       <Checkbox
