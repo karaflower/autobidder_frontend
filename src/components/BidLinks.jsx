@@ -39,12 +39,10 @@ const BidLinks = () => {
     return date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
   });
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
-  const [selectedLinks, setSelectedLinks] = useState([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [availableResumes, setAvailableResumes] = useState([]);
   const [selectedResumes, setSelectedResumes] = useState([]);
-  const [selectAll, setSelectAll] = useState(false);
   const [openResumePanel, setOpenResumePanel] = useState(false);
   const [selectedBidLinkResumes, setSelectedBidLinkResumes] = useState([]);
   const [currentUserId, setCurrentUserId] = useState('user123'); // Replace with actual user ID
@@ -165,10 +163,21 @@ const BidLinks = () => {
 
     const meetsVoteCriteria = showDownvoted || !isDownvoted;
 
-    return meetsSearchCriteria && meetsVoteCriteria;
+    // Add date filtering
+    const linkDate = new Date(link.created_at);
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59); // Set to end of day
+    const meetsDateCriteria = linkDate >= start && linkDate <= end;
+
+    return meetsSearchCriteria && meetsVoteCriteria && meetsDateCriteria;
   });
 
   const handleGenerateResumes = async () => {
+    // Get all checked checkboxes by their IDs when needed
+    const checkedBoxes = document.querySelectorAll('input[name="bid-checkbox"]:checked');
+    const selectedLinks = Array.from(checkedBoxes).map(checkbox => checkbox.value);
+
     setGenerating(true);
     setOpenDialog(false);
 
@@ -196,27 +205,18 @@ const BidLinks = () => {
     }
 
     setGenerating(false);
-    setSelectedLinks([]);
+    // Clear checkboxes after generating
+    document.querySelectorAll('input[name="bid-checkbox"]').forEach(checkbox => {
+      checkbox.checked = false;
+    });
     setSelectedResumes([]);
   };
 
   const handleSelectAll = () => {
-    if (selectAll) {
-      setSelectedLinks([]);
-    } else {
-      const allVisibleLinkIds = filteredBidLinks.map(link => link._id);
-      setSelectedLinks(allVisibleLinkIds);
-    }
-    setSelectAll(!selectAll);
-  };
-
-  const handleLinkSelection = (linkId) => {
-    setSelectedLinks(prev => {
-      const newSelection = prev.includes(linkId) 
-        ? prev.filter(id => id !== linkId)
-        : [...prev, linkId];
-      setSelectAll(newSelection.length === filteredBidLinks.length);
-      return newSelection;
+    const checkboxes = document.querySelectorAll('input[name="bid-checkbox"]');
+    const someChecked = Array.from(checkboxes).some(checkbox => checkbox.checked);
+    checkboxes.forEach(checkbox => {
+      checkbox.checked = !someChecked;
     });
   };
 
@@ -342,7 +342,8 @@ const BidLinks = () => {
                   <FormControlLabel
                     control={
                       <Checkbox
-                        checked={selectAll}
+                        name="bid-checkbox"
+                        value="all"
                         onChange={handleSelectAll}
                       />
                     }
@@ -411,8 +412,8 @@ const BidLinks = () => {
                       <FormControlLabel
                         control={
                           <Checkbox
-                            checked={selectedLinks.includes(link._id)}
-                            onChange={() => handleLinkSelection(link._id)}
+                            name="bid-checkbox"
+                            value={link._id}
                           />
                         }
                         label=""
@@ -536,9 +537,6 @@ const BidLinks = () => {
       <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
         <DialogTitle>Select Resumes to Generate</DialogTitle>
         <DialogContent>
-          <Typography gutterBottom>
-            Generate resumes for {selectedLinks.length} selected job{selectedLinks.length !== 1 ? 's' : ''}
-          </Typography>
           <List>
             {availableResumes.map((resume) => (
               <ListItem key={resume._id}>
