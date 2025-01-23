@@ -36,6 +36,15 @@ const TIME_OPTIONS = [
   { value: '', label: 'All Time' },
 ];
 
+const JOB_SCRAPING_TIME_OPTIONS = [
+  { value: '1', label: '1 Day' },
+  { value: '2', label: '2 Days' },
+  { value: '3', label: '3 Days' },
+  { value: '5', label: '5 Days' },
+  { value: '7', label: '1 Week' },
+  { value: '14', label: '2 Weeks' },
+];
+
 const getRelativeTimeString = (date) => {
   const now = new Date();
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
@@ -66,6 +75,7 @@ const TimeSelectionDialog = ({
   selectedTime,
   onTimeSelect,
   onConfirm,
+  options = TIME_OPTIONS,
 }) => (
   <Dialog open={open} onClose={onClose}>
     <DialogTitle>{title}</DialogTitle>
@@ -76,14 +86,15 @@ const TimeSelectionDialog = ({
         gap: 1, 
         mt: 2, 
         width: '100%',
+        flexWrap: 'wrap',
       }}>
-        {TIME_OPTIONS.map((option) => (
+        {options.map((option) => (
           <Button
             key={option.value}
             variant={selectedTime === option.value ? 'contained' : 'outlined'}
             onClick={() => onTimeSelect(option.value)}
             sx={{ 
-              width: '100%',
+              width: 'calc(33.33% - 8px)',
               bgcolor: selectedTime === option.value ? undefined : 'background.paper'
             }}
           >
@@ -101,38 +112,78 @@ const TimeSelectionDialog = ({
   </Dialog>
 );
 
-const SearchTimeline = ({ queries }) => {
+const SearchTimeline = ({ queries, users }) => {
+  const [dateRange, setDateRange] = useState(2); // Days range instead of search limit
+  const containerRef = useRef(null);
+
+  // Modified wheel event handler for date range
+  useEffect(() => {
+    const chartContainer = containerRef.current;
+    if (chartContainer) {
+      const handleScroll = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Adjust dateRange based on scroll direction
+        const delta = Math.sign(e.deltaY);
+        setDateRange(prev => {
+          const newRange = prev + (delta * 1); // Change by 1 day at a time
+          return Math.max(1, Math.min(10, newRange)); // Keep between 1 and 10 days
+        });
+        
+        return false;
+      };
+
+      chartContainer.addEventListener('wheel', handleScroll, { passive: false });
+      chartContainer.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+
+      return () => {
+        chartContainer.removeEventListener('wheel', handleScroll);
+        chartContainer.removeEventListener('touchmove', e => e.preventDefault());
+      };
+    }
+  }, []);
+
   const formatChartData = () => {
-    // Get all queries with their last search date
-    const searchData = queries
+    const now = new Date();
+    const cutoffDate = new Date(now.getTime() - (dateRange * 24 * 60 * 60 * 1000));
+
+    return queries
       .filter(query => query.last_search_info?.[0]?.date)
-      .map(query => ({
-        query: query.link,
-        shortQuery: query.link.length > 20 ? query.link.substring(0, 20) + '...' : query.link,
-        date: new Date(query.last_search_info[0].date).getTime(),
-        formattedDate: new Date(query.last_search_info[0].date).toLocaleString(),
-        relativeTime: getRelativeTimeString(new Date(query.last_search_info[0].date))
-      }))
+      .map((query, queryIndex) => {
+        // Filter searches within date range instead of taking last N
+        const searchHistory = query.last_search_info
+          .filter(info => new Date(info.date) >= cutoffDate)
+          .map(info => ({
+            query: query.link,
+            shortQuery: query.link.length > 20 ? query.link.substring(0, 20) + '...' : query.link,
+            date: new Date(info.date).getTime(),
+            formattedDate: new Date(info.date).toLocaleString(),
+            relativeTime: getRelativeTimeString(new Date(info.date)),
+            searchedBy: users[info.searchedBy] || 'Unknown User',
+            dayRange: info.dayRange,
+            jobsFound: info.count || 0,
+            yAxis: queryIndex + 1
+          }));
+        return searchHistory;
+      })
+      .flat()
       .sort((a, b) => a.date - b.date);
-
-    // Find min and max dates for the x-axis
-    const minDate = Math.min(...searchData.map(d => d.date));
-    const maxDate = Math.max(...searchData.map(d => d.date));
-
-    // Create an array of objects where each query has its own y-axis position
-    return searchData.map((item, index) => ({
-      ...item,
-      yAxis: queries.length - index, // Reverse the index to show queries from top to bottom
-    }));
   };
+
+  const data = formatChartData();
+  const uniqueQueries = [...new Set(data.map(d => d.query))];
 
   return (
     <Card sx={{ mb: 3 }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          Last Search Timeline
+          Search Timeline (Last {dateRange} {dateRange === 1 ? 'day' : 'days'})
         </Typography>
-        <Box sx={{ height: Math.max(300, queries.length * 40), mt: 2 }}>
+        <Box 
+          sx={{ height: Math.max(300, uniqueQueries.length * 60), mt: 2 }}
+          ref={containerRef}
+        >
           <ResponsiveContainer width="100%" height="100%">
             <ScatterChart
               margin={{ top: 20, right: 30, bottom: 20 }}
@@ -148,8 +199,8 @@ const SearchTimeline = ({ queries }) => {
               <YAxis
                 dataKey="yAxis"
                 type="number"
-                domain={[0, queries.length + 1]}
-                ticks={formatChartData().map(d => d.yAxis)}
+                domain={[0, uniqueQueries.length + 1]}
+                ticks={[...Array(uniqueQueries.length)].map((_, i) => i + 1)}
                 tickFormatter={(value) => {
                   const data = formatChartData().find(d => d.yAxis === value);
                   return data ? data.shortQuery : '';
@@ -165,10 +216,18 @@ const SearchTimeline = ({ queries }) => {
               <Tooltip
                 content={({ active, payload }) => {
                   if (active && payload && payload.length) {
+                    const data = payload[0].payload;
                     return (
                       <Box sx={{ bgcolor: 'background.paper', p: 1, border: '1px solid grey' }}>
-                        <Typography variant="body2">Query: {payload[0].payload.query}</Typography>
-                        <Typography variant="body2">Last Search: {payload[0].payload.relativeTime}</Typography>
+                        <Typography variant="body2">Query: {data.query}</Typography>
+                        <Typography variant="body2">Last Search: {data.relativeTime}</Typography>
+                        <Typography variant="body2">Jobs Found: {data.jobsFound}</Typography>
+                        {data.searchedBy && data.searchedBy !== 'Unknown User' && (
+                          <Typography variant="body2">Searched By: {data.searchedBy}</Typography>
+                        )}
+                        {data.dayRange && (
+                          <Typography variant="body2">Day Range: {data.dayRange}</Typography>
+                        )}
                       </Box>
                     );
                   }
@@ -178,10 +237,18 @@ const SearchTimeline = ({ queries }) => {
               <Scatter
                 data={formatChartData()}
                 fill="#8884d8"
+                isAnimationActive={false}
                 shape={(props) => {
-                  const { cx, cy } = props;
+                  const { cx, cy, payload } = props;
+                  const radius = Math.max(4, Math.min(12, 4 + (payload.jobsFound / 5)));
                   return (
-                    <circle cx={cx} cy={cy} r={6} fill="#8884d8" />
+                    <circle 
+                      cx={cx} 
+                      cy={cy} 
+                      r={radius} 
+                      fill="#8884d8"
+                      opacity={0.8}
+                    />
                   );
                 }}
               />
@@ -195,6 +262,7 @@ const SearchTimeline = ({ queries }) => {
 
 const useSearchQueries = () => {
   const [queries, setQueries] = useState([]);
+  const [users, setUsers] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [snackbar, setSnackbar] = useState({
@@ -217,6 +285,19 @@ const useSearchQueries = () => {
     } catch (err) {
       setError('Failed to fetch search queries');
       setLoading(false);
+    }
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/friends/all`);
+      const usersMap = response.data.reduce((acc, user) => {
+        acc[user._id] = user.name;
+        return acc;
+      }, {});
+      setUsers(usersMap);
+    } catch (err) {
+      console.error('Failed to fetch users:', err);
     }
   };
 
@@ -298,6 +379,27 @@ const useSearchQueries = () => {
     }
   };
 
+  const [jobScrapingInProgress, setJobScrapingInProgress] = useState(false);
+
+  const executeJobScraping = async (timeUnit) => {
+    try {
+      setJobScrapingInProgress(true);
+      startPolling();
+      const response = await axios.post(
+        `${process.env.REACT_APP_API_URL}/job-scraper`,
+        { timeUnit: parseInt(timeUnit) }
+      );
+      await fetchQueries();
+      return response.data;
+    } catch (err) {
+      console.log(err);
+      throw new Error('Failed to execute job scraping: ' + err.response?.data?.error);
+    } finally {
+      setJobScrapingInProgress(false);
+      stopPolling();
+    }
+  };
+
   // Clean up interval on unmount
   useEffect(() => {
     return () => stopPolling();
@@ -305,10 +407,12 @@ const useSearchQueries = () => {
 
   useEffect(() => {
     fetchQueries();
+    fetchUsers();
   }, []);
 
   return {
     queries,
+    users,
     loading,
     error,
     snackbar,
@@ -320,12 +424,15 @@ const useSearchQueries = () => {
     fetchQueries,
     autoSearchInProgress,
     lastAutoSearch,
+    jobScrapingInProgress,
+    executeJobScraping,
   };
 };
 
 const SearchQueries = () => {
   const {
     queries,
+    users,
     loading,
     error,
     snackbar,
@@ -337,6 +444,8 @@ const SearchQueries = () => {
     fetchQueries,
     autoSearchInProgress,
     lastAutoSearch,
+    jobScrapingInProgress,
+    executeJobScraping,
   } = useSearchQueries();
 
   const [openDialog, setOpenDialog] = useState(false);
@@ -355,6 +464,9 @@ const SearchQueries = () => {
   const [queryToEdit, setQueryToEdit] = useState(null);
   const [nextAutoSearchTime, setNextAutoSearchTime] = useState(null);
   const [canAutoSearch, setCanAutoSearch] = useState(false);
+  const [jobScrapingLoading, setJobScrapingLoading] = useState(false);
+  const [jobScrapingDialogOpen, setJobScrapingDialogOpen] = useState(false);
+  const [jobScrapingTimeUnit, setJobScrapingTimeUnit] = useState('');
 
   useEffect(() => {
     const calculateNextAutoSearch = () => {
@@ -424,7 +536,7 @@ const SearchQueries = () => {
       const response = await executeSearch(queryId, selectedTimeUnit);
       setSnackbar({
         open: true,
-        message: `Search completed! Found ${response.jobsFound} new jobs.`,
+        message: `Search completed! Found ${response.jobsFound || 0} new jobs.`,
         severity: 'success',
       });
     } catch (err) {
@@ -447,7 +559,7 @@ const SearchQueries = () => {
       const response = await executeAutoSearch(autoSearchTimeUnit);
       setSnackbar({
         open: true,
-        message: `Auto-search completed! Found ${response.jobsFound} new jobs.`,
+        message: `Auto-search completed! Found ${response.jobsFound || 0} new jobs.`,
         severity: 'success',
       });
     } catch (err) {
@@ -458,6 +570,28 @@ const SearchQueries = () => {
       });
     } finally {
       setAutoSearchLoading(false);
+    }
+  };
+
+  const handleJobScraping = async () => {
+    setJobScrapingDialogOpen(false);
+    setJobScrapingTimeUnit('');
+    setJobScrapingLoading(true);
+    try {
+      const response = await executeJobScraping(jobScrapingTimeUnit);
+      setSnackbar({
+        open: true,
+        message: `Job scraping completed! Found ${response.jobsFound || 0} new jobs.`,
+        severity: 'success',
+      });
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: err.message,
+        severity: 'error',
+      });
+    } finally {
+      setJobScrapingLoading(false);
     }
   };
 
@@ -556,6 +690,38 @@ const SearchQueries = () => {
               'Run Auto Search'
             )}
           </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={() => setJobScrapingDialogOpen(true)}
+            disabled={jobScrapingLoading}
+            sx={{ minWidth: 200 }}
+          >
+            {jobScrapingLoading ? (
+              <>
+                <Box sx={{ position: 'relative', display: 'inline-flex', mr: 1 }}>
+                  <CircularProgress
+                    variant="determinate"
+                    value={100}
+                    size={24}
+                    sx={{
+                      color: (theme) => theme.palette.grey[300],
+                      position: 'absolute',
+                    }}
+                  />
+                  <CircularProgress
+                    variant="determinate"
+                    value={75}
+                    size={24}
+                    color="inherit"
+                  />
+                </Box>
+                Scraping...
+              </>
+            ) : (
+              'Run Web3 Jobsite Scraping'
+            )}
+          </Button>
         </Box>
         <Button
           variant="contained"
@@ -566,10 +732,12 @@ const SearchQueries = () => {
         </Button>
       </Box>
 
-      <SearchTimeline queries={queries} />
+      <SearchTimeline queries={queries} users={users} />
 
       <Grid container spacing={3}>
-        {queries.map((query) => (
+        {queries
+          .filter(query => query.link !== 'web3Jobsites')
+          .map((query) => (
           <Grid item xs={12} key={query._id}>
             <Card>
               <CardContent>
@@ -770,6 +938,19 @@ const SearchQueries = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <TimeSelectionDialog
+        open={jobScrapingDialogOpen}
+        onClose={() => {
+          setJobScrapingDialogOpen(false);
+          setJobScrapingTimeUnit('');
+        }}
+        title="Job Scraping Settings"
+        selectedTime={jobScrapingTimeUnit}
+        onTimeSelect={setJobScrapingTimeUnit}
+        onConfirm={handleJobScraping}
+        options={JOB_SCRAPING_TIME_OPTIONS}
+      />
 
       <Snackbar
         open={snackbar.open}
