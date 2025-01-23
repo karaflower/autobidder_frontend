@@ -20,7 +20,6 @@ const BidHistory = () => {
   const [bidHistory, setBidHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [currentUserId, setCurrentUserId] = useState('');
   const [titleFilter, setTitleFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
 
@@ -28,7 +27,6 @@ const BidHistory = () => {
     const fetchBidHistory = async () => {
       try {
         const userId = Cookies.get('userid');
-        setCurrentUserId(userId);
         
         const response = await axios.get(`${process.env.REACT_APP_API_URL}/bid-links`);
         const allBids = response.data;
@@ -84,46 +82,49 @@ const BidHistory = () => {
   }
 
   return (
-    <Box sx={{ pt: 4 }}>
-      <TableContainer component={Paper}>
+    <Box sx={{ pt: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <TableContainer component={Paper} sx={{ maxWidth: '80%' }}>
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>
+              <TableCell sx={{ display: 'flex', alignItems: 'center' }}>Title
                 <TextField
                   size="small"
-                  placeholder="Title..."
+                  placeholder="filter..."
                   value={titleFilter}
                   variant="standard"
                   onChange={(e) => setTitleFilter(e.target.value)}
                   sx={{ ml: 1 }}
                 />
               </TableCell>
-              <TableCell s>Post Date</TableCell>
-              <TableCell>
-                <TextField
-                  type="date"
-                  variant="standard"
-                  size="small"
-                  value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value)}
-                  sx={{ ml: 1 }}
-                  InputProps={{ sx: { height: '32px' } }}
-                />
+              <TableCell>Post Date</TableCell>
+              <TableCell sx={{ display: 'flex', alignItems: 'center' }}>
+                Date
+                  <TextField
+                    type="date"
+                    variant="standard"
+                    size="small"
+                    value={dateFilter}
+                    onChange={(e) => setDateFilter(e.target.value)}
+                    sx={{ ml:1, maxWidth: '20px' }}
+                  />
               </TableCell>
-              <TableCell></TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {filteredBids.map((bid) => (
-              <TableRow 
+              <TableRow
                 key={bid.id}
-                sx={{ 
-                  opacity: bid.disabled ? 0.7 : 1,
-                  backgroundColor: bid.disabled ? 'action.disabledBackground' : 'inherit'
-                }}
               >
-                <TableCell>{bid.title}</TableCell>
+                <TableCell>
+                  <Link 
+                    href={`${bid.url}${bid.url.includes('?') ? '&' : '?'}bidLinkId=${bid.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {bid.title}
+                  </Link>
+                </TableCell>
                 <TableCell>{bid.date || 'N/A'}</TableCell>
                 <TableCell>{new Date(bid.bidDate).toLocaleString(undefined, {
                   year: 'numeric',
@@ -132,15 +133,6 @@ const BidHistory = () => {
                   hour: '2-digit',
                   minute: '2-digit'
                 })}</TableCell>
-                <TableCell>
-                  <Link 
-                    href={`${bid.url}${bid.url.includes('?') ? '&' : '?'}bidLinkId=${bid.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    View Job
-                  </Link>
-                </TableCell>
               </TableRow>
             ))}
           </TableBody>
