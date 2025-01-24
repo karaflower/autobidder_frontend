@@ -362,6 +362,11 @@ const BidLinks = () => {
                           href={`${link.url}${link.url.includes('?') ? '&' : '?'}bidLinkId=${link._id}`} 
                           target="_blank" 
                           rel="noopener noreferrer"
+                          sx={{
+                            '&:visited': {
+                              color: '#7c37c0'
+                            }
+                          }}
                         >
                           {link.title}
                         </Link>
@@ -373,6 +378,16 @@ const BidLinks = () => {
                         )}
                       </Typography>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 2 }}>
+                      {(link.resumes || []).length > 0 && (
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => handleShowResumes(link.resumes)}
+                            sx={{ ml: 2 }}
+                          >
+                            Show Resumes ({(link.resumes || []).length})
+                          </Button>
+                        )}
                         <Tooltip title={(() => {
                           const upvoters = (link.votes || [])
                             .filter(v => v.vote === 1 && v.userid !== currentUserId)
