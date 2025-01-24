@@ -377,14 +377,14 @@ const BidLinks = () => {
                         )}
                       </Typography>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 2 }}>
-                      {(link.resumes || []).length > 0 && (
+                      {(link.resumes || []).filter(resume => resume.owner === currentUserId).length > 0 && (
                           <Button
                             variant="outlined"
                             size="small"
                             onClick={() => handleShowResumes(link.resumes)}
                             sx={{ ml: 2 }}
                           >
-                            Show Resumes ({(link.resumes || []).length})
+                            Show Resumes ({(link.resumes || []).filter(resume => resume.owner === currentUserId).length})
                           </Button>
                         )}
                         <Tooltip title={(() => {
@@ -507,19 +507,21 @@ const BidLinks = () => {
           Generated Resumes
         </Typography>
         <List>
-          {selectedBidLinkResumes.map((resume) => {
-            const resumeName = getResumeName(resume.resume_id);
-            if (resumeName != 'Unknown') {
-              return (
-                <ListItemButton
-                  key={resume.resume_id}
-                  onClick={() => handleOpenResume(resume.path)}
-                >
-                  <Typography>{resumeName}</Typography>
-                </ListItemButton>
-              )
-            }
-          })}
+          {selectedBidLinkResumes
+            .filter(resume => resume.owner === currentUserId)
+            .map((resume) => {
+              const resumeName = getResumeName(resume.resume_id);
+              if (resumeName != 'Unknown') {
+                return (
+                  <ListItemButton
+                    key={resume.resume_id}
+                    onClick={() => handleOpenResume(resume.path)}
+                  >
+                    <Typography>{resumeName}</Typography>
+                  </ListItemButton>
+                )
+              }
+            })}
         </List>
       </Drawer>
     </Grid>
