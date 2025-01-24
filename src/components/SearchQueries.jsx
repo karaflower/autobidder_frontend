@@ -348,9 +348,7 @@ const useSearchQueries = () => {
   const executeSearch = async (queryId, timeUnit) => {
     try {
       const response = await axios.post(
-        `${process.env.REACT_APP_API_URL}/auto-search/search/${queryId}`,
-        null,
-        { params: { timeUnit: timeUnit || undefined } }
+        `${process.env.REACT_APP_API_URL}/auto-search/search/${queryId}`, { timeUnit }
       );
       await fetchQueries();
       return response.data;
@@ -365,8 +363,7 @@ const useSearchQueries = () => {
       startPolling();
       const response = await axios.post(
         `${process.env.REACT_APP_API_URL}/auto-search/auto-bid`,
-        null,
-        { params: { timeUnit: timeUnit || undefined } }
+        { timeUnit }
       );
       await fetchQueries();
       return response.data;
@@ -387,7 +384,7 @@ const useSearchQueries = () => {
       startPolling();
       const response = await axios.post(
         `${process.env.REACT_APP_API_URL}/job-scraper`,
-        { timeUnit: parseInt(timeUnit) }
+        { timeUnit }
       );
       await fetchQueries();
       return response.data;

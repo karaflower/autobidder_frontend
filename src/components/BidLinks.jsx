@@ -165,10 +165,18 @@ const BidLinks = () => {
 
     // Add date filtering
     const linkDate = new Date(link.created_at);
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59); // Set to end of day
-    const meetsDateCriteria = linkDate >= start && linkDate <= end;
+    const meetsDateCriteria = (() => {
+      if (startDate) {
+        const start = new Date(startDate);
+        if (linkDate < start) return false;
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59); // Set to end of day
+        if (linkDate > end) return false;
+      }
+      return true;
+    })();
 
     return meetsSearchCriteria && meetsVoteCriteria && meetsDateCriteria;
   });
@@ -236,75 +244,6 @@ const BidLinks = () => {
 
   const hasUserBid = (link) => {
     return link.bidinfo?.some(bid => bid.userid === currentUserId);
-  };
-
-  const handleBidSubmit = async (linkId) => {
-    try {
-      const link = bidLinks.find(l => l._id === linkId);
-      if (link) {
-        const url = new URL(link.url);
-        const separator = url.search ? '&' : '?';
-        const bidLinkParam = `bidLinkId=${linkId}`;
-        window.open(`${link.url}${separator}${bidLinkParam}`, '_blank');
-      }
-      
-      handleMarkBid(linkId);
-    } catch (error) {
-      console.error('Failed to submit bid:', error);
-    }
-  };
-
-  const handleCancelBid = async (linkId) => {
-    try {
-      // Optimistically update the UI
-      setBidLinks(prevLinks => prevLinks.map(link => {
-        if (link._id === linkId) {
-          return {
-            ...link,
-            bidinfo: (link.bidinfo || []).filter(bid => bid.userid !== currentUserId)
-          };
-        }
-        return link;
-      }));
-
-      // Make API call
-      axios.delete(`${process.env.REACT_APP_API_URL}/bid-links/${linkId}/bid`);
-      
-      // Fetch actual state from server
-      fetchBidLinks();
-    } catch (error) {
-      console.error('Failed to cancel bid:', error);
-      toast.error('Failed to cancel bid');
-      // Revert optimistic update on error
-      fetchBidLinks();
-    }
-  };
-
-  // Add new handler for just marking as bid
-  const handleMarkBid = async (linkId) => {
-    try {
-      // Optimistically update the UI
-      setBidLinks(prevLinks => prevLinks.map(link => {
-        if (link._id === linkId) {
-          return {
-            ...link,
-            bidinfo: [...(link.bidinfo || []), { userid: currentUserId, bid_date: new Date() }]
-          };
-        }
-        return link;
-      }));
-
-      // Make API call
-      await axios.post(`${process.env.REACT_APP_API_URL}/bid-links/${linkId}/bid`);
-      
-      // Fetch actual state from server
-      await fetchBidLinks();
-    } catch (error) {
-      console.error('Failed to mark as bid:', error);
-      toast.error('Failed to mark as bid');
-      // Revert optimistic update on error
-      await fetchBidLinks();
-    }
   };
 
   return (
@@ -483,39 +422,6 @@ const BidLinks = () => {
                           </Button>
                         </Tooltip>
                       </Box>
-                      <Box sx={{ display: 'flex' }}>
-                        {!hasUserBid(link) && (
-                          <Button
-                            variant="outlined"
-                            color="success"
-                            size="small"
-                            onClick={() => handleMarkBid(link._id)}
-                            sx={{ minWidth: '40px', px: 1, borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
-                          >
-                            ✓
-                          </Button>
-                        )}
-                        <Button
-                          variant={hasUserBid(link) ? "outlined" : "contained"}
-                          color={hasUserBid(link) ? "error" : "success"}
-                          size="small"
-                          onClick={() => hasUserBid(link) ? handleCancelBid(link._id) : handleBidSubmit(link._id)}
-                          startIcon={hasUserBid(link) ? '✗' : null}
-                          sx={{ minWidth: '40px', px: 1, borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }}
-                        >
-                          {hasUserBid(link) ? 'Cancel' : 'Apply'}
-                        </Button>
-                      </Box>
-                      {(link.resumes || []).length > 0 && (
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          onClick={() => handleShowResumes(link.resumes)}
-                          sx={{ ml: 2 }}
-                        >
-                          Show Resumes ({(link.resumes || []).length})
-                        </Button>
-                      )}
                     </Box>
                     <Typography variant="body2" color="text.secondary" gutterBottom>
                       Posted: {link.date || 'N/A'} | Added: {new Date(link.created_at).toLocaleString()} 
