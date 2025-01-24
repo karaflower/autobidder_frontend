@@ -345,13 +345,13 @@ const BidLinks = () => {
                     </Box>
                   </Grid>
                   <Grid item xs={12} md={6}>
-                    <Box sx={{ display: 'flex', gap: 2, height: '100%', alignItems: 'flex-end' }}>
+                    <Box sx={{ display: 'flex', gap: 2, height: '100%', alignItems: 'flex-end'}}>
                       <TextField
                         size="small"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         placeholder="Search..."
-                        fullWidth
+                        sx={{ width: '60%' }}
                         variant='standard'
                       />
                       <Button
