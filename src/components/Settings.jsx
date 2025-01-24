@@ -215,7 +215,7 @@ const Settings = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card sx={{ mb: 2 }}>
           <CardContent>
             <Typography variant="h5" gutterBottom>
               Friends Management
@@ -258,6 +258,25 @@ const Settings = () => {
                 </ListItem>
               ))}
             </List>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent>
+            <Typography variant="h5" gutterBottom>
+              Chrome Extension
+            </Typography>
+            <Typography variant="body1" sx={{ mb: 2 }}>
+              Download and install our Chrome extension to enhance your browsing experience.
+            </Typography>
+            <Button
+              variant="contained"
+              color="primary"
+              href={`${process.env.REACT_APP_API_URL}/bidext/bidext.zip`}
+              download
+            >
+              Download Extension
+            </Button>
           </CardContent>
         </Card>
       </Grid>

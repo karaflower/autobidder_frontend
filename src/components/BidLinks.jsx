@@ -106,7 +106,7 @@ const BidLinks = () => {
 
   const fetchUsers = async () => {
     try {
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/friends/all`);
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/friends`);
       const usersMap = response.data.reduce((acc, user) => {
         acc[user._id] = user.name;
         return acc;
@@ -451,6 +451,7 @@ const BidLinks = () => {
                           }}
                           endIcon={<KeyboardArrowDownIcon />}
                           onMouseEnter={() => setShowFriendsMenu(true)}
+                          onMouseLeave={() => setShowFriendsMenu(false)}
                         >
                           Friends' Links {selectedFriends.length > 0 && `(${selectedFriends.length})`}
                         </Button>
@@ -461,7 +462,6 @@ const BidLinks = () => {
                               top: '100%',
                               left: 0,
                               zIndex: 1000,
-                              mt: 1,
                               minWidth: '200px',
                               maxHeight: '300px',
                               overflow: 'auto'
