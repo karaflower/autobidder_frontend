@@ -20,9 +20,11 @@ import {
   CircularProgress,
   TextField,
   Tooltip,
+  Paper,
+  ListItemText,
+  Divider,
 } from '@mui/material';
 import axios from 'axios';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import Cookies from 'js-cookie';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -30,6 +32,9 @@ import ThumbUpIcon from '@mui/icons-material/ThumbUp';
 import ThumbDownIcon from '@mui/icons-material/ThumbDown';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import CheckIcon from '@mui/icons-material/Check';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 
 const BidLinks = () => {
   const [bidLinks, setBidLinks] = useState([]);
@@ -65,6 +70,15 @@ const BidLinks = () => {
     const stored = localStorage.getItem('hiddenLinks');
     return stored ? JSON.parse(stored) : [];
   });
+  const [showFilter, setShowFilter] = useState(() => {
+    const stored = localStorage.getItem('showFilter');
+    return stored ? JSON.parse(stored) : 'all'; // 'all', 'mine', 'friends'
+  });
+  const [selectedFriends, setSelectedFriends] = useState(() => {
+    const stored = localStorage.getItem('selectedFriends');
+    return stored ? JSON.parse(stored) : [];
+  });
+  const [showFriendsMenu, setShowFriendsMenu] = useState(false);
 
   const fetchBidLinks = async () => {
     try {
@@ -190,6 +204,16 @@ const BidLinks = () => {
     const meetsVoteCriteria = showDownvoted || !isDownvoted;
     const meetsHiddenCriteria = showHiddenLinks || !hiddenLinks.includes(link._id);
 
+    // Update user filter criteria to include selected friends
+    const meetsUserCriteria = (() => {
+      if (showFilter === 'mine') return link.created_by === currentUserId;
+      if (showFilter === 'friends') {
+        if (selectedFriends.length === 0) return users[link.created_by]; // Show all friends if none selected
+        return selectedFriends.includes(link.created_by);
+      }
+      return true; // 'all'
+    })();
+
     // Add date filtering
     const linkDate = new Date(link.created_at);
     const meetsDateCriteria = (() => {
@@ -204,7 +228,8 @@ const BidLinks = () => {
       return true;
     })();
 
-    return meetsSearchCriteria && meetsVoteCriteria && meetsDateCriteria && meetsHiddenCriteria;
+    return meetsSearchCriteria && meetsVoteCriteria && meetsDateCriteria && 
+           meetsHiddenCriteria && meetsUserCriteria;
   });
 
   const handleGenerateResumes = async () => {
@@ -272,112 +297,207 @@ const BidLinks = () => {
     return link.bidinfo?.some(bid => bid.userid === currentUserId);
   };
 
+  // Add handler for friends selection
+  const handleFriendToggle = (friendId) => {
+    setSelectedFriends(prev => {
+      const newSelection = prev.includes(friendId)
+        ? prev.filter(id => id !== friendId)
+        : [...prev, friendId];
+      localStorage.setItem('selectedFriends', JSON.stringify(newSelection));
+      return newSelection;
+    });
+  };
+
   return (
     <Grid container spacing={2}>
       <ToastContainer />
       <Grid item xs={12}>
         <Box sx={{ mb: 2 }}>
           <Grid container spacing={2}>
-            {/* Date Range Box */}
             <Grid item xs={12}>
-              <Box sx={{ p: 2, border: 0, display: 'flex', gap: 2, alignItems: 'center' }}>
-                <Box sx={{ maxWidth: '200px' }}>
-                  <Typography variant="body2">From:</Typography>
-                  <TextField
-                    variant='standard'
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    size="small"
-                    fullWidth
-                  />
-                </Box>
-                <Box sx={{ maxWidth: '200px' }}>
-                  <Typography variant="body2">To:</Typography>
-                  <TextField
-                    type="date"
-                    variant='standard'
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    size="small"
-                    fullWidth
-                  />
-                </Box>
-                <Box sx={{ maxWidth: '180px' }}>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        name="bid-checkbox"
-                        value="all"
-                        onChange={handleSelectAll}
+              <Box sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+                {/* Date and Search Controls */}
+                <Grid container spacing={2} sx={{ mb: 2 }}>
+                  <Grid item xs={12} md={6}>
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="body2">From:</Typography>
+                        <TextField
+                          variant='standard'
+                          type="date"
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                          size="small"
+                          fullWidth
+                        />
+                      </Box>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography variant="body2">To:</Typography>
+                        <TextField
+                          type="date"
+                          variant='standard'
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                          size="small"
+                          fullWidth
+                        />
+                      </Box>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Box sx={{ display: 'flex', gap: 2, height: '100%', alignItems: 'flex-end' }}>
+                      <TextField
+                        size="small"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Search..."
+                        fullWidth
+                        variant='standard'
                       />
-                    }
-                    label={`Select All (${filteredBidLinks.length})`}
-                  />
-                </Box>
-                <Box>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={showDownvoted}
-                        onChange={(e) => {
-                          setShowDownvoted(e.target.checked);
-                          localStorage.setItem('showDownvoted', JSON.stringify(e.target.checked));
+                      <Button
+                        variant="contained"
+                        onClick={() => setOpenDialog(true)}
+                        disabled={generating}
+                        startIcon={generating ? <CircularProgress size={20} color="inherit" /> : null}
+                      >
+                        {generating ? 'Generating...' : 'Generate Resumes'}
+                      </Button>
+                    </Box>
+                  </Grid>
+                </Grid>
+
+                {/* Filter Controls */}
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6}>
+                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            name="bid-checkbox"
+                            value="all"
+                            onChange={handleSelectAll}
+                          />
+                        }
+                        label={`Select All (${filteredBidLinks.length})`}
+                      />
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={sortByVote}
+                            onChange={(e) => {
+                              setSortByVote(e.target.checked);
+                              localStorage.setItem('sortByVote', JSON.stringify(e.target.checked));
+                            }}
+                          />
+                        }
+                        label="Sort by Votes"
+                      />
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={showDownvoted}
+                            onChange={(e) => {
+                              setShowDownvoted(e.target.checked);
+                              localStorage.setItem('showDownvoted', JSON.stringify(e.target.checked));
+                            }}
+                          />
+                        }
+                        label="Show Downvoted"
+                      />
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={showHiddenLinks}
+                            onChange={(e) => {
+                              setShowHiddenLinks(e.target.checked);
+                              localStorage.setItem('showHiddenLinks', JSON.stringify(e.target.checked));
+                            }}
+                          />
+                        }
+                        label="Show Hidden"
+                      />
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Box sx={{ display: 'flex', gap: 2, position: 'relative' }}>
+                      <Button
+                        variant={showFilter === 'all' ? 'contained' : 'outlined'}
+                        onClick={() => {
+                          setShowFilter('all');
+                          localStorage.setItem('showFilter', JSON.stringify('all'));
                         }}
-                      />
-                    }
-                    label="Show Downvoted Links"
-                  />
-                </Box>
-                <Box>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={showHiddenLinks}
-                        onChange={(e) => {
-                          setShowHiddenLinks(e.target.checked);
-                          localStorage.setItem('showHiddenLinks', JSON.stringify(e.target.checked));
+                      >
+                        All Links
+                      </Button>
+                      <Button
+                        variant={showFilter === 'mine' ? 'contained' : 'outlined'}
+                        onClick={() => {
+                          setShowFilter('mine');
+                          localStorage.setItem('showFilter', JSON.stringify('mine'));
                         }}
-                      />
-                    }
-                    label="Show Hidden Links"
-                  />
-                </Box>
-                <Box>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={sortByVote}
-                        onChange={(e) => {
-                          setSortByVote(e.target.checked);
-                          localStorage.setItem('sortByVote', JSON.stringify(e.target.checked));
-                        }}
-                      />
-                    }
-                    label="Sort by Votes"
-                  />
-                </Box>
-                <Box sx={{ maxWidth: '200px' }}>
-                  <Button
-                    variant="contained"
-                    onClick={() => setOpenDialog(true)}
-                    fullWidth
-                    disabled={generating}
-                    startIcon={generating ? <CircularProgress size={20} color="inherit" /> : null}
-                  >
-                    {generating ? 'Generating...' : 'Generate Resumes'}
-                  </Button>
-                </Box>
-                <Box sx={{ maxWidth: '200px', flex: 1 }}>
-                  <TextField
-                    size="small"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Search..."
-                    fullWidth
-                    variant='standard'
-                  />
-                </Box>
+                      >
+                        My Links
+                      </Button>
+                      <Box sx={{ position: 'relative' }}>
+                        <Button
+                          variant={showFilter === 'friends' ? 'contained' : 'outlined'}
+                          onClick={() => {
+                            setShowFilter('friends');
+                            localStorage.setItem('showFilter', JSON.stringify('friends'));
+                          }}
+                          endIcon={<KeyboardArrowDownIcon />}
+                          onMouseEnter={() => setShowFriendsMenu(true)}
+                        >
+                          Friends' Links {selectedFriends.length > 0 && `(${selectedFriends.length})`}
+                        </Button>
+                        {showFilter === 'friends' && showFriendsMenu && (
+                          <Paper
+                            sx={{
+                              position: 'absolute',
+                              top: '100%',
+                              left: 0,
+                              zIndex: 1000,
+                              mt: 1,
+                              minWidth: '200px',
+                              maxHeight: '300px',
+                              overflow: 'auto'
+                            }}
+                            onMouseEnter={() => setShowFriendsMenu(true)}
+                            onMouseLeave={() => setShowFriendsMenu(false)}
+                          >
+                            <List dense>
+                              <ListItem>
+                                <ListItemButton
+                                  onClick={() => setSelectedFriends([])}
+                                >
+                                  <ListItemText primary="All Friends" />
+                                  {selectedFriends.length === 0 && <CheckIcon color="primary" />}
+                                </ListItemButton>
+                              </ListItem>
+                              <Divider />
+                              {Object.entries(users).map(([userId, userName]) => (
+                                userId !== currentUserId && (
+                                  <ListItem key={userId}>
+                                    <ListItemButton
+                                      onClick={() => handleFriendToggle(userId)}
+                                    >
+                                      <ListItemText primary={userName} />
+                                      {selectedFriends.includes(userId) && <CheckIcon color="primary" />}
+                                    </ListItemButton>
+                                  </ListItem>
+                                )
+                              ))}
+                            </List>
+                          </Paper>
+                        )}
+                      </Box>
+                    </Box>
+                  </Grid>
+                </Grid>
               </Box>
             </Grid>
           </Grid>

@@ -755,15 +755,57 @@ const SearchQueries = () => {
                       {query.link}
                     </Typography>
                     {query.last_search_info && query.last_search_info.length > 0 && (
-                      <Box sx={{ mt: 1 }}>
-                        <Typography variant="body2" color="text.secondary">
-                          Last Search: {query.last_search_info?.[0]?.date ? 
-                            getRelativeTimeString(new Date(query.last_search_info[0].date)) : 
-                            'Never'}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Last Jobs Found: {query.last_search_info?.[0]?.count || 0}
-                        </Typography>
+                      <Box sx={{ 
+                        mt: 1,
+                        display: 'flex',
+                        gap: 2,
+                        '& > div': {
+                          flex: 1,
+                          p: 1,
+                          borderRadius: 1,
+                          border: '1px solid',
+                          borderColor: 'divider',
+                        }
+                      }}>
+                        <Box>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'bold' }}>
+                            Last Search
+                          </Typography>
+                          <Typography variant="body2" color="text.primary">
+                            {query.last_search_info?.[0]?.date ? 
+                              getRelativeTimeString(new Date(query.last_search_info[0].date)) : 
+                              'Never'}
+                          </Typography>
+                        </Box>
+
+                        <Box>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'bold' }}>
+                            Jobs Found
+                          </Typography>
+                          <Typography variant="body2" color="text.primary">
+                            {query.last_search_info?.[0]?.count || 0}
+                          </Typography>
+                        </Box>
+
+                        <Box>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'bold' }}>
+                            Searched By
+                          </Typography>
+                          <Typography variant="body2" color="text.primary">
+                            {users[query.last_search_info?.[0]?.searchedBy] || 'Unknown User'}
+                          </Typography>
+                        </Box>
+
+                        <Box>
+                          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'bold' }}>
+                            Time Range
+                          </Typography>
+                          <Typography variant="body2" color="text.primary">
+                            {query.last_search_info?.[0]?.dayRange ? 
+                              `${query.last_search_info[0].dayRange} ${query.last_search_info[0].dayRange === 1 ? 'day' : 'days'}` :
+                              'N/A'}
+                          </Typography>
+                        </Box>
                       </Box>
                     )}
                   </Box>
