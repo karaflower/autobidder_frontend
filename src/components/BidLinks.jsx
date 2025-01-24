@@ -171,8 +171,7 @@ const BidLinks = () => {
         if (linkDate < start) return false;
       }
       if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59); // Set to end of day
+        const end = new Date(endDate).setDate(new Date(endDate).getDate() + 1);
         if (linkDate > end) return false;
       }
       return true;
