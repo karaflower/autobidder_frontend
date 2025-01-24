@@ -28,6 +28,8 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import ThumbUpIcon from '@mui/icons-material/ThumbUp';
 import ThumbDownIcon from '@mui/icons-material/ThumbDown';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 
 const BidLinks = () => {
   const [bidLinks, setBidLinks] = useState([]);
@@ -47,8 +49,22 @@ const BidLinks = () => {
   const [selectedBidLinkResumes, setSelectedBidLinkResumes] = useState([]);
   const [currentUserId, setCurrentUserId] = useState('user123'); // Replace with actual user ID
   const [users, setUsers] = useState({});  // Add this state for users lookup
-  const [showDownvoted, setShowDownvoted] = useState(false);
-  const [sortByVote, setSortByVote] = useState(true);
+  const [showDownvoted, setShowDownvoted] = useState(() => {
+    const stored = localStorage.getItem('showDownvoted');
+    return stored ? JSON.parse(stored) : false;
+  });
+  const [sortByVote, setSortByVote] = useState(() => {
+    const stored = localStorage.getItem('sortByVote');
+    return stored ? JSON.parse(stored) : true;
+  });
+  const [showHiddenLinks, setShowHiddenLinks] = useState(() => {
+    const stored = localStorage.getItem('showHiddenLinks');
+    return stored ? JSON.parse(stored) : false;
+  });
+  const [hiddenLinks, setHiddenLinks] = useState(() => {
+    const stored = localStorage.getItem('hiddenLinks');
+    return stored ? JSON.parse(stored) : [];
+  });
 
   const fetchBidLinks = async () => {
     try {
@@ -151,6 +167,16 @@ const BidLinks = () => {
     }
   };
 
+  const handleToggleHide = (linkId) => {
+    setHiddenLinks(prev => {
+      const newHiddenLinks = prev.includes(linkId)
+        ? prev.filter(id => id !== linkId)
+        : [...prev, linkId];
+      localStorage.setItem('hiddenLinks', JSON.stringify(newHiddenLinks));
+      return newHiddenLinks;
+    });
+  };
+
   const filteredBidLinks = bidLinks.filter(link => {
     const searchLower = searchTerm.toLowerCase();
     const meetsSearchCriteria = searchTerm === '' || 
@@ -162,6 +188,7 @@ const BidLinks = () => {
     const isDownvoted = downvoteCount > upvoteCount;
 
     const meetsVoteCriteria = showDownvoted || !isDownvoted;
+    const meetsHiddenCriteria = showHiddenLinks || !hiddenLinks.includes(link._id);
 
     // Add date filtering
     const linkDate = new Date(link.created_at);
@@ -177,7 +204,7 @@ const BidLinks = () => {
       return true;
     })();
 
-    return meetsSearchCriteria && meetsVoteCriteria && meetsDateCriteria;
+    return meetsSearchCriteria && meetsVoteCriteria && meetsDateCriteria && meetsHiddenCriteria;
   });
 
   const handleGenerateResumes = async () => {
@@ -293,7 +320,10 @@ const BidLinks = () => {
                     control={
                       <Checkbox
                         checked={showDownvoted}
-                        onChange={(e) => setShowDownvoted(e.target.checked)}
+                        onChange={(e) => {
+                          setShowDownvoted(e.target.checked);
+                          localStorage.setItem('showDownvoted', JSON.stringify(e.target.checked));
+                        }}
                       />
                     }
                     label="Show Downvoted Links"
@@ -303,8 +333,25 @@ const BidLinks = () => {
                   <FormControlLabel
                     control={
                       <Checkbox
+                        checked={showHiddenLinks}
+                        onChange={(e) => {
+                          setShowHiddenLinks(e.target.checked);
+                          localStorage.setItem('showHiddenLinks', JSON.stringify(e.target.checked));
+                        }}
+                      />
+                    }
+                    label="Show Hidden Links"
+                  />
+                </Box>
+                <Box>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
                         checked={sortByVote}
-                        onChange={(e) => setSortByVote(e.target.checked)}
+                        onChange={(e) => {
+                          setSortByVote(e.target.checked);
+                          localStorage.setItem('sortByVote', JSON.stringify(e.target.checked));
+                        }}
                       />
                     }
                     label="Sort by Votes"
@@ -344,7 +391,19 @@ const BidLinks = () => {
           ) : (
             filteredBidLinks.map((link) => (
               <Grid item xs={12} key={link._id}>
-                <Card>
+                <Card sx={{
+                  opacity: (() => {
+                    const downvoteCount = (link.votes || []).filter(v => v.vote === -1).length;
+                    const upvoteCount = (link.votes || []).filter(v => v.vote === 1).length;
+                    const isDownvoted = downvoteCount > upvoteCount;
+                    const isHidden = hiddenLinks.includes(link._id);
+                    
+                    if ((isDownvoted && showDownvoted) || (isHidden && showHiddenLinks)) {
+                      return 0.6;
+                    }
+                    return 1;
+                  })()
+                }}>
                   <CardContent>
                     <Box display="flex" alignItems="center" justifyContent="space-between">
                       <FormControlLabel
@@ -433,6 +492,15 @@ const BidLinks = () => {
                                 </Typography>
                               );
                             })()}
+                          </Button>
+                        </Tooltip>
+                        <Tooltip title={hiddenLinks.includes(link._id) ? "Show Link" : "Hide Link"}>
+                          <Button
+                            size="small"
+                            onClick={() => handleToggleHide(link._id)}
+                            sx={{ minWidth: 'auto', p: 0.5, marginLeft: "8px" }}
+                          >
+                            {hiddenLinks.includes(link._id) ? <VisibilityOffIcon color="action" /> : <VisibilityIcon color="action" />}
                           </Button>
                         </Tooltip>
                       </Box>
