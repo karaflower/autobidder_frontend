@@ -90,8 +90,6 @@ const BidLinks = () => {
   const [openBlacklistDialog, setOpenBlacklistDialog] = useState(false);
   const [blacklists, setBlacklists] = useState([]);
   const [newBlacklist, setNewBlacklist] = useState('');
-  const [blacklistPage, setBlacklistPage] = useState(0);
-  const [blacklistRowsPerPage, setBlacklistRowsPerPage] = useState(10);
 
   const fetchBidLinks = async () => {
     try {
@@ -381,15 +379,21 @@ const BidLinks = () => {
     });
   };
 
-  const renderBlacklistDialog = () => (
-    <Dialog 
+  const renderBlacklistPanel = () => (
+    <Drawer 
+      anchor="right"
       open={openBlacklistDialog} 
       onClose={() => setOpenBlacklistDialog(false)}
-      maxWidth="md"
-      fullWidth
+      sx={{
+        '& .MuiDrawer-paper': {
+          width: '400px',
+          padding: 2,
+        },
+      }}
     >
-      <DialogTitle>Manage Blacklisted URLs</DialogTitle>
-      <DialogContent>
+      <Box sx={{ p: 2 }}>
+        <Typography variant="h6" gutterBottom>Manage Blacklisted URLs</Typography>
+        <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
           <TextField
             fullWidth
             label="Add to blacklist"
@@ -397,47 +401,41 @@ const BidLinks = () => {
             onChange={(e) => setNewBlacklist(e.target.value)}
             variant="standard"
             size="small"
-            sx={{ mr: 1 }}
           />
-          {/* <TextField
-                        size="small"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        placeholder="Search..."
-                        sx={{ width: '60%' }}
-                        variant='standard'
-                      /> */}
           <Button
             variant="contained"
             onClick={handleAddBlacklist}
-            sx={{ mt: 1 }}
           >
-            Add to Blacklist
+            Add
           </Button>
+        </Box>
         
-        <BlacklistList 
-          blacklists={blacklists}
-          page={blacklistPage}
-          rowsPerPage={blacklistRowsPerPage}
-          onDelete={handleDeleteBlacklist}
-        />
-        
-        <TablePagination
-          component="div"
-          count={blacklists.length}
-          page={blacklistPage}
-          onPageChange={(e, newPage) => setBlacklistPage(newPage)}
-          rowsPerPage={blacklistRowsPerPage}
-          onRowsPerPageChange={(e) => {
-            setBlacklistRowsPerPage(parseInt(e.target.value, 10));
-            setBlacklistPage(0);
-          }}
-        />
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={() => setOpenBlacklistDialog(false)}>Close</Button>
-      </DialogActions>
-    </Dialog>
+        <List sx={{ maxHeight: 'calc(100vh - 200px)', overflow: 'auto' }}>
+          {blacklists.map((url, index) => (
+            <ListItem
+              key={index}
+              secondaryAction={
+                <IconButton 
+                  edge="end" 
+                  aria-label="delete"
+                  onClick={() => onDelete(url)}
+                >
+                  <DeleteIcon />
+                </IconButton>
+              }
+            >
+              <ListItemText 
+                primary={url} 
+                sx={{ 
+                  wordBreak: 'break-all',
+                  pr: 2
+                }}
+              />
+            </ListItem>
+          ))}
+        </List>
+      </Box>
+    </Drawer>
   );
 
   const blacklistButton = (
@@ -891,33 +889,9 @@ const BidLinks = () => {
         </List>
       </Drawer>
 
-      {renderBlacklistDialog()}
+      {renderBlacklistPanel()}
     </Grid>
   );
 };
-
-const BlacklistList = React.memo(({ blacklists, page, rowsPerPage, onDelete }) => (
-  <List sx={{ maxHeight: '400px', overflow: 'auto' }}>
-    {blacklists
-      .slice(page * rowsPerPage, (page + 1) * rowsPerPage)
-      .map((url, index) => (
-        <ListItem
-          key={index}
-          secondaryAction={
-            <IconButton 
-              edge="end" 
-              aria-label="delete"
-              onClick={() => onDelete(url)}
-            >
-              <DeleteIcon />
-            </IconButton>
-          }
-        >
-          <ListItemText primary={url} />
-        </ListItem>
-      ))
-    }
-  </List>
-));
 
 export default BidLinks; 
