@@ -23,7 +23,6 @@ import {
   Paper,
   ListItemText,
   Divider,
-  TablePagination,
   IconButton,
 } from '@mui/material';
 import axios from 'axios';
@@ -39,6 +38,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DoNotTouchIcon from '@mui/icons-material/DoNotTouch';
+import TravelExploreIcon from '@mui/icons-material/TravelExplore';
 
 const BidLinks = () => {
   const [bidLinks, setBidLinks] = useState([]);
@@ -90,6 +90,9 @@ const BidLinks = () => {
   const [openBlacklistDialog, setOpenBlacklistDialog] = useState(false);
   const [blacklists, setBlacklists] = useState([]);
   const [newBlacklist, setNewBlacklist] = useState('');
+  const [openSearchDialog, setOpenSearchDialog] = useState(false);
+  const [globalSearchResults, setGlobalSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   const fetchBidLinks = async () => {
     try {
@@ -266,6 +269,7 @@ const BidLinks = () => {
     const searchLower = searchTerm.toLowerCase();
     const meetsSearchCriteria = searchTerm === '' || 
       link.title.toLowerCase().includes(searchLower) ||
+      link.url.toLowerCase().includes(searchLower) ||
       link.description.toLowerCase().includes(searchLower);
 
     const downvoteCount = (link.votes || []).filter(v => v.vote === -1).length;
@@ -379,6 +383,47 @@ const BidLinks = () => {
     });
   };
 
+  const handleAddCompanyToBlacklist = async (company) => {
+    if (!company) return;
+    try {
+      await axios.post(`${process.env.REACT_APP_API_URL}/bid-links/blacklist`, {
+        blacklists: [company.trim()]
+      });
+      await fetchBlacklists();
+      await fetchBidLinks();
+      toast.success('Company added to blacklist');
+    } catch (error) {
+      console.error('Failed to add company to blacklist:', error);
+      toast.error('Failed to add company to blacklist');
+    }
+  };
+
+  const handleGlobalSearch = async () => {
+    if (!searchTerm.trim()) {
+      toast.error('Please enter a search term');
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await axios.get(
+        `${process.env.REACT_APP_API_URL}/bid-links/search`, {
+          params: {
+            searchTerm: searchTerm,
+            showBlacklisted: showBlacklisted
+          }
+        }
+      );
+      setGlobalSearchResults(Array.isArray(response.data) ? response.data : []);
+      setOpenSearchDialog(true);
+    } catch (error) {
+      console.error('Failed to perform global search:', error);
+      toast.error('Failed to perform global search');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
   const renderBlacklistPanel = () => (
     <Drawer 
       anchor="right"
@@ -418,7 +463,7 @@ const BidLinks = () => {
                 <IconButton 
                   edge="end" 
                   aria-label="delete"
-                  onClick={() => onDelete(url)}
+                  onClick={() => handleDeleteBlacklist(url)}
                 >
                   <DeleteIcon />
                 </IconButton>
@@ -459,6 +504,18 @@ const BidLinks = () => {
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [openBlacklistDialog, newBlacklist, handleAddBlacklist]);
+
+  // Add this useEffect for the keyboard shortcut
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (e.ctrlKey && e.key === 'Enter' && searchTerm.trim()) {
+        handleGlobalSearch();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [searchTerm, handleGlobalSearch]);
 
   return (
     <Grid container spacing={2}>
@@ -514,9 +571,20 @@ const BidLinks = () => {
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         placeholder="Search..."
-                        sx={{ width: '60%' }}
+                        sx={{ width: '40%' }}
                         variant='standard'
                       />
+                      <Tooltip title="Global Search (Ctrl+Enter)">
+                        <Button
+                          variant="outlined"
+                          onClick={handleGlobalSearch}
+                          disabled={isSearching}
+                          startIcon={isSearching ? <CircularProgress size={20} /> : null}
+                          size="small"
+                        >
+                          {isSearching ? 'Searching...' : <TravelExploreIcon />}
+                        </Button>
+                      </Tooltip>
                       <Button
                         variant="contained"
                         onClick={() => setOpenDialog(true)}
@@ -732,7 +800,7 @@ const BidLinks = () => {
                         )}
                       </Typography>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 2 }}>
-                      {(link.resumes || []).filter(resume => resume.owner === currentUserId).length > 0 && (
+                        {(link.resumes || []).filter(resume => resume.owner === currentUserId).length > 0 && (
                           <Button
                             variant="outlined"
                             size="small"
@@ -790,6 +858,17 @@ const BidLinks = () => {
                             })()}
                           </Button>
                         </Tooltip>
+                        {link.company && (
+                          <Tooltip title={`Add ${link.company} to blacklist`}>
+                            <Button
+                              size="small"
+                              onClick={() => handleAddCompanyToBlacklist(link.company)}
+                              sx={{ minWidth: 'auto', p: 0.5, marginLeft: "8px" }}
+                            >
+                              <DoNotTouchIcon color="action" />
+                            </Button>
+                          </Tooltip>
+                        )}
                         <Tooltip title={hiddenLinks.includes(link._id) ? "Show Link" : "Hide Link"}>
                           <Button
                             size="small"
@@ -802,7 +881,7 @@ const BidLinks = () => {
                       </Box>
                     </Box>
                     <Typography variant="body2" color="text.secondary" gutterBottom>
-                      Posted: {link.date || 'N/A'} | Added: {new Date(link.created_at).toLocaleString()} 
+                      Company: {link.company || 'N/A'} | Posted: {link.date || 'N/A'} | Added: {new Date(link.created_at).toLocaleString()} 
                       {link.created_by && users[link.created_by] && (
                         <> | Searched by: {users[link.created_by]}</>
                       )}
@@ -890,6 +969,53 @@ const BidLinks = () => {
       </Drawer>
 
       {renderBlacklistPanel()}
+
+      <Dialog 
+        open={openSearchDialog} 
+        onClose={() => setOpenSearchDialog(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          Global Search Results ({globalSearchResults.length})
+        </DialogTitle>
+        <DialogContent>
+          <List sx={{ maxHeight: '60vh', overflow: 'auto' }}>
+            {globalSearchResults.map((link) => (
+              <ListItem key={link._id} divider>
+                <ListItemText
+                  primary={
+                    <Link 
+                      href={`${link.url}${link.url.includes('?') ? '&' : '?'}bidLinkId=${link._id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {link.title}
+                    </Link>
+                  }
+                  secondary={
+                    <>
+                      <Typography variant="body2" color="text.secondary">
+                        Company: {link.company || 'N/A'} | Posted: {link.date || 'N/A'} | 
+                        Added: {new Date(link.created_at).toLocaleString()}
+                        {link.created_by && users[link.created_by] && (
+                          <> | By: {users[link.created_by]}</>
+                        )}
+                      </Typography>
+                      <Typography variant="body2">
+                        {link.description}
+                      </Typography>
+                    </>
+                  }
+                />
+              </ListItem>
+            ))}
+          </List>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenSearchDialog(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Grid>
   );
 };

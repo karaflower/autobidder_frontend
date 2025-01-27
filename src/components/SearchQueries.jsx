@@ -14,6 +14,11 @@ import {
   DialogActions,
   Snackbar,
   Alert,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
 } from '@mui/material';
 import axios from 'axios';
 import {
@@ -464,6 +469,7 @@ const SearchQueries = () => {
   const [jobScrapingLoading, setJobScrapingLoading] = useState(false);
   const [jobScrapingDialogOpen, setJobScrapingDialogOpen] = useState(false);
   const [jobScrapingTimeUnit, setJobScrapingTimeUnit] = useState('');
+  const [timelineDialogOpen, setTimelineDialogOpen] = useState(false);
 
   useEffect(() => {
     const calculateNextAutoSearch = () => {
@@ -719,6 +725,12 @@ const SearchQueries = () => {
               'Run Web3 Jobsite Scraping'
             )}
           </Button>
+          <Button
+            variant="outlined"
+            onClick={() => setTimelineDialogOpen(true)}
+          >
+            Activity Timeline
+          </Button>
         </Box>
         <Button
           variant="contained"
@@ -728,8 +740,6 @@ const SearchQueries = () => {
           Add Search Query
         </Button>
       </Box>
-
-      <SearchTimeline queries={queries} users={users} />
 
       <Grid container spacing={3}>
         {queries
@@ -809,7 +819,7 @@ const SearchQueries = () => {
                       </Box>
                     )}
                   </Box>
-                  <Box sx={{ display: 'flex', gap: 1, ml: 2 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, ml: 2 }}>
                     <Button
                       variant="contained"
                       color="primary"
@@ -991,6 +1001,13 @@ const SearchQueries = () => {
         options={JOB_SCRAPING_TIME_OPTIONS}
       />
 
+      <TimelineDialog
+        open={timelineDialogOpen}
+        onClose={() => setTimelineDialogOpen(false)}
+        queries={queries}
+        users={users}
+      />
+
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
@@ -1007,5 +1024,22 @@ const SearchQueries = () => {
     </>
   );
 };
+
+const TimelineDialog = ({ open, onClose, queries, users }) => (
+  <Dialog
+    open={open}
+    onClose={onClose}
+    maxWidth="lg"
+    fullWidth
+  >
+    <DialogTitle>Activity Timeline</DialogTitle>
+    <DialogContent>
+      <SearchTimeline queries={queries} users={users} />
+    </DialogContent>
+    <DialogActions>
+      <Button onClick={onClose}>Close</Button>
+    </DialogActions>
+  </Dialog>
+);
 
 export default SearchQueries; 
