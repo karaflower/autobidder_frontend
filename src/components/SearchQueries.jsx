@@ -181,7 +181,7 @@ const SearchTimeline = ({ queries, users }) => {
           Search Timeline (Last {dateRange} {dateRange === 1 ? 'day' : 'days'})
         </Typography>
         <Box 
-          sx={{ height: Math.max(300, uniqueQueries.length * 60), mt: 2 }}
+          sx={{ height: Math.max(300, uniqueQueries.length * 30), mt: 2 }}
           ref={containerRef}
         >
           <ResponsiveContainer width="100%" height="100%">

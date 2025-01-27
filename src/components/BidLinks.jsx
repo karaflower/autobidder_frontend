@@ -23,6 +23,8 @@ import {
   Paper,
   ListItemText,
   Divider,
+  TablePagination,
+  IconButton,
 } from '@mui/material';
 import axios from 'axios';
 import Cookies from 'js-cookie';
@@ -35,6 +37,8 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import CheckIcon from '@mui/icons-material/Check';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import DeleteIcon from '@mui/icons-material/Delete';
+import DoNotTouchIcon from '@mui/icons-material/DoNotTouch';
 
 const BidLinks = () => {
   const [bidLinks, setBidLinks] = useState([]);
@@ -79,13 +83,37 @@ const BidLinks = () => {
     return stored ? JSON.parse(stored) : [];
   });
   const [showFriendsMenu, setShowFriendsMenu] = useState(false);
+  const [showBlacklisted, setShowBlacklisted] = useState(() => {
+    const stored = localStorage.getItem('showBlacklisted');
+    return stored ? JSON.parse(stored) : false;
+  });
+  const [openBlacklistDialog, setOpenBlacklistDialog] = useState(false);
+  const [blacklists, setBlacklists] = useState([]);
+  const [newBlacklist, setNewBlacklist] = useState('');
+  const [blacklistPage, setBlacklistPage] = useState(0);
+  const [blacklistRowsPerPage, setBlacklistRowsPerPage] = useState(10);
 
   const fetchBidLinks = async () => {
     try {
       if (bidLinks.length == 0) {
         setIsLoading(true);
       }
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/bid-links`);
+
+      // Convert dates to UTC
+      const fromDate = startDate ? new Date(startDate).toISOString() : null;
+      const toDate = endDate ? new Date(endDate).toISOString() : null;
+
+      const params = new URLSearchParams({
+        showBlacklisted: showBlacklisted
+      });
+      
+      if (fromDate) params.append('from', fromDate);
+      if (toDate) params.append('to', toDate);
+
+      const response = await axios.get(
+        `${process.env.REACT_APP_API_URL}/bid-links?${params.toString()}`
+      );
+
       const sortedLinks = response.data.sort((a, b) => {
         if (sortByVote) {
           // Sort by votes (recommended first)
@@ -135,7 +163,52 @@ const BidLinks = () => {
 
   useEffect(() => {
     fetchBidLinks();
-  }, [sortByVote]);
+  }, [sortByVote, startDate, endDate, showBlacklisted]);
+
+  useEffect(() => {
+    fetchBlacklists();
+  }, []);
+
+  const fetchBlacklists = async () => {
+    try {
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/bid-links/blacklist`);
+      setBlacklists(response.data.blacklists || []);
+    } catch (error) {
+      console.error('Failed to fetch blacklists:', error);
+      toast.error('Failed to fetch blacklists');
+    }
+  };
+
+  const handleAddBlacklist = async () => {
+    if (!newBlacklist.trim()) return;
+
+    try {
+      await axios.post(`${process.env.REACT_APP_API_URL}/bid-links/blacklist`, {
+        blacklists: [newBlacklist.trim()]
+      });
+      setNewBlacklist('');
+      await fetchBlacklists();
+      await fetchBidLinks();
+      toast.success('URL added to blacklist');
+    } catch (error) {
+      console.error('Failed to add to blacklist:', error);
+      toast.error('Failed to add to blacklist');
+    }
+  };
+
+  const handleDeleteBlacklist = async (urlToDelete) => {
+    try {
+      await axios.delete(`${process.env.REACT_APP_API_URL}/bid-links/blacklist`, {
+        data: { blacklists: [urlToDelete] }
+      });
+      await fetchBlacklists();
+      await fetchBidLinks();
+      toast.success('URL removed from blacklist');
+    } catch (error) {
+      console.error('Failed to remove from blacklist:', error);
+      toast.error('Failed to remove from blacklist');
+    }
+  };
 
   const handleVote = async (linkId, vote) => {
     try {
@@ -308,11 +381,103 @@ const BidLinks = () => {
     });
   };
 
+  const renderBlacklistDialog = () => (
+    <Dialog 
+      open={openBlacklistDialog} 
+      onClose={() => setOpenBlacklistDialog(false)}
+      maxWidth="md"
+      fullWidth
+    >
+      <DialogTitle>Manage Blacklisted URLs</DialogTitle>
+      <DialogContent>
+          <TextField
+            fullWidth
+            label="Add to blacklist"
+            value={newBlacklist}
+            onChange={(e) => setNewBlacklist(e.target.value)}
+            variant="standard"
+            size="small"
+            sx={{ mr: 1 }}
+          />
+          {/* <TextField
+                        size="small"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Search..."
+                        sx={{ width: '60%' }}
+                        variant='standard'
+                      /> */}
+          <Button
+            variant="contained"
+            onClick={handleAddBlacklist}
+            sx={{ mt: 1 }}
+          >
+            Add to Blacklist
+          </Button>
+        
+        <BlacklistList 
+          blacklists={blacklists}
+          page={blacklistPage}
+          rowsPerPage={blacklistRowsPerPage}
+          onDelete={handleDeleteBlacklist}
+        />
+        
+        <TablePagination
+          component="div"
+          count={blacklists.length}
+          page={blacklistPage}
+          onPageChange={(e, newPage) => setBlacklistPage(newPage)}
+          rowsPerPage={blacklistRowsPerPage}
+          onRowsPerPageChange={(e) => {
+            setBlacklistRowsPerPage(parseInt(e.target.value, 10));
+            setBlacklistPage(0);
+          }}
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setOpenBlacklistDialog(false)}>Close</Button>
+      </DialogActions>
+    </Dialog>
+  );
+
+  const blacklistButton = (
+    <Button
+      variant="outlined"
+      startIcon={<DoNotTouchIcon />}
+      onClick={() => setOpenBlacklistDialog(true)}
+      size="small"
+    >
+      Manage Blacklist ({blacklists.length})
+    </Button>
+  );
+
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (openBlacklistDialog && e.key === 'Enter' && newBlacklist.trim()) {
+        handleAddBlacklist();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [openBlacklistDialog, newBlacklist, handleAddBlacklist]);
+
   return (
     <Grid container spacing={2}>
       <ToastContainer />
       <Grid item xs={12}>
-        <Box sx={{ mb: 2 }}>
+        <Box 
+          sx={{ 
+            mb: 2, 
+            position: 'sticky',
+            top: 0,
+            zIndex: 1000,
+            backgroundColor: 'background.default',
+            pt: 2,
+            pb: 2,
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+          }}
+        >
           <Grid container spacing={2}>
             <Grid item xs={12}>
               <Box sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
@@ -406,7 +571,7 @@ const BidLinks = () => {
                             }}
                           />
                         }
-                        label="Show Downvoted"
+                        label="Downvoted"
                       />
                       <FormControlLabel
                         control={
@@ -418,8 +583,21 @@ const BidLinks = () => {
                             }}
                           />
                         }
-                        label="Show Hidden"
+                        label="Hidden"
                       />
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={showBlacklisted}
+                            onChange={(e) => {
+                              setShowBlacklisted(e.target.checked);
+                              localStorage.setItem('showBlacklisted', JSON.stringify(e.target.checked));
+                            }}
+                          />
+                        }
+                        label="Blacklisted"
+                      />
+                      {blacklistButton}
                     </Box>
                   </Grid>
                   <Grid item xs={12}>
@@ -712,8 +890,34 @@ const BidLinks = () => {
             })}
         </List>
       </Drawer>
+
+      {renderBlacklistDialog()}
     </Grid>
   );
 };
+
+const BlacklistList = React.memo(({ blacklists, page, rowsPerPage, onDelete }) => (
+  <List sx={{ maxHeight: '400px', overflow: 'auto' }}>
+    {blacklists
+      .slice(page * rowsPerPage, (page + 1) * rowsPerPage)
+      .map((url, index) => (
+        <ListItem
+          key={index}
+          secondaryAction={
+            <IconButton 
+              edge="end" 
+              aria-label="delete"
+              onClick={() => onDelete(url)}
+            >
+              <DeleteIcon />
+            </IconButton>
+          }
+        >
+          <ListItemText primary={url} />
+        </ListItem>
+      ))
+    }
+  </List>
+));
 
 export default BidLinks; 
