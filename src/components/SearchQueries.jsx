@@ -54,11 +54,20 @@ const getRelativeTimeString = (date) => {
   const now = new Date();
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
   
+  // Handle days + hours specially
+  if (diffInSeconds >= 86400) { // More than a day
+    const days = Math.floor(diffInSeconds / 86400);
+    const remainingHours = Math.floor((diffInSeconds % 86400) / 3600);
+    
+    if (remainingHours === 0) {
+      return days === 1 ? '1 day ago' : `${days} days ago`;
+    }
+    return days === 1 
+      ? `1 day ${remainingHours} ${remainingHours === 1 ? 'hour' : 'hours'} ago`
+      : `${days} days ${remainingHours} ${remainingHours === 1 ? 'hour' : 'hours'} ago`;
+  }
+
   const intervals = {
-    year: 31536000,
-    month: 2592000,
-    week: 604800,
-    day: 86400,
     hour: 3600,
     minute: 60
   };
@@ -118,25 +127,28 @@ const TimeSelectionDialog = ({
 );
 
 const SearchTimeline = ({ queries, users }) => {
-  const [dateRange, setDateRange] = useState(2); // Days range instead of search limit
+  const [dateRange, setDateRange] = useState(2);
   const containerRef = useRef(null);
 
-  // Modified wheel event handler for date range
+  // Modified wheel event handler to check for shift key
   useEffect(() => {
     const chartContainer = containerRef.current;
     if (chartContainer) {
       const handleScroll = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        // Adjust dateRange based on scroll direction
-        const delta = Math.sign(e.deltaY);
-        setDateRange(prev => {
-          const newRange = prev + (delta * 1); // Change by 1 day at a time
-          return Math.max(1, Math.min(10, newRange)); // Keep between 1 and 10 days
-        });
-        
-        return false;
+        // Only prevent default and adjust date range if shift key is pressed
+        if (e.shiftKey) {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          // Adjust dateRange based on scroll direction
+          const delta = Math.sign(e.deltaY);
+          setDateRange(prev => {
+            const newRange = prev + (delta * 1); // Change by 1 day at a time
+            return Math.max(1, Math.min(10, newRange)); // Keep between 1 and 10 days
+          });
+          
+          return false;
+        }
       };
 
       chartContainer.addEventListener('wheel', handleScroll, { passive: false });
