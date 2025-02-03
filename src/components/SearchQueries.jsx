@@ -340,14 +340,24 @@ const useSearchQueries = () => {
   };
 
   const deleteQuery = async (queryId) => {
+    // Optimistically remove the query from the UI
+    const queryToDelete = queries.find(q => q._id === queryId);
+    setQueries(prev => prev.filter(q => q._id !== queryId));
+    
     try {
       await axios.delete(`${process.env.REACT_APP_API_URL}/search-queries/${queryId}`);
-      await fetchQueries();
-      return true;
+      // Query was successfully deleted, no need for notification
     } catch (err) {
-      setError('Failed to delete search query');
+      // Restore the query in case of failure
+      setQueries(prev => [...prev, queryToDelete]);
+      setSnackbar({
+        open: true,
+        message: 'Failed to delete search query',
+        severity: 'error',
+      });
       return false;
     }
+    return true;
   };
 
   const executeSearch = async (queryId, timeUnit) => {
@@ -518,17 +528,9 @@ const SearchQueries = () => {
   };
 
   const handleDeleteQuery = async (queryId) => {
-    try {
-      await deleteQuery(queryId);
-      setDeleteDialogOpen(false);
-      setQueryToDelete(null);
-    } catch (err) {
-      setSnackbar({
-        open: true,
-        message: 'Failed to delete search query',
-        severity: 'error',
-      });
-    }
+    setDeleteDialogOpen(false);
+    setQueryToDelete(null);
+    await deleteQuery(queryId);
   };
 
   const handleSearch = async (queryId) => {

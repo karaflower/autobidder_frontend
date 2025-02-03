@@ -24,6 +24,9 @@ const BidHistory = () => {
   const [titleFilter, setTitleFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [expandedRows, setExpandedRows] = useState(new Set());
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -32,13 +35,34 @@ const BidHistory = () => {
         
         // Fetch resumes first to build the lookup map
         const resumesResponse = (await axios.get(`${process.env.REACT_APP_API_URL}/resumes`)).data;
-        console.log(resumesResponse);
-        // Fetch bid links
-        const response = await axios.get(`${process.env.REACT_APP_API_URL}/bid-links`);
-        const allBids = response.data;
         
-        // Filter bids where the current user has bid
-        const userBids = allBids
+        // Calculate the "to" date as one day after the "from" date
+        const toDate = new Date(dateFilter);
+        toDate.setDate(toDate.getDate() + 1);
+
+        // Format the dates as needed for your API
+        const formattedFromDate = dateFilter;
+        const formattedToDate = toDate;
+
+        // Update API call to use pagination parameters
+        const response = await axios.get(
+          `${process.env.REACT_APP_API_URL}/bid-links`, {
+            params: {
+              page,
+              limit: 1000,
+              ...(dateFilter && {
+                from: formattedFromDate,
+                to: formattedToDate
+              }),
+              showBlacklisted: true
+            }
+          }
+        );
+        
+        const { bidLinks, pagination } = response.data;
+        
+        // Process bid links similar to before
+        const userBids = bidLinks
           .filter(link => link.bidinfo?.some(bid => bid.userid === userId))
           .map(link => {
             const userBid = link.bidinfo.find(bid => bid.userid === userId);
@@ -71,7 +95,12 @@ const BidHistory = () => {
           })
           .sort((a, b) => new Date(b.bidDate) - new Date(a.bidDate));
 
-        setBidHistory(userBids);
+        // Update state with pagination info
+        setTotalPages(pagination.totalPages);
+        setHasMore(pagination.hasNextPage);
+        
+        // Append new bids to existing ones if loading more pages
+        setBidHistory(prev => page === 1 ? userBids : [...prev, ...userBids]);
         setLoading(false);
       } catch (err) {
         console.error('Failed to fetch bid history:', err);
@@ -81,7 +110,7 @@ const BidHistory = () => {
     };
 
     fetchData();
-  }, []);
+  }, [dateFilter, page]);
 
   const filteredBids = bidHistory.filter(bid => {
     const matchesTitle = bid.title.toLowerCase().includes(titleFilter.toLowerCase());
@@ -114,6 +143,18 @@ const BidHistory = () => {
     console.log(path);
     if (path) {
       window.open(`${process.env.REACT_APP_API_URL}/resumefiles/${path}`, '_blank');
+    }
+  };
+
+  // Helper function to format the date as required
+  function formatDate(date) {
+    // Example formatting, adjust as needed
+    return date.toISOString().split('T')[0];
+  }
+
+  const handleLoadMore = () => {
+    if (hasMore) {
+      setPage(prev => prev + 1);
     }
   };
 
@@ -260,6 +301,20 @@ const BidHistory = () => {
           </TableBody>
         </Table>
       </TableContainer>
+
+      {hasMore && (
+        <Box sx={{ mt: 2 }}>
+          <Link
+            component="button"
+            underline="hover"
+            onClick={handleLoadMore}
+            sx={{ cursor: 'pointer' }}
+          >
+            Load More
+          </Link>
+        </Box>
+      )}
+
       <Box sx={{ mt: 2, display: 'flex', flexDirection: 'row-reverse'}}>
         <Typography variant="subtitle1" gutterBottom>
           Total: {filteredBids.length}
