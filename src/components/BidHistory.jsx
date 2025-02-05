@@ -172,7 +172,7 @@ const BidHistory = () => {
               <TableRow>
                 <TableCell width="50px">#</TableCell>
                 <TableCell>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1}}>
                     Link
                     <TextField
                       size="small"
@@ -225,7 +225,7 @@ const BidHistory = () => {
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      {bid.url}
+                      {bid.url.length > 60 ? bid.url.substring(0, 60) + '...' : bid.url}
                     </Link>
                   </TableCell>
                   <TableCell>

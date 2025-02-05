@@ -594,6 +594,7 @@ const BidLinks = () => {
                           href={link.url} 
                           target="_blank" 
                           rel="noopener noreferrer"
+                          sx={{ '&:visited': { color: 'purple' } }}
                         >
                           {link.title}
                         </Link>
@@ -661,7 +662,6 @@ const BidLinks = () => {
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-
                       {link.title}
                     </Link>
                   }
