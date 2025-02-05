@@ -201,7 +201,7 @@ const BidHistory = () => {
                     </Tooltip>
                   </Box>
                 </TableCell>
-                <TableCell sx={{ display: 'flex' }}>
+                <TableCell sx={{ display: 'flex', placeItems: 'baseline' }}>
                   Date
                   <TextField
                     type="date"

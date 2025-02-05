@@ -159,7 +159,7 @@ const CustomizedResumes = () => {
                   </Box>
                 </TableCell>
                 <TableCell>Name</TableCell>
-                <TableCell sx={{ display: 'flex' }}>
+                <TableCell sx={{ display: 'flex', placeItems: 'baseline' }}>
                   Date
                   <TextField
                     type="date"
@@ -170,7 +170,7 @@ const CustomizedResumes = () => {
                     sx={{ ml: 1, maxWidth: '120px' }}
                   />
                 </TableCell>
-                <TableCell>Actions</TableCell>
+                <TableCell></TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
