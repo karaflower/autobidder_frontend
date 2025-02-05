@@ -12,95 +12,57 @@ import {
   CircularProgress,
   Link,
   TextField,
-  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  List,
+  ListItem,
+  ListItemText,
+  Tooltip,
 } from '@mui/material';
 import axios from 'axios';
-import Cookies from 'js-cookie';
+import { toast } from 'react-toastify';
+import ManageSearchIcon from '@mui/icons-material/ManageSearch';
+import CloseIcon from '@mui/icons-material/Close';
+import GradingIcon from '@mui/icons-material/Grading';
+import DeleteIcon from '@mui/icons-material/Delete';
+import 'react-toastify/dist/ReactToastify.css';
+import { ToastContainer } from 'react-toastify';
+
 
 const BidHistory = () => {
   const [bidHistory, setBidHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [titleFilter, setTitleFilter] = useState('');
-  const [dateFilter, setDateFilter] = useState('');
-  const [expandedRows, setExpandedRows] = useState(new Set());
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedBid, setSelectedBid] = useState(null);
+  const [globalSearchResults, setGlobalSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const userId = Cookies.get('userid');
-        
-        // Fetch resumes first to build the lookup map
-        const resumesResponse = (await axios.get(`${process.env.REACT_APP_API_URL}/resumes`)).data;
-        
         // Calculate the "to" date as one day after the "from" date
         const toDate = new Date(dateFilter);
         toDate.setDate(toDate.getDate() + 1);
 
-        // Format the dates as needed for your API
-        const formattedFromDate = dateFilter;
-        const formattedToDate = toDate;
+        // Format the dates for the new API
+        const params = {};
+        if (dateFilter) {
+          params.fromDate = dateFilter;
+          params.toDate = toDate.toISOString().split('T')[0];
+        }
 
-        // Update API call to use pagination parameters
         const response = await axios.get(
-          `${process.env.REACT_APP_API_URL}/bid-links`, {
-            params: {
-              page,
-              limit: 1000,
-              ...(dateFilter && {
-                from: formattedFromDate,
-                to: formattedToDate
-              }),
-              showBlacklisted: true
-            }
-          }
+          `${process.env.REACT_APP_API_URL}/applications`,
+          { params }
         );
         
-        const { bidLinks, pagination } = response.data;
-        
-        // Process bid links similar to before
-        const userBids = bidLinks
-          .filter(link => link.bidinfo?.some(bid => bid.userid === userId))
-          .map(link => {
-            const userBid = link.bidinfo.find(bid => bid.userid === userId);
-            const resumeDetails = userBid.profile?.map(p => {
-              const baseResume = resumesResponse.find(resume => resume._id === p.resume);
-              return {
-                name: baseResume?.content.personal_info.name || 'N/A',
-                date: p.bid_date,
-                resumeId: p._id,
-                useCustomized: p.useCustomized || false,
-                path: p.useCustomized ? (link.resumes.find(r => r.resume_id === p.resume)).path || '' : baseResume?.path
-              };
-            }) || [];
-            
-            // Sort resumes by date and get the earliest bid date
-            resumeDetails.sort((a, b) => new Date(a.date) - new Date(b.date));
-            const earliestBidDate = resumeDetails[0]?.date || userBid.bid_date;
-
-            return {
-              id: link._id,
-              title: link.title,
-              url: link.url,
-              description: link.description,
-              date: link.date,
-              resumeDetails,
-              bidDate: earliestBidDate,
-              created_at: link.created_at,
-              disabled: link.disabled
-            };
-          })
-          .sort((a, b) => new Date(b.bidDate) - new Date(a.bidDate));
-
-        // Update state with pagination info
-        setTotalPages(pagination.totalPages);
-        setHasMore(pagination.hasNextPage);
-        
-        // Append new bids to existing ones if loading more pages
-        setBidHistory(prev => page === 1 ? userBids : [...prev, ...userBids]);
+        setBidHistory(response.data);
         setLoading(false);
       } catch (err) {
         console.error('Failed to fetch bid history:', err);
@@ -110,51 +72,77 @@ const BidHistory = () => {
     };
 
     fetchData();
-  }, [dateFilter, page]);
+  }, [dateFilter]);
 
   const filteredBids = bidHistory.filter(bid => {
-    const matchesTitle = bid.title.toLowerCase().includes(titleFilter.toLowerCase());
+    const matchesTitle = bid.url.toLowerCase().includes(titleFilter.toLowerCase());
     const matchesDate = !dateFilter || 
-      new Date(bid.bidDate).toLocaleDateString() === new Date(dateFilter).toLocaleDateString();
+      new Date(bid.timestamp).toLocaleDateString() === new Date(dateFilter).toLocaleDateString();
     return matchesTitle && matchesDate;
   });
 
-  const toggleRow = (id) => {
-    const newExpanded = new Set(expandedRows);
-    if (newExpanded.has(id)) {
-      newExpanded.delete(id);
-    } else {
-      newExpanded.add(id);
-    }
-    setExpandedRows(newExpanded);
+  const handleOpenDetails = (bid) => {
+    setSelectedBid(bid);
+    setDialogOpen(true);
   };
 
-  const toggleAllRows = () => {
-    if (expandedRows.size === filteredBids.length) {
-      // If all rows are expanded, collapse all
-      setExpandedRows(new Set());
-    } else {
-      // Expand all rows
-      setExpandedRows(new Set(filteredBids.map(bid => bid.id)));
+  const handleCloseDetails = () => {
+    setDialogOpen(false);
+    setSelectedBid(null);
+  };
+
+  const handleGlobalSearch = async () => {
+    if (!titleFilter.trim()) {
+      toast.error('Please enter a search term');
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await axios.get(
+        `${process.env.REACT_APP_API_URL}/applications/search`, {
+          params: { search: titleFilter }
+        }
+      );
+      setGlobalSearchResults(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      console.error('Failed to perform global search:', error);
+      toast.error('Failed to perform global search');
+    } finally {
+      setIsSearching(false);
     }
   };
 
-  const handleOpenResume = (path) => {
-    console.log(path);
-    if (path) {
-      window.open(`${process.env.REACT_APP_API_URL}/resumefiles/${path}`, '_blank');
-    }
+  const handleClearSearch = () => {
+    setGlobalSearchResults([]);
+    setTitleFilter('');
   };
 
-  // Helper function to format the date as required
-  function formatDate(date) {
-    // Example formatting, adjust as needed
-    return date.toISOString().split('T')[0];
-  }
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (e.ctrlKey && e.key === 'Enter' && titleFilter.trim()) {
+        handleGlobalSearch();
+      }
+    };
 
-  const handleLoadMore = () => {
-    if (hasMore) {
-      setPage(prev => prev + 1);
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [titleFilter]);
+
+  const displayedBids = globalSearchResults.length > 0 ? globalSearchResults : filteredBids;
+
+  const handleDelete = async (bidId) => {
+    if (!window.confirm('Are you sure you want to delete this application?')) {
+      return;
+    }
+
+    try {
+      await axios.delete(`${process.env.REACT_APP_API_URL}/applications/${bidId}`);
+      setBidHistory(prevBids => prevBids.filter(bid => bid._id !== bidId));
+      toast.success('Application deleted successfully');
+    } catch (error) {
+      console.error('Failed to delete application:', error);
+      toast.error('Failed to delete application');
     }
   };
 
@@ -175,70 +163,73 @@ const BidHistory = () => {
   }
 
   return (
-    <Box sx={{ pt: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <Box sx={{ width: '80%', mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
-        <Link
-          component="button"
-          underline="hover"
-          onClick={toggleAllRows}
-          sx={{ cursor: 'pointer' }}
-        >
-          {expandedRows.size === filteredBids.length ? 'Collapse All' : 'Expand All'}
-        </Link>
-      </Box>
-      <TableContainer component={Paper} sx={{ maxWidth: '80%', padding: '20px' }}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell padding="checkbox" />
-              <TableCell sx={{ display: 'flex', alignItems: 'center' }}>Title
-                <TextField
-                  size="small"
-                  placeholder="filter..."
-                  value={titleFilter}
-                  variant="standard"
-                  onChange={(e) => setTitleFilter(e.target.value)}
-                  sx={{ ml: 1 }}
-                />
-              </TableCell>
-              <TableCell>Post Date</TableCell>
-              <TableCell sx={{ display: 'flex', alignItems: 'center' }}>
-                Date
-                <TextField
-                  type="date"
-                  variant="standard"
-                  size="small"
-                  value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value)}
-                  sx={{ ml:1, maxWidth: '20px' }}
-                />
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {filteredBids.map((bid) => (
-              <React.Fragment key={bid.id}>
-                <TableRow 
-                  hover
-                  onClick={() => toggleRow(bid.id)}
-                  sx={{ cursor: 'pointer' }}
-                >
-                  <TableCell padding="checkbox">
-                    {expandedRows.has(bid.id) ? '▼' : '▶'}
-                  </TableCell>
+    <>
+      <ToastContainer />
+      <Box sx={{ pt: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <TableContainer component={Paper} sx={{ maxWidth: '80%', padding: '20px' }}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell width="50px">#</TableCell>
+                <TableCell>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    Link
+                    <TextField
+                      size="small"
+                      placeholder="filter..."
+                      value={titleFilter}
+                      variant="standard"
+                      onChange={(e) => setTitleFilter(e.target.value)}
+                      sx={{ ml: 1 }}
+                    />
+                    <Tooltip title={globalSearchResults.length > 0 ? "Clear Search" : "Global Search (Ctrl+Enter)"}>
+                      <Button
+                        variant="outlined"
+                        onClick={globalSearchResults.length > 0 ? handleClearSearch : handleGlobalSearch}
+                        disabled={isSearching}
+                        sx={{ maxWidth: 'max-content' }}
+                      >
+
+                        {isSearching ? (
+                          <CircularProgress size={20} />
+                        ) : globalSearchResults.length > 0 ? (
+                          <CloseIcon sx={{ color: 'red' }}/>
+                        ) : (
+                          <ManageSearchIcon />
+                        )}
+                      </Button>
+                    </Tooltip>
+                  </Box>
+                </TableCell>
+                <TableCell sx={{ display: 'flex' }}>
+                  Date
+                  <TextField
+                    type="date"
+                    variant="standard"
+                    size="small"
+                    value={dateFilter}
+                    onChange={(e) => setDateFilter(e.target.value)}
+                    sx={{ ml:1, maxWidth: '120px' }}
+                  />
+                </TableCell>
+                <TableCell></TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {displayedBids.map((bid, index) => (
+                <TableRow key={bid._id}>
+                  <TableCell>{index + 1}</TableCell>
                   <TableCell>
                     <Link 
-                      href={`${bid.url}${bid.url.includes('?') ? '&' : '?'}bidLinkId=${bid.id}`}
+                      href={bid.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
                     >
-                      {bid.title}
+                      {bid.url}
                     </Link>
                   </TableCell>
-                  <TableCell>{bid.date || 'N/A'}</TableCell>
                   <TableCell>
-                    {new Date(bid.bidDate).toLocaleString(undefined, {
+                    {new Date(bid.timestamp).toLocaleString(undefined, {
                       year: 'numeric',
                       month: 'numeric',
                       day: 'numeric',
@@ -246,81 +237,81 @@ const BidHistory = () => {
                       minute: '2-digit'
                     })}
                   </TableCell>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Link
+                        component="button"
+                        onClick={() => handleOpenDetails(bid)}
+                        sx={{ cursor: 'pointer' }}
+                      >
+                        <Tooltip title="Details">
+                          <GradingIcon />
+                        </Tooltip>
+                      </Link>
+                      <Link
+                        component="button"
+                        onClick={() => handleDelete(bid._id)}
+                        sx={{ cursor: 'pointer', color: 'error.main' }}
+                      >
+                        <Tooltip title="Delete">
+                          <DeleteIcon />
+                        </Tooltip>
+                      </Link>
+                    </Box>
+                  </TableCell>
                 </TableRow>
-                {expandedRows.has(bid.id) && (
-                  <TableRow>
-                    <TableCell colSpan={4} sx={{ py: 0 }}>
-                      <Box sx={{ margin: 1, display: 'flex', justifyContent: 'flex-end', mr: '20px' }}>
-                        <Table size="small" sx={{ width: '60%' }}>
-                          <TableHead>
-                            <TableRow>
-                              <TableCell>Resume Name</TableCell>
-                              <TableCell>Bid Date</TableCell>
-                            </TableRow>
-                          </TableHead>
-                          <TableBody>
-                            {bid.resumeDetails.map((resume) => (
-                              <TableRow 
-                                key={resume.resumeId}
-                                hover
-                                onClick={() => handleOpenResume(resume.path)}
-                                sx={{ cursor: 'pointer' }}
-                              >
-                                <TableCell>
-                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    {resume.name}
-                                    {resume.useCustomized && (
-                                      <Chip 
-                                        label="Customized" 
-                                        size="small" 
-                                        color="primary" 
-                                        variant="outlined"
-                                      />
-                                    )}
-                                  </Box>
-                                </TableCell>
-                                <TableCell>
-                                  {new Date(resume.date).toLocaleString(undefined, {
-                                    year: 'numeric',
-                                    month: 'numeric',
-                                    day: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                  })}
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </React.Fragment>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
-      {hasMore && (
-        <Box sx={{ mt: 2 }}>
-          <Link
-            component="button"
-            underline="hover"
-            onClick={handleLoadMore}
-            sx={{ cursor: 'pointer' }}
-          >
-            Load More
-          </Link>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+        <Box sx={{ mt: 2, display: 'flex', flexDirection: 'row-reverse'}}>
+          <Typography variant="subtitle1" gutterBottom>
+            {globalSearchResults.length > 0 ? 'Search Results' : 'Total'}: {displayedBids.length}
+          </Typography>
         </Box>
-      )}
-
-      <Box sx={{ mt: 2, display: 'flex', flexDirection: 'row-reverse'}}>
-        <Typography variant="subtitle1" gutterBottom>
-          Total: {filteredBids.length}
-        </Typography>
       </Box>
-    </Box>
+
+      <Dialog
+        open={dialogOpen}
+        onClose={handleCloseDetails}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>Application Details</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', gap: 3, flexDirection: 'column', my: 2 }}>
+            {selectedBid?.screenshot && (
+              <Box>
+                <Typography variant="h6" gutterBottom>Screenshot</Typography>
+                <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+                  <img 
+                    src={`${process.env.REACT_APP_API_URL}/resumefiles/${selectedBid.screenshot}`}
+                    alt="Application Screenshot" 
+                    style={{ maxWidth: '100%', height: 'auto' }}
+                  />
+                </Box>
+              </Box>
+            )}
+            
+            {selectedBid?.filledFields && selectedBid.filledFields.length > 0 && (
+              <Box>
+                <Typography variant="h6" gutterBottom>Filled Fields</Typography>
+                <List>
+                  {selectedBid.filledFields.map((field, index) => (
+                    <ListItem key={index}>
+                      <ListItemText primary={field} />
+                    </ListItem>
+                  ))}
+                </List>
+              </Box>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDetails}>Close</Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 };
 

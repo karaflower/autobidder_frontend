@@ -29,42 +29,23 @@ import axios from 'axios';
 import Cookies from 'js-cookie';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import ThumbUpIcon from '@mui/icons-material/ThumbUp';
-import ThumbDownIcon from '@mui/icons-material/ThumbDown';
-import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import CheckIcon from '@mui/icons-material/Check';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DoNotTouchIcon from '@mui/icons-material/DoNotTouch';
 import ManageSearchIcon from '@mui/icons-material/ManageSearch';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 
 const BidLinks = () => {
   const [bidLinks, setBidLinks] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [startDate, setStartDate] = useState(() => {
-    const date = new Date();
-    date.setDate(date.getDate());
-    return date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
-  });
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
-  const [openDialog, setOpenDialog] = useState(false);
-  const [generating, setGenerating] = useState(false);
-  const [availableResumes, setAvailableResumes] = useState([]);
-  const [selectedResumes, setSelectedResumes] = useState([]);
-  const [openResumePanel, setOpenResumePanel] = useState(false);
-  const [selectedBidLinkResumes, setSelectedBidLinkResumes] = useState([]);
-  const [currentUserId, setCurrentUserId] = useState('user123'); // Replace with actual user ID
+  const [currentUserId, setCurrentUserId] = useState('user123');
   const [users, setUsers] = useState({});  // Add this state for users lookup
-  const [showDownvoted, setShowDownvoted] = useState(() => {
-    const stored = localStorage.getItem('showDownvoted');
-    return stored ? JSON.parse(stored) : false;
-  });
-  const [sortByVote, setSortByVote] = useState(() => {
-    const stored = localStorage.getItem('sortByVote');
-    return stored ? JSON.parse(stored) : true;
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
   });
   const [showHiddenLinks, setShowHiddenLinks] = useState(() => {
     const stored = localStorage.getItem('showHiddenLinks');
@@ -96,11 +77,6 @@ const BidLinks = () => {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [showVisited, setShowVisited] = useState(() => {
-    const stored = localStorage.getItem('showVisited');
-    return stored ? JSON.parse(stored) : true;
-  });
-  const [selectedItems, setSelectedItems] = useState([]);
 
   const filteredBidLinks = useMemo(() => {
     const filterLink = (link) => {
@@ -121,21 +97,8 @@ const BidLinks = () => {
         if (!meetsSearchCriteria) return false;
       }
 
-      // Vote criteria
-      if (!showDownvoted) {
-        const votes = link.votes || [];
-        const downvotes = votes.filter(v => v.vote === -1).length;
-        const upvotes = votes.filter(v => v.vote === 1).length;
-        if (downvotes > upvotes) return false;
-      }
-
       // Hidden criteria
       if (!showHiddenLinks && hiddenLinks.includes(link._id)) {
-        return false;
-      }
-
-      // Visited criteria
-      if (!showVisited) {
         return false;
       }
 
@@ -156,14 +119,9 @@ const BidLinks = () => {
 
       // Date criteria
       const linkDate = new Date(link.created_at);
-      if (startDate) {
-        const start = new Date(startDate);
-        if (linkDate < start) return false;
-      }
-      if (endDate) {
-        const end = new Date(endDate);
-        end.setDate(end.getDate() + 1);
-        if (linkDate > end) return false;
+      if (selectedDate) {
+        const selected = new Date(selectedDate);
+        if (linkDate < selected) return false;
       }
 
       return true;
@@ -173,16 +131,13 @@ const BidLinks = () => {
   }, [
     bidLinks,
     searchTerm,
-    showDownvoted,
     showHiddenLinks,
     hiddenLinks,
-    showVisited,
     showFilter,
     currentUserId,
     selectedFriends,
     users,
-    startDate,
-    endDate
+    selectedDate
   ]);
 
   const fetchBidLinks = async (isLoadMore = false) => {
@@ -194,35 +149,35 @@ const BidLinks = () => {
         setIsLoadingMore(true);
       }
 
-      const fromDate = startDate ? new Date(startDate).toISOString() : null;
-      const toDate = endDate ? new Date(endDate).toISOString() : null;
+      // Clear existing links before fetching new ones
+      setBidLinks([]);
+
+      // Convert selectedDate to local timezone's 00:00:00 to 23:59:59
+      const fromDate = new Date(selectedDate);
+      fromDate.setHours(0, 0, 0, 0);
+      const toDate = new Date(selectedDate);
+      toDate.setHours(23, 59, 59, 999);
+
+      // Convert to GMT+0
+      const fromGMT = new Date(fromDate.getTime());
+      const toGMT = new Date(toDate.getTime());
 
       const params = new URLSearchParams({
         showBlacklisted: showBlacklisted,
-        page: isLoadMore ? page + 1 : 1,
-        limit: 50
+        from: fromGMT.toISOString(),
+        to: toGMT.toISOString()
       });
-      
-      if (fromDate) params.append('from', fromDate);
-      if (toDate) params.append('to', toDate);
 
       const response = await axios.get(
         `${process.env.REACT_APP_API_URL}/bid-links?${params.toString()}`
       );
 
-      // Remove the filtering here and just sort by date if not sorting by votes
-      const sortedLinks = response.data.bidLinks.sort((a, b) => {
-        if (sortByVote) {
-          const aScore = (a.votes || []).reduce((acc, v) => acc + v.vote, 0);
-          const bScore = (b.votes || []).reduce((acc, v) => acc + v.vote, 0);
-          if (bScore !== aScore) return bScore - aScore;
-        }
-        return new Date(b.created_at) - new Date(a.created_at);
-      });
-      console.log(sortedLinks);
-      setBidLinks(isLoadMore ? [...bidLinks, ...sortedLinks] : sortedLinks);
-      setPage(isLoadMore ? page + 1 : 1);
-      setTotalPages(response.data.pagination.totalPages);
+      // Sort by date only
+      const sortedLinks = response.data.bidLinks.sort((a, b) => 
+        new Date(b.created_at) - new Date(a.created_at)
+      );
+      
+      setBidLinks(sortedLinks);
     } catch (err) {
       console.error('Failed to fetch bid links:', err);
     } finally {
@@ -245,24 +200,14 @@ const BidLinks = () => {
   };
 
   useEffect(() => {
-    const fetchAvailableResumes = async () => {
-      try {
-        const response = await axios.get(`${process.env.REACT_APP_API_URL}/resumes`);
-        setAvailableResumes(response.data);
-      } catch (err) {
-        console.error('Failed to fetch available resumes:', err);
-      }
-    };
-
     fetchBlacklists();
-    fetchAvailableResumes();
-    fetchUsers();  // Add this function call
+    fetchUsers();
     setCurrentUserId(Cookies.get('userid'));
   }, []);
 
   useEffect(() => {
     fetchBidLinks();
-  }, [sortByVote, startDate, endDate, showBlacklisted]);
+  }, [selectedDate, showBlacklisted]);
 
   const fetchBlacklists = async () => {
     try {
@@ -291,176 +236,6 @@ const BidLinks = () => {
     }
   };
 
-  const handleDeleteBlacklist = async (urlToDelete) => {
-    try {
-      await axios.delete(`${process.env.REACT_APP_API_URL}/bid-links/blacklist`, {
-        data: { blacklists: [urlToDelete] }
-      });
-      await fetchBlacklists();
-      await fetchBidLinks();
-      toast.success('URL removed from blacklist');
-    } catch (error) {
-      console.error('Failed to remove from blacklist:', error);
-      toast.error('Failed to remove from blacklist');
-    }
-  };
-
-  const handleVote = async (linkId, vote) => {
-    try {
-      const link = bidLinks.find(l => l._id === linkId);
-      const userVote = link.votes?.find(v => v.userid === currentUserId);
-      
-      // Optimistically update the UI
-      setBidLinks(prevLinks => {
-        const updatedLinks = prevLinks.map(link => {
-          if (link._id === linkId) {
-            let newVotes = [...(link.votes || [])];
-            const existingVoteIndex = newVotes.findIndex(v => v.userid === currentUserId);
-            
-            if (userVote && userVote.vote === vote) {
-              // Remove vote if clicking same button
-              newVotes = newVotes.filter(v => v.userid !== currentUserId);
-            } else {
-              // Add or update vote
-              if (existingVoteIndex !== -1) {
-                newVotes[existingVoteIndex] = { ...newVotes[existingVoteIndex], vote };
-              } else {
-                newVotes.push({ userid: currentUserId, vote });
-              }
-            }
-            
-            return { ...link, votes: newVotes };
-          }
-          return link;
-        });
-
-        // If it's a downvote and showDownvoted is false, filter out the downvoted link
-        if (!showDownvoted && vote === -1) {
-          return updatedLinks.filter(link => {
-            const downvoteCount = (link.votes || []).filter(v => v.vote === -1).length;
-            const upvoteCount = (link.votes || []).filter(v => v.vote === 1).length;
-            return !(downvoteCount > upvoteCount);
-          });
-        }
-
-        return updatedLinks;
-      });
-
-      // Make API call
-      if (userVote && userVote.vote === vote) {
-        await axios.delete(`${process.env.REACT_APP_API_URL}/bid-links/${linkId}/vote`);
-      } else {
-        await axios.post(`${process.env.REACT_APP_API_URL}/bid-links/${linkId}/vote`, {
-          vote: vote
-        });
-      }
-    } catch (error) {
-      console.error('Failed to vote:', error);
-      toast.error('Failed to vote');
-      // Revert optimistic update on error by refetching
-      fetchBidLinks();
-    }
-  };
-
-  const handleToggleHide = (linkId) => {
-    setHiddenLinks(prev => {
-      const newHiddenLinks = prev.includes(linkId)
-        ? prev.filter(id => id !== linkId)
-        : [...prev, linkId];
-      localStorage.setItem('hiddenLinks', JSON.stringify(newHiddenLinks));
-      return newHiddenLinks;
-    });
-  };
-
-  const handleGenerateResumes = async () => {
-    // Get all checked checkboxes by their IDs when needed
-    const checkedBoxes = document.querySelectorAll('input[name="bid-checkbox"]:checked');
-    const selectedLinks = Array.from(checkedBoxes).map(checkbox => checkbox.value);
-
-    setGenerating(true);
-    setOpenDialog(false);
-
-    try {
-      for (const linkId of selectedLinks) {
-        const link = bidLinks.find(l => l._id === linkId);
-        if (link) {
-          for (const resumeId of selectedResumes) {
-            const response = await axios.post(`${process.env.REACT_APP_API_URL}/generate-resume`, {
-              bidLinkId: linkId,
-              resumeId: resumeId
-            });
-            if (response.data.success) {
-              await fetchBidLinks();
-              toast.success('Resume generated successfully');
-            } else {
-              toast.error('Failed to generate resume');
-            }
-          }
-        }
-      }
-    } catch (error) {
-      toast.error('Failed to generate resumes');
-      console.error('Failed to generate resumes:', error);
-    }
-
-    setGenerating(false);
-    // Clear checkboxes after generating
-    document.querySelectorAll('input[name="bid-checkbox"]').forEach(checkbox => {
-      checkbox.checked = false;
-    });
-    setSelectedResumes([]);
-  };
-
-  const handleSelectAll = (event) => {
-    if (event.target.checked) {
-      setSelectedItems(filteredBidLinks.map(link => link._id));
-    } else {
-      setSelectedItems([]);
-    }
-  };
-
-  const handleHideSelected = () => {
-    if (selectedItems.length === 0) {
-      toast.info('No links selected');
-      return;
-    }
-
-    setHiddenLinks(prev => {
-      const newHiddenLinks = [...new Set([...prev, ...selectedItems])];
-      localStorage.setItem('hiddenLinks', JSON.stringify(newHiddenLinks));
-      return newHiddenLinks;
-    });
-
-    // Clear selections after hiding
-    setSelectedItems([]);
-    toast.success(`${selectedItems.length} link(s) hidden`);
-  };
-
-  const handleShowResumes = (resumes) => {
-    setSelectedBidLinkResumes(resumes || []);
-    setOpenResumePanel(true);
-  };
-
-  const handleOpenResume = (file) => {
-    window.open(`${process.env.REACT_APP_API_URL}/resumefiles/${file}`, '_blank');
-  };
-
-  const getResumeName = (resumeId) => {
-    const resume = availableResumes.find(r => r._id === resumeId);
-    return resume ? resume.content.personal_info.name : 'Unknown';
-  };
-
-  // Add handler for friends selection
-  const handleFriendToggle = (friendId) => {
-    setSelectedFriends(prev => {
-      const newSelection = prev.includes(friendId)
-        ? prev.filter(id => id !== friendId)
-        : [...prev, friendId];
-      localStorage.setItem('selectedFriends', JSON.stringify(newSelection));
-      return newSelection;
-    });
-  };
-
   const handleAddCompanyToBlacklist = async (company) => {
     if (!company) return;
     
@@ -479,6 +254,40 @@ const BidLinks = () => {
       // Revert optimistic update on error
       setBidLinks(originalLinks);
     }
+  };
+
+  const handleDeleteBlacklist = async (urlToDelete) => {
+    try {
+      await axios.delete(`${process.env.REACT_APP_API_URL}/bid-links/blacklist`, {
+        data: { blacklists: [urlToDelete] }
+      });
+      await fetchBlacklists();
+      await fetchBidLinks();
+      toast.success('URL removed from blacklist');
+    } catch (error) {
+      console.error('Failed to remove from blacklist:', error);
+      toast.error('Failed to remove from blacklist');
+    }
+  };
+
+  const handleToggleHide = (linkId) => {
+    setHiddenLinks(prev => {
+      const newHiddenLinks = prev.includes(linkId)
+        ? prev.filter(id => id !== linkId)
+        : [...prev, linkId];
+      localStorage.setItem('hiddenLinks', JSON.stringify(newHiddenLinks));
+      return newHiddenLinks;
+    });
+  };
+
+  const handleHideAll = () => {
+    const linksToHide = filteredBidLinks.map(link => link._id);
+    setHiddenLinks(prev => {
+      const newHiddenLinks = [...new Set([...prev, ...linksToHide])];
+      localStorage.setItem('hiddenLinks', JSON.stringify(newHiddenLinks));
+      return newHiddenLinks;
+    });
+    toast.success(`${linksToHide.length} link(s) hidden`);
   };
 
   const handleGlobalSearch = async () => {
@@ -520,7 +329,7 @@ const BidLinks = () => {
       }}
     >
       <Box sx={{ p: 2 }}>
-        <Typography variant="h6" gutterBottom>Manage Blacklisted URLs</Typography>
+        <Typography variant="h6" gutterBottom>Manage Blacklisted Words</Typography>
         <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
           <TextField
             fullWidth
@@ -600,23 +409,6 @@ const BidLinks = () => {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [searchTerm, handleGlobalSearch]);
 
-  // Add this useEffect for infinite scroll
-  useEffect(() => {
-    const handleScroll = () => {
-      if (
-        window.innerHeight + document.documentElement.scrollTop
-        === document.documentElement.offsetHeight
-      ) {
-        if (page < totalPages && !isLoadingMore) {
-          fetchBidLinks(true);
-        }
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [page, totalPages, isLoadingMore]);
-
   return (
     <Grid container spacing={2}>
       <ToastContainer />
@@ -625,171 +417,93 @@ const BidLinks = () => {
           sx={{ 
             mb: 2, 
             position: 'sticky',
-            top: 0,
+            top: 10,
             zIndex: 1000,
             backgroundColor: 'background.default',
             pt: 2,
+            pl: 2,
             pb: 2,
             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
           }}
         >
           <Grid container spacing={2}>
             <Grid item xs={12}>
-              <Box sx={{ p: 2, border: '1px solid #e0e0e0', borderRadius: 1 }}>
-                {/* Date and Search Controls */}
-                <Grid container spacing={2} sx={{ mb: 2 }}>
-                  <Grid item xs={12} md={6}>
-                    <Box sx={{ display: 'flex', gap: 2 }}>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="body2">From:</Typography>
-                        <TextField
-                          variant='standard'
-                          type="date"
-                          value={startDate}
-                          onChange={(e) => setStartDate(e.target.value)}
-                          size="small"
-                          fullWidth
-                        />
-                      </Box>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="body2">To:</Typography>
-                        <TextField
-                          type="date"
-                          variant='standard'
-                          value={endDate}
-                          onChange={(e) => setEndDate(e.target.value)}
-                          size="small"
-                          fullWidth
-                        />
-                      </Box>
-                    </Box>
-                  </Grid>
-                  <Grid item xs={12} md={6}>
-                    <Box sx={{ display: 'flex', gap: 2, height: '100%', alignItems: 'flex-end'}}>
-                      <TextField
-                        size="small"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        placeholder="Search..."
-                        sx={{ width: '40%' }}
-                        variant='standard'
-                      />
-                      <Tooltip title="Global Search (Ctrl+Enter)">
-                        <Button
-                          variant="outlined"
-                          onClick={handleGlobalSearch}
-                          disabled={isSearching}
-                          startIcon={isSearching ? <CircularProgress size={20} /> : null}
-                          size="small"
-                        >
-                          {isSearching ? 'Searching...' : <ManageSearchIcon />}
-                        </Button>
-                      </Tooltip>
-                      <Button
-                        variant="contained"
-                        onClick={() => setOpenDialog(true)}
-                        disabled={generating}
-                        startIcon={generating ? <CircularProgress size={20} color="inherit" /> : null}
-                      >
-                        {generating ? 'Generating...' : 'Generate Resumes'}
-                      </Button>
-                    </Box>
-                  </Grid>
-                </Grid>
-
-                {/* Filter Controls */}
-                <Grid container spacing={2}>
+                <Grid container spacing={2} alignItems="center">
                   <Grid item>
-                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={selectedItems.length > 0 && selectedItems.length === filteredBidLinks.length}
-                            indeterminate={selectedItems.length > 0 && selectedItems.length < filteredBidLinks.length}
-                            onChange={handleSelectAll}
-                          />
-                        }
-                        label={`Select All (${filteredBidLinks.length})`}
-                      />
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={sortByVote}
-                            onChange={(e) => {
-                              setSortByVote(e.target.checked);
-                              localStorage.setItem('sortByVote', JSON.stringify(e.target.checked));
-                            }}
-                          />
-                        }
-                        label="Sort by Votes"
-                      />
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={showDownvoted}
-                            onChange={(e) => {
-                              setShowDownvoted(e.target.checked);
-                              localStorage.setItem('showDownvoted', JSON.stringify(e.target.checked));
-                            }}
-                          />
-                        }
-                        label="Downvoted"
-                      />
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={showHiddenLinks}
-                            onChange={(e) => {
-                              setShowHiddenLinks(e.target.checked);
-                              localStorage.setItem('showHiddenLinks', JSON.stringify(e.target.checked));
-                            }}
-                          />
-                        }
-                        label="Hidden"
-                      />
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={showVisited}
-                            onChange={(e) => {
-                              setShowVisited(e.target.checked);
-                              localStorage.setItem('showVisited', JSON.stringify(e.target.checked));
-                            }}
-                          />
-                        }
-                        label="Visited"
-                      />
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={showBlacklisted}
-                            onChange={(e) => {
-                              setShowBlacklisted(e.target.checked);
-                              localStorage.setItem('showBlacklisted', JSON.stringify(e.target.checked));
-                            }}
-                          />
-                        }
-                        label="Blacklisted"
-                      />
+                    <TextField
+                      variant='standard'
+                      type="date"
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                      size="small"
+                      sx={{ width: '130px' }}
+                    />
+                  </Grid>
+                  
+                  <Grid item>
+                    <TextField
+                      size="small"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Search..."
+                      sx={{ width: '150px' }}
+                      variant='standard'
+                    />
+                  </Grid>
+                  
+                  <Grid item>
+                    <Tooltip title="Global Search (Ctrl+Enter)">
                       <Button
                         variant="outlined"
-                        startIcon={<VisibilityOffIcon />}
-                        onClick={handleHideSelected}
+                        onClick={handleGlobalSearch}
+                        disabled={isSearching}
+                        startIcon={isSearching ? <CircularProgress size={20} /> : null}
                         size="small"
                       >
-                        Hide Selected
+                        {isSearching ? 'Searching...' : <ManageSearchIcon />}
                       </Button>
-                      {blacklistButton}
-                    </Box>
+                    </Tooltip>
                   </Grid>
-                  <Grid item xs={12}>
-                    <Box sx={{ display: 'flex', gap: 2, position: 'relative' }}>
+
+                  <Grid item>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={showHiddenLinks}
+                          onChange={(e) => {
+                            setShowHiddenLinks(e.target.checked);
+                            localStorage.setItem('showHiddenLinks', JSON.stringify(e.target.checked));
+                          }}
+                        />
+                      }
+                      label="Hidden"
+                    />
+                  </Grid>
+
+                  <Grid item>
+                    <Button
+                      variant="outlined"
+                      startIcon={<VisibilityOffIcon />}
+                      onClick={handleHideAll}
+                      size="small"
+                    >
+                      Hide All ({filteredBidLinks.length})
+                    </Button>
+                  </Grid>
+
+                  <Grid item>
+                    {blacklistButton}
+                  </Grid>
+
+                  <Grid item>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
                       <Button
                         variant={showFilter === 'all' ? 'contained' : 'outlined'}
                         onClick={() => {
                           setShowFilter('all');
                           localStorage.setItem('showFilter', JSON.stringify('all'));
                         }}
+                        size="small"
                       >
                         All Links
                       </Button>
@@ -799,6 +513,7 @@ const BidLinks = () => {
                           setShowFilter('mine');
                           localStorage.setItem('showFilter', JSON.stringify('mine'));
                         }}
+                        size="small"
                       >
                         My Links
                       </Button>
@@ -812,6 +527,7 @@ const BidLinks = () => {
                           endIcon={<KeyboardArrowDownIcon />}
                           onMouseEnter={() => setShowFriendsMenu(true)}
                           onMouseLeave={() => setShowFriendsMenu(false)}
+                          size="small"
                         >
                           Friends' Links {selectedFriends.length > 0 && `(${selectedFriends.length})`}
                         </Button>
@@ -858,7 +574,6 @@ const BidLinks = () => {
                     </Box>
                   </Grid>
                 </Grid>
-              </Box>
             </Grid>
           </Grid>
         </Box>
@@ -871,110 +586,21 @@ const BidLinks = () => {
           ) : (
             filteredBidLinks.map((link) => (
               <Grid item xs={12} key={link._id}>
-                <Card sx={{
-                  opacity: (() => {
-                    const downvoteCount = (link.votes || []).filter(v => v.vote === -1).length;
-                    const upvoteCount = (link.votes || []).filter(v => v.vote === 1).length;
-                    const isDownvoted = downvoteCount > upvoteCount;
-                    const isHidden = hiddenLinks.includes(link._id);
-                    
-                    if ((isDownvoted && showDownvoted) || (isHidden && showHiddenLinks)) {
-                      return 0.6;
-                    }
-                    return 1;
-                  })()
-                }}>
+                <Card>
                   <CardContent>
                     <Box display="flex" alignItems="center" justifyContent="space-between">
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={selectedItems.includes(link._id)}
-                            onChange={(e) => {
-                              setSelectedItems(prev => 
-                                e.target.checked 
-                                  ? [...prev, link._id]
-                                  : prev.filter(id => id !== link._id)
-                              );
-                            }}
-                          />
-                        }
-                        label=""
-                      />
                       <Typography variant="h6" sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
                         <Link 
-                          href={`${link.url}${link.url.includes('?') ? '&' : '?'}bidLinkId=${link._id}`} 
+                          href={link.url} 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          sx={{
-                            '&:visited': {
-                              color: '#7c37c0'
-                            }
-                          }}
                         >
                           {link.title}
                         </Link>
                       </Typography>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 2 }}>
-                        {(link.resumes || []).filter(resume => resume.owner === currentUserId).length > 0 && (
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            onClick={() => handleShowResumes(link.resumes)}
-                            sx={{ ml: 2 }}
-                          >
-                            Show Resumes ({(link.resumes || []).filter(resume => resume.owner === currentUserId).length})
-                          </Button>
-                        )}
-                        <Tooltip title={(() => {
-                          const upvoters = (link.votes || [])
-                            .filter(v => v.vote === 1 && v.userid !== currentUserId)
-                            .map(v => users[v.userid] || 'Unknown')
-                            .join(', ');
-                          return upvoters || '';
-                        })()}>
-                          <Button
-                            size="small"
-                            onClick={() => handleVote(link._id, 1)}
-                            sx={{ minWidth: 'auto', p: 0.5, gap: 0.5 }}
-                          >
-                            <ThumbUpIcon color={(link.votes || []).some(v => v.vote === 1 && v.userid === currentUserId) ? "primary" : "action"} />
-                            {(() => {
-                              const upvotes = (link.votes || []).reduce((acc, v) => acc + (v.vote === 1 ? 1 : 0), 0);
-                              const userIsOnlyUpvote = upvotes === 1 && (link.votes || []).some(v => v.vote === 1 && v.userid === currentUserId);
-                              return upvotes > 0 && !userIsOnlyUpvote && (
-                                <Typography>
-                                  {upvotes}
-                                </Typography>
-                              );
-                            })()}
-                          </Button>
-                        </Tooltip>
-                        <Tooltip title={(() => {
-                          const downvoters = (link.votes || [])
-                            .filter(v => v.vote === -1 && v.userid !== currentUserId)
-                            .map(v => users[v.userid] || 'Unknown')
-                            .join(', ');
-                          return downvoters || '';
-                        })()}>
-                          <Button
-                            size="small"
-                            onClick={() => handleVote(link._id, -1)}
-                            sx={{ minWidth: 'auto', p: 0.5, marginLeft: "8px", gap: 0.5 }}
-                          >
-                            <ThumbDownIcon color={(link.votes || []).some(v => v.vote === -1 && v.userid === currentUserId) ? "primary" : "action"} />
-                            {(() => {
-                              const downvotes = (link.votes || []).reduce((acc, v) => acc + (v.vote === -1 ? 1 : 0), 0);
-                              const userIsOnlyDownvote = downvotes === 1 && (link.votes || []).some(v => v.vote === -1 && v.userid === currentUserId);
-                              return downvotes > 0 && !userIsOnlyDownvote && (
-                                <Typography>
-                                  {downvotes}
-                                </Typography>
-                              );
-                            })()}
-                          </Button>
-                        </Tooltip>
-                        {link.company && (
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        
+                      {link.company && (
                           <Tooltip title={`Add ${link.company} to blacklist`}>
                             <Button
                               size="small"
@@ -1013,77 +639,6 @@ const BidLinks = () => {
         </Grid>
       </Grid>
 
-      <Dialog open={openDialog} onClose={() => setOpenDialog(false)}>
-        <DialogTitle>Select Resumes to Generate</DialogTitle>
-        <DialogContent>
-          <List>
-            {availableResumes.map((resume) => (
-              <ListItem key={resume._id}>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={selectedResumes.includes(resume._id)}
-                      onChange={(e) => {
-                        setSelectedResumes(prev => 
-                          e.target.checked 
-                            ? [...prev, resume._id]
-                            : prev.filter(id => id !== resume._id)
-                        );
-                      }}
-                    />
-                  }
-                  label={resume.content.personal_info.name}
-                />
-              </ListItem>
-            ))}
-          </List>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-          <Button 
-            onClick={handleGenerateResumes} 
-            variant="contained"
-            disabled={selectedResumes.length === 0 || generating}
-            startIcon={generating ? <CircularProgress size={20} color="inherit" /> : null}
-          >
-            {generating ? 'Generating...' : 'Generate'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Drawer
-        anchor="right"
-        open={openResumePanel}
-        onClose={() => setOpenResumePanel(false)}
-        sx={{
-          '& .MuiDrawer-paper': {
-            width: '300px',
-            padding: 2,
-          },
-        }}
-      >
-        <Typography variant="h6" sx={{ p: 2 }}>
-          Generated Resumes
-        </Typography>
-        <List>
-          {selectedBidLinkResumes
-            .filter(resume => resume.owner === currentUserId)
-            .map((resume) => {
-              const resumeName = getResumeName(resume.resume_id);
-              if (resumeName != 'Unknown') {
-                return (
-                  <ListItemButton
-                    key={resume.resume_id}
-                    onClick={() => handleOpenResume(resume.path)}
-                  >
-                    <Typography>{resumeName}</Typography>
-                  </ListItemButton>
-                )
-              }
-            })}
-        </List>
-      </Drawer>
-
       {renderBlacklistPanel()}
 
       <Dialog 
@@ -1102,10 +657,11 @@ const BidLinks = () => {
                 <ListItemText
                   primary={
                     <Link 
-                      href={`${link.url}${link.url.includes('?') ? '&' : '?'}bidLinkId=${link._id}`}
+                      href={link.url}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
+
                       {link.title}
                     </Link>
                   }
@@ -1132,23 +688,6 @@ const BidLinks = () => {
           <Button onClick={() => setOpenSearchDialog(false)}>Close</Button>
         </DialogActions>
       </Dialog>
-
-      {isLoadingMore && (
-        <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-          <CircularProgress />
-        </Grid>
-      )}
-      
-      {!isLoadingMore && page < totalPages && (
-        <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-          <Button 
-            variant="outlined" 
-            onClick={() => fetchBidLinks(true)}
-          >
-            Load More
-          </Button>
-        </Grid>
-      )}
     </Grid>
   );
 };

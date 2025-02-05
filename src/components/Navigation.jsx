@@ -51,6 +51,13 @@ const Navigation = () => {
             <ListItemText primary="Bid History" />
           </ListItemButton>
 
+          <ListItemButton component={RouterLink} to="/customized-resumes">
+            <ListItemIcon>
+              <DescriptionIcon sx={{ color: 'primary.main' }} />
+            </ListItemIcon>
+            <ListItemText primary="Customized Resumes" />
+          </ListItemButton>
+
           <ListItemButton component={RouterLink} to="/resume">
             <ListItemIcon>
               <DescriptionIcon sx={{ color: 'primary.main' }} />

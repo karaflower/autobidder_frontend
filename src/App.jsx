@@ -18,7 +18,7 @@ import Login from './components/Login';
 import AiPrompts from './components/AiPrompts';
 import Settings from './components/Settings';
 import BidHistory from './components/BidHistory';
-
+import CustomizedResumes from './components/CustomizedResumes';
 const getTheme = (mode) => createTheme({
   palette: {
     mode,
@@ -178,6 +178,7 @@ function App() {
                         <Route path="/ai-prompts" element={<AiPrompts />} />
                         <Route path="/settings" element={<Settings />} />
                         <Route path="/bid-history" element={<BidHistory />} />
+                        <Route path="/customized-resumes" element={<CustomizedResumes />} />
                       </Routes>
                     </Box>
                   </Box>
