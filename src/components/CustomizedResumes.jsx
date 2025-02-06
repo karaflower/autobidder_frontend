@@ -71,9 +71,7 @@ const CustomizedResumes = () => {
 
   const filteredResumes = resumes.filter(resume => {
     const matchesUrl = resume.url.toLowerCase().includes(urlFilter.toLowerCase());
-    const matchesDate = !dateFilter || 
-      new Date(resume.generated_at).toLocaleDateString() === new Date(dateFilter).toLocaleDateString();
-    return matchesUrl && matchesDate;
+    return matchesUrl;
   });
 
   const handleGlobalSearch = async () => {

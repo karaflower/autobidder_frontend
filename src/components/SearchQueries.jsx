@@ -758,6 +758,10 @@ const SearchQueries = () => {
       <Grid container spacing={3}>
         {queries
           .filter(query => query.link !== 'web3Jobsites')
+          .sort((a, b) => {
+            // Sort by _id in reverse chronological order (newest first)
+            return b._id.localeCompare(a._id);
+          })
           .map((query) => (
           <Grid item xs={12} key={query._id}>
             <Card>

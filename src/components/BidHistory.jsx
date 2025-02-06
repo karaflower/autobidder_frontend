@@ -83,9 +83,7 @@ const BidHistory = () => {
 
   const filteredBids = bidHistory.filter(bid => {
     const matchesTitle = bid.url.toLowerCase().includes(titleFilter.toLowerCase());
-    const matchesDate = !dateFilter || 
-      new Date(bid.timestamp).toLocaleDateString() === new Date(dateFilter).toLocaleDateString();
-    return matchesTitle && matchesDate;
+    return matchesTitle;
   });
 
   const handleOpenDetails = (bid) => {

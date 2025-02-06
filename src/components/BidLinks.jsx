@@ -117,13 +117,6 @@ const BidLinks = () => {
         }
       }
 
-      // Date criteria
-      const linkDate = new Date(link.created_at);
-      if (selectedDate) {
-        const selected = new Date(selectedDate);
-        if (linkDate < selected) return false;
-      }
-
       return true;
     };
 
@@ -136,8 +129,7 @@ const BidLinks = () => {
     showFilter,
     currentUserId,
     selectedFriends,
-    users,
-    selectedDate
+    users
   ]);
 
   const fetchBidLinks = async (isLoadMore = false) => {
