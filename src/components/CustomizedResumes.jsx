@@ -31,6 +31,7 @@ const CustomizedResumes = () => {
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
   const [globalSearchResults, setGlobalSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -104,6 +105,24 @@ const CustomizedResumes = () => {
 
   const displayedResumes = globalSearchResults.length > 0 ? globalSearchResults : filteredResumes;
 
+  const handleDelete = async (resumeId) => {
+    if (!window.confirm('Are you sure you want to delete this resume?')) {
+      return;
+    }
+
+    setDeletingId(resumeId);
+    try {
+      await axios.delete(`${process.env.REACT_APP_API_URL}/resumes/customized/${resumeId}`);
+      setResumes(prevResumes => prevResumes.filter(resume => resume._id !== resumeId));
+      setGlobalSearchResults(prevResults => prevResults.filter(resume => resume._id !== resumeId));
+      toast.success('Resume deleted successfully');
+    } catch (error) {
+      toast.error('Failed to delete resume');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
@@ -124,7 +143,7 @@ const CustomizedResumes = () => {
     <>
       <ToastContainer />
       <Box sx={{ pt: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <TableContainer component={Paper} sx={{ maxWidth: '80%', padding: '20px' }}>
+        <TableContainer component={Paper} sx={{ padding: '20px' }}>
           <Table>
             <TableHead>
               <TableRow>
@@ -200,15 +219,27 @@ const CustomizedResumes = () => {
                       })}
                     </TableCell>
                     <TableCell>
-                      <Tooltip title="View PDF">
-                        <Button
-                          onClick={() => window.open(`${process.env.REACT_APP_API_URL}/resumefiles/${resume.path}`, '_blank')}
-                          size="small"
-                        >
-                          <PictureAsPdfIcon sx={{ mr: 0.2 }}/>
-                          View
-                        </Button>
-                      </Tooltip>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Tooltip title="View PDF">
+                          <Button
+                            onClick={() => window.open(`${process.env.REACT_APP_API_URL}/resumefiles/${resume.path}`, '_blank')}
+                            size="small"
+                          >
+                            <PictureAsPdfIcon sx={{ mr: 0.2 }}/>
+                            View
+                          </Button>
+                        </Tooltip>
+                        <Tooltip title="Delete">
+                          <Button
+                            onClick={() => handleDelete(resume._id)}
+                            size="small"
+                            color="error"
+                            disabled={deletingId === resume._id}
+                          >
+                            {deletingId === resume._id ? <CircularProgress size={20} /> : <CloseIcon />}
+                          </Button>
+                        </Tooltip>
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ))
