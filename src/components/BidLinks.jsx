@@ -45,7 +45,7 @@ const BidLinks = () => {
   const [users, setUsers] = useState({});  // Add this state for users lookup
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
-    return today.toISOString().split('T')[0];
+    return today.toLocaleDateString('en-CA'); // YYYY-MM-DD format in local timezone
   });
   const [showHiddenLinks, setShowHiddenLinks] = useState(() => {
     const stored = localStorage.getItem('showHiddenLinks');

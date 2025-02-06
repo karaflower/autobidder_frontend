@@ -28,7 +28,10 @@ const CustomizedResumes = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [urlFilter, setUrlFilter] = useState('');
-  const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
+  const [dateFilter, setDateFilter] = useState(() => {
+    const today = new Date();
+    return today.toLocaleDateString('en-CA'); // YYYY-MM-DD format in local timezone
+  });
   const [globalSearchResults, setGlobalSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
