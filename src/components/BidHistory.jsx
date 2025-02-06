@@ -46,16 +46,20 @@ const BidHistory = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Calculate the "to" date as one day after the "from" date
+        // Convert selectedDate to local timezone's 00:00:00 to 23:59:59
+        const fromDate = new Date(dateFilter);
+        fromDate.setHours(0, 0, 0, 0);
         const toDate = new Date(dateFilter);
-        toDate.setDate(toDate.getDate() + 1);
+        toDate.setHours(23, 59, 59, 999);
 
-        // Format the dates for the new API
-        const params = {};
-        if (dateFilter) {
-          params.fromDate = dateFilter;
-          params.toDate = toDate.toISOString().split('T')[0];
-        }
+        // Convert to GMT+0
+        const fromGMT = new Date(fromDate.getTime());
+        const toGMT = new Date(toDate.getTime());
+
+        const params = {
+          fromDate: fromGMT.toISOString(),
+          toDate: toGMT.toISOString()
+        };
 
         const response = await axios.get(
           `${process.env.REACT_APP_API_URL}/applications`,

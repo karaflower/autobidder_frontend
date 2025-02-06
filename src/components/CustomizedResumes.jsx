@@ -36,13 +36,20 @@ const CustomizedResumes = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const params = {};
-        if (dateFilter) {
-          params.startDate = dateFilter;
-          const toDate = new Date(dateFilter);
-          toDate.setDate(toDate.getDate() + 1);
-          params.endDate = toDate.toISOString().split('T')[0];
-        }
+        // Convert selectedDate to local timezone's 00:00:00 to 23:59:59
+        const fromDate = new Date(dateFilter);
+        fromDate.setHours(0, 0, 0, 0);
+        const toDate = new Date(dateFilter);
+        toDate.setHours(23, 59, 59, 999);
+
+        // Convert to GMT+0
+        const fromGMT = new Date(fromDate.getTime());
+        const toGMT = new Date(toDate.getTime());
+
+        const params = {
+          startDate: fromGMT.toISOString(),
+          endDate: toGMT.toISOString()
+        };
 
         const response = await axios.get(
           `${process.env.REACT_APP_API_URL}/resumes/customized/by-date`,
