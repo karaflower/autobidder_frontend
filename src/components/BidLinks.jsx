@@ -74,9 +74,6 @@ const BidLinks = () => {
   const [openSearchDialog, setOpenSearchDialog] = useState(false);
   const [globalSearchResults, setGlobalSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const filteredBidLinks = useMemo(() => {
     const filterLink = (link) => {
@@ -132,14 +129,8 @@ const BidLinks = () => {
     users
   ]);
 
-  const fetchBidLinks = async (isLoadMore = false) => {
+  const fetchBidLinks = async () => {
     try {
-      if (!isLoadMore && bidLinks.length === 0) {
-        setIsLoading(true);
-      }
-      if (isLoadMore) {
-        setIsLoadingMore(true);
-      }
 
       // Clear existing links before fetching new ones
       setBidLinks([]);
@@ -174,7 +165,6 @@ const BidLinks = () => {
       console.error('Failed to fetch bid links:', err);
     } finally {
       setIsLoading(false);
-      setIsLoadingMore(false);
     }
   };
 

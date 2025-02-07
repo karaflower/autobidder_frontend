@@ -19,6 +19,8 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  FormControlLabel,
+  Checkbox,
 } from '@mui/material';
 import axios from 'axios';
 import {
@@ -90,6 +92,8 @@ const TimeSelectionDialog = ({
   onTimeSelect,
   onConfirm,
   options = TIME_OPTIONS,
+  filterClosed = true,
+  onFilterClosedChange,
 }) => (
   <Dialog open={open} onClose={onClose}>
     <DialogTitle>{title}</DialogTitle>
@@ -115,6 +119,17 @@ const TimeSelectionDialog = ({
             {option.label}
           </Button>
         ))}
+      </Box>
+      <Box sx={{ mt: 2 }}>
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={filterClosed}
+              onChange={(e) => onFilterClosedChange(e.target.checked)}
+            />
+          }
+          label="Filter out closed positions"
+        />
       </Box>
     </DialogContent>
     <DialogActions sx={{ pb: 2 }}>
@@ -372,10 +387,10 @@ const useSearchQueries = () => {
     return true;
   };
 
-  const executeSearch = async (queryId, timeUnit) => {
+  const executeSearch = async (queryId, timeUnit, filterClosed) => {
     try {
       const response = await axios.post(
-        `${process.env.REACT_APP_API_URL}/auto-search/search/${queryId}`, { timeUnit }
+        `${process.env.REACT_APP_API_URL}/auto-search/search/${queryId}`, { timeUnit, filterClosed }
       );
       await fetchQueries();
       return response.data;
@@ -384,13 +399,13 @@ const useSearchQueries = () => {
     }
   };
 
-  const executeAutoSearch = async (timeUnit) => {
+  const executeAutoSearch = async (timeUnit, filterClosed) => {
     try {
       setAutoSearchInProgress(true);
       startPolling();
       const response = await axios.post(
         `${process.env.REACT_APP_API_URL}/auto-search/auto-bid`,
-        { timeUnit }
+        { timeUnit, filterClosed }
       );
       await fetchQueries();
       return response.data;
@@ -492,6 +507,8 @@ const SearchQueries = () => {
   const [jobScrapingDialogOpen, setJobScrapingDialogOpen] = useState(false);
   const [jobScrapingTimeUnit, setJobScrapingTimeUnit] = useState('');
   const [timelineDialogOpen, setTimelineDialogOpen] = useState(false);
+  const [filterClosed, setFilterClosed] = useState(true);
+  const [autoSearchFilterClosed, setAutoSearchFilterClosed] = useState(true);
 
   useEffect(() => {
     const calculateNextAutoSearch = () => {
@@ -550,7 +567,7 @@ const SearchQueries = () => {
     setSelectedTimeUnit('');
     setSearchLoading(queryId);
     try {
-      const response = await executeSearch(queryId, selectedTimeUnit);
+      const response = await executeSearch(queryId, selectedTimeUnit, filterClosed);
       setSnackbar({
         open: true,
         message: `Search completed! Found ${response.jobsFound || 0} new jobs.`,
@@ -573,7 +590,7 @@ const SearchQueries = () => {
     setAutoSearchTimeUnit('');
     setAutoSearchLoading(true);
     try {
-      const response = await executeAutoSearch(autoSearchTimeUnit);
+      const response = await executeAutoSearch(autoSearchTimeUnit, autoSearchFilterClosed);
       setSnackbar({
         open: true,
         message: `Auto-search completed! Found ${response.jobsFound || 0} new jobs.`,
@@ -951,6 +968,8 @@ const SearchQueries = () => {
         selectedTime={selectedTimeUnit}
         onTimeSelect={setSelectedTimeUnit}
         onConfirm={() => selectedQueryId && handleSearch(selectedQueryId)}
+        filterClosed={filterClosed}
+        onFilterClosedChange={setFilterClosed}
       />
 
       <TimeSelectionDialog
@@ -963,6 +982,8 @@ const SearchQueries = () => {
         selectedTime={autoSearchTimeUnit}
         onTimeSelect={setAutoSearchTimeUnit}
         onConfirm={handleAutoSearch}
+        filterClosed={autoSearchFilterClosed}
+        onFilterClosedChange={setAutoSearchFilterClosed}
       />
 
       <Dialog 
