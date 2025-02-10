@@ -24,6 +24,8 @@ import {
   Tooltip,
   ListItemButton,
   Chip,
+  ListItemText,
+  Divider,
 } from '@mui/material';
 import axios from 'axios';
 import {
@@ -36,10 +38,12 @@ import {
   Scatter,
 } from 'recharts';
 import { useAuth } from '../context/AuthContext';
+import { toast } from 'react-toastify';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
-import { toast } from 'react-toastify';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import CheckIcon from '@mui/icons-material/Check';
 
 
 const TIME_OPTIONS = [
@@ -342,14 +346,26 @@ const useSearchQueries = () => {
     }
   };
 
+  // Add new state for users who added me
+  const [usersWhoAddedMe, setUsersWhoAddedMe] = useState([]);
+
+  // Modify the fetchUsers function to also fetch users who added me
   const fetchUsers = async () => {
     try {
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/friends/all`);
-      const usersMap = response.data.reduce((acc, user) => {
-        acc[user._id] = user.name;
-        return acc;
-      }, {});
+      const [friendsResponse, addedMeResponse] = await Promise.all([
+        axios.get(`${process.env.REACT_APP_API_URL}/friends`),
+        axios.get(`${process.env.REACT_APP_API_URL}/friends/added-me`)
+      ]);
+      
+      const usersMap = {
+        [user._id]: user.name, // Add current user
+        ...friendsResponse.data.reduce((acc, friend) => {
+          acc[friend._id] = friend.name;
+          return acc;
+        }, {})
+      };
       setUsers(usersMap);
+      setUsersWhoAddedMe(addedMeResponse.data);
     } catch (err) {
       console.error('Failed to fetch users:', err);
     }
@@ -430,7 +446,8 @@ const useSearchQueries = () => {
         { 
           timeUnit, 
           filterClosed,
-          categories
+          categories,
+          userId: user._id
         }
       );
       await fetchQueries();
@@ -491,10 +508,13 @@ const useSearchQueries = () => {
     lastAutoSearch,
     jobScrapingInProgress,
     executeJobScraping,
+    usersWhoAddedMe,
   };
 };
 
 const SearchQueries = () => {
+  const { user } = useAuth();
+
   const {
     queries,
     users,
@@ -511,6 +531,7 @@ const SearchQueries = () => {
     lastAutoSearch,
     jobScrapingInProgress,
     executeJobScraping,
+    usersWhoAddedMe,
   } = useSearchQueries();
 
   const [openDialog, setOpenDialog] = useState(false);
@@ -536,7 +557,7 @@ const SearchQueries = () => {
   const [filterClosed, setFilterClosed] = useState(true);
   const [autoSearchFilterClosed, setAutoSearchFilterClosed] = useState(true);
   const [categories, setCategories] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('general');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedCategoriesForSearch, setSelectedCategoriesForSearch] = useState([]);
   const [newCategory, setNewCategory] = useState('');
   const [editingCategory, setEditingCategory] = useState(null);
@@ -545,6 +566,11 @@ const SearchQueries = () => {
   const [selectedQuery, setSelectedQuery] = useState(null);
   const [categorySearch, setCategorySearch] = useState('');
   const [selectedTimelineCategories, setSelectedTimelineCategories] = useState([]);
+  const [deleteCategoryDialogOpen, setDeleteCategoryDialogOpen] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState(null);
+  const [userFilterAnchorEl, setUserFilterAnchorEl] = useState(null);
+  const [selectedUserFilter, setSelectedUserFilter] = useState('all');
+  const [categoryOwnerFilter, setCategoryOwnerFilter] = useState(null);
 
   useEffect(() => {
     fetchCategories();
@@ -554,7 +580,7 @@ const SearchQueries = () => {
   const fetchCategories = async () => {
     try {
       const response = await axios.get(`${process.env.REACT_APP_API_URL}/categories`);
-      setCategories(['general', ...response.data.categories]);
+      setCategories(response.data.categories);
     } catch (error) {
       toast.error('Failed to fetch categories');
     }
@@ -584,6 +610,8 @@ const SearchQueries = () => {
     } catch (error) {
       toast.error('Failed to delete category');
     }
+    setDeleteCategoryDialogOpen(false);
+    setCategoryToDelete(null);
   };
 
   const handleAddQuery = async () => {
@@ -611,13 +639,10 @@ const SearchQueries = () => {
     }
   };
 
-  const handleCategorySelect = (category) => {
+  const handleCategorySelect = (category, owner) => {
+    setSelectedCategoriesForSearch([category]);
     setSelectedCategory(category);
-  };
-
-  const handleQueryMenuClick = (event, query) => {
-    setAnchorEl(event.currentTarget);
-    setSelectedQuery(query);
+    setCategoryOwnerFilter(owner);
   };
 
   const handleQueryMenuClose = () => {
@@ -763,16 +788,41 @@ const SearchQueries = () => {
     }
   };
 
-  // Filter queries based on selected category
-  const filteredQueries = queries.filter(query => 
-    query.link !== 'web3Jobsites' && query.category === selectedCategory
-  );
+  // Filter queries based on selected category and user filter
+  const filteredQueries = queries.filter(query => {
+    // Always exclude web3Jobsites query
+    if (query.link === 'web3Jobsites') return false;
+
+    // Category filter
+    const matchesCategory = selectedCategory === 'all' || 
+      (query.category === selectedCategory && query.created_by === categoryOwnerFilter);
+
+    // User filter
+    const matchesUser = selectedUserFilter === 'all' || 
+      query.created_by === selectedUserFilter;
+
+    return matchesCategory && matchesUser;
+  });
 
   const handleTimelineOpen = () => {
     // Initialize timeline with current category if it's not 'general'
     setSelectedTimelineCategories(selectedCategory !== 'general' ? [selectedCategory] : []);
     setTimelineDialogOpen(true);
   };
+
+  // Update the categories filtering section
+  const filteredCategories = categories.filter(category => 
+    !categoryOwnerFilter || category.owner === categoryOwnerFilter
+  ).map(category => ({
+    name: category.name,
+    owner: category.owner
+  }));
+
+  // Add useEffect to set initial user filter
+  useEffect(() => {
+    setSelectedUserFilter(user._id);
+    setCategoryOwnerFilter(user._id);
+  }, [user._id]);
 
   if (loading) return <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
     <CircularProgress size={25} />
@@ -805,16 +855,33 @@ const SearchQueries = () => {
               mb: 2,
               justifyContent: 'space-between'
             }}>
-              <Typography variant="h6">Categories</Typography>
-              <Tooltip title="Add Category">
-                <IconButton
-                  onClick={() => setOpenCategoryDialog(true)}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="h6">Categories</Typography>
+                <Chip
                   size="small"
-                  color="primary"
-                >
-                  <AddIcon />
-                </IconButton>
-              </Tooltip>
+                  label={users[categoryOwnerFilter] || 'Unknown User'}
+                  sx={{ fontSize: '0.7rem' }}
+                />
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Tooltip title="Filter by User">
+                  <IconButton
+                    size="small"
+                    onClick={(e) => setUserFilterAnchorEl(e.currentTarget)}
+                  >
+                    <FilterListIcon />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Add Category">
+                  <IconButton
+                    onClick={() => setOpenCategoryDialog(true)}
+                    size="small"
+                    color="primary"
+                  >
+                    <AddIcon />
+                  </IconButton>
+                </Tooltip>
+              </Box>
             </Box>
 
             <TextField
@@ -846,80 +913,97 @@ const SearchQueries = () => {
               background: '#555',
             },
           }}>
-            {categories
+            {/* Filtered categories list */}
+            {filteredCategories
               .filter(category => 
-                category.toLowerCase().includes(categorySearch.toLowerCase())
+                category.name.toLowerCase().includes(categorySearch.toLowerCase())
               )
-              .map((category) => (
-                <ListItem
-                  key={category}
-                  disablePadding
-                  sx={{
-                    borderRadius: 1,
-                    mb: 0.5,
-                    '&:hover': {
-                      bgcolor: 'action.hover',
-                    },
-                  }}
-                >
-                  <ListItemButton
-                    selected={selectedCategory === category}
-                    onClick={() => handleCategorySelect(category)}
-                    sx={{ 
+              .map((category) => {
+                const bidLinksCount = queries.filter(q => 
+                  q.category === category.name && 
+                  q.created_by === category.owner && 
+                  q.link !== 'web3Jobsites'
+                ).length;
+
+                return (
+                  <ListItem
+                    key={`${category.name}-${category.owner}`}
+                    disablePadding
+                    sx={{
                       borderRadius: 1,
-                      display: 'flex',
-                      alignItems: 'center',
-                      pl: 0,
+                      mb: 0.5,
+                      '&:hover': {
+                        bgcolor: 'action.hover',
+                      },
                     }}
                   >
-                    <Checkbox
-                      checked={selectedCategoriesForSearch.includes(category)}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        if (e.target.checked) {
-                          setSelectedCategoriesForSearch(prev => [...prev, category]);
-                        } else {
-                          setSelectedCategoriesForSearch(prev => 
-                            prev.filter(cat => cat !== category)
-                          );
-                        }
+                    <ListItemButton
+                      selected={selectedCategory === category.name && categoryOwnerFilter === category.owner}
+                      onClick={() => handleCategorySelect(category.name, category.owner)}
+                      sx={{ 
+                        borderRadius: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        pl: 0,
                       }}
-                      onClick={(e) => e.stopPropagation()}
-                      size="small"
-                      sx={{ ml: 1 }}
-                    />
-                    <Typography sx={{ flex: 1 }}>{category}</Typography>
-                    {category !== 'general' && (
-                      <Box sx={{ display: 'flex', gap: 0.5 }}>
-                        <Tooltip title="Edit">
-                          <IconButton
-                            size="small"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingCategory(category);
-                              setNewCategory(category);
-                              setOpenCategoryDialog(true);
-                            }}
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete">
-                          <IconButton
-                            size="small"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteCategory(category);
-                            }}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
+                    >
+                      <Checkbox
+                        checked={selectedCategoriesForSearch.includes(category.name)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          if (e.target.checked) {
+                            setSelectedCategoriesForSearch(prev => [...prev, category.name]);
+                          } else {
+                            setSelectedCategoriesForSearch(prev => 
+                              prev.filter(cat => cat !== category.name)
+                            );
+                          }
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        size="small"
+                        sx={{ ml: 1 }}
+                      />
+                      <Box sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+                        <Typography>{category.name}</Typography>
+                        <Chip
+                          size="small"
+                          label={bidLinksCount}
+                          sx={{ ml: 1, fontSize: '0.7rem' }}
+                        />
                       </Box>
-                    )}
-                  </ListItemButton>
-                </ListItem>
-              ))}
+                      {category.owner === user._id && (
+                        <Box sx={{ display: 'flex', gap: 0.5 }}>
+                          <Tooltip title="Edit">
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingCategory(category.name);
+                                setNewCategory(category.name);
+                                setOpenCategoryDialog(true);
+                              }}
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Delete">
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setCategoryToDelete(category.name);
+                                setDeleteCategoryDialogOpen(true);
+                              }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      )}
+                    </ListItemButton>
+                  </ListItem>
+                );
+              })}
           </List>
         </CardContent>
       </Card>
@@ -1274,11 +1358,11 @@ const SearchQueries = () => {
               <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                 {categories.map((category) => (
                   <Chip
-                    key={category}
-                    label={category}
-                    onClick={() => setSelectedCategory(category)}
-                    color={selectedCategory === category ? "primary" : "default"}
-                    variant={selectedCategory === category ? "filled" : "outlined"}
+                    key={category.name}
+                    label={category.name}
+                    onClick={() => setSelectedCategory(category.name)}
+                    color={selectedCategory === category.name ? "primary" : "default"}
+                    variant={selectedCategory === category.name ? "filled" : "outlined"}
                   />
                 ))}
               </Box>
@@ -1411,6 +1495,71 @@ const SearchQueries = () => {
           }}>
             <DeleteIcon sx={{ mr: 1 }} /> Delete Query
           </MenuItem>
+        </Menu>
+
+        {/* Delete Category Dialog */}
+        <Dialog
+          open={deleteCategoryDialogOpen}
+          onClose={() => {
+            setDeleteCategoryDialogOpen(false);
+            setCategoryToDelete(null);
+          }}
+        >
+          <DialogTitle>Delete Category</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Are you sure you want to delete the category "{categoryToDelete}"? This action cannot be undone.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button
+              onClick={() => {
+                setDeleteCategoryDialogOpen(false);
+                setCategoryToDelete(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => categoryToDelete && handleDeleteCategory(categoryToDelete)}
+              color="error"
+              variant="contained"
+            >
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* User Filter Menu */}
+        <Menu
+          anchorEl={userFilterAnchorEl}
+          open={Boolean(userFilterAnchorEl)}
+          onClose={() => setUserFilterAnchorEl(null)}
+        >
+          <MenuItem
+            onClick={() => {
+              setSelectedUserFilter(user._id);
+              setCategoryOwnerFilter(user._id);
+              setUserFilterAnchorEl(null);
+            }}
+          >
+            <ListItemText primary={`${users[user._id]} (Me)`} />
+            {selectedUserFilter === user._id && <CheckIcon sx={{ ml: 1 }} />}
+          </MenuItem>
+          <Divider />
+          {usersWhoAddedMe.map(({ _id, name }) => (
+            <MenuItem
+              key={_id}
+              onClick={() => {
+                setSelectedUserFilter(_id);
+                setCategoryOwnerFilter(_id);
+                setUserFilterAnchorEl(null);
+              }}
+            >
+              <ListItemText primary={name} />
+              {selectedUserFilter === _id && <CheckIcon sx={{ ml: 1 }} />}
+            </MenuItem>
+          ))}
         </Menu>
       </Box>
     </Box>

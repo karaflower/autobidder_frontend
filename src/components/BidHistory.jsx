@@ -170,7 +170,12 @@ const BidHistory = () => {
   return (
     <>
       <ToastContainer />
-      <Box sx={{ pt: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <Box sx={{ width: '80%', mb: 2 }}>
+          <Typography variant="subtitle1" align="right">
+            {globalSearchResults.length > 0 ? 'Search Results' : 'Total'}: {displayedBids.length}
+          </Typography>
+        </Box>
         <TableContainer component={Paper} sx={{ maxWidth: '80%', padding: '20px' }}>
           <Table>
             <TableHead>
@@ -269,11 +274,6 @@ const BidHistory = () => {
             </TableBody>
           </Table>
         </TableContainer>
-        <Box sx={{ mt: 2, display: 'flex', flexDirection: 'row-reverse'}}>
-          <Typography variant="subtitle1" gutterBottom>
-            {globalSearchResults.length > 0 ? 'Search Results' : 'Total'}: {displayedBids.length}
-          </Typography>
-        </Box>
       </Box>
 
       <Dialog
@@ -285,6 +285,16 @@ const BidHistory = () => {
         <DialogTitle>Application Details</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', gap: 3, flexDirection: 'column', my: 2 }}>
+            <Box>
+              <Typography variant="h6" gutterBottom>URL</Typography>
+              <Link 
+                href={selectedBid?.url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {selectedBid?.url}
+              </Link>
+            </Box>
             {selectedBid?.screenshot && (
               <Box>
                 <Typography variant="h6" gutterBottom>Screenshot</Typography>
