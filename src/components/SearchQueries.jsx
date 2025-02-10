@@ -120,18 +120,21 @@ const TimeSelectionDialog = ({
           </Button>
         ))}
       </Box>
-      <Box sx={{ mt: 2 }}>
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={filterClosed}
-              onChange={(e) => onFilterClosedChange(e.target.checked)}
-            />
-          }
-          label="Filter out closed positions"
-        />
-      </Box>
+      {onFilterClosedChange !== null && (
+        <Box sx={{ mt: 2 }}>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={filterClosed}
+                onChange={(e) => onFilterClosedChange(e.target.checked)}
+              />
+            }
+            label="Filter out closed positions"
+          />
+        </Box>
+      )}
     </DialogContent>
+
     <DialogActions sx={{ pb: 2 }}>
       <Button onClick={onClose}>Cancel</Button>
       <Button onClick={onConfirm} color="primary" variant="contained">
@@ -1038,6 +1041,7 @@ const SearchQueries = () => {
         onTimeSelect={setJobScrapingTimeUnit}
         onConfirm={handleJobScraping}
         options={JOB_SCRAPING_TIME_OPTIONS}
+        onFilterClosedChange={null}
       />
 
       <TimelineDialog
