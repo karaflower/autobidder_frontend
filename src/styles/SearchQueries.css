@@ -1,0 +1,18 @@
+.query-item {
+  cursor: grab;
+  transition: background-color 0.2s;
+}
+
+.query-item:active {
+  cursor: grabbing;
+}
+
+.query-item.dragging {
+  background-color: rgba(0, 0, 0, 0.05);
+  opacity: 0.8;
+}
+
+.queries-list {
+  min-height: 50px; /* Ensures empty categories are still droppable */
+  padding: 8px;
+} 
