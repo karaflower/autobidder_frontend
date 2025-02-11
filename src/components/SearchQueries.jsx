@@ -1349,14 +1349,18 @@ const SearchQueries = () => {
               label="Search Query"
               fullWidth
               variant="outlined"
+              multiline
               value={editQuery}
               onChange={(e) => setEditQuery(e.target.value)}
               sx={{ mb: 2 }}
+
             />
             <Box sx={{ mt: 2 }}>
               <Typography variant="subtitle2" gutterBottom>Category</Typography>
               <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                {categories.map((category) => (
+                {categories
+                  .filter(category => category.owner === user._id) // Only show current user's categories
+                  .map((category) => (
                   <Chip
                     key={category.name}
                     label={category.name}
