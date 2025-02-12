@@ -1579,6 +1579,13 @@ const TimelineDialog = ({
   selectedTimelineCategories,
   setSelectedTimelineCategories 
 }) => {
+  // Set 'all' as default when dialog opens
+  useEffect(() => {
+    if (open) {
+      setSelectedTimelineCategories([]);
+    }
+  }, [open, setSelectedTimelineCategories]);
+
   return (
     <Dialog
       open={open}
@@ -1589,11 +1596,8 @@ const TimelineDialog = ({
       <DialogTitle>Activity Timeline</DialogTitle>
       <DialogContent>
         <Box sx={{ mb: 2 }}>
-          <Typography variant="subtitle2" gutterBottom>
-            Filter by Categories
-          </Typography>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-            {['all', ...new Set(queries.map(q => q.category))].map((category) => (
+            {[...new Set(queries.map(q => q.category))].map((category) => (
               <Chip
                 key={category}
                 label={category}
@@ -1601,11 +1605,8 @@ const TimelineDialog = ({
                   if (category === 'all') {
                     setSelectedTimelineCategories([]);
                   } else {
-                    setSelectedTimelineCategories(prev => 
-                      prev.includes(category)
-                        ? prev.filter(c => c !== category)
-                        : [...prev, category]
-                    );
+                    // Only set the clicked category, removing any previous selection
+                    setSelectedTimelineCategories([category]);
                   }
                 }}
                 color={category === 'all' && selectedTimelineCategories.length === 0 ? "primary" : 
