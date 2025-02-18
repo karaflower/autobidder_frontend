@@ -21,6 +21,7 @@ import {
   ListItem,
   ListItemText,
   Tooltip,
+  MenuItem,
 } from '@mui/material';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -39,29 +40,49 @@ const BidHistory = () => {
   const [titleFilter, setTitleFilter] = useState('');
   const [dateFilter, setDateFilter] = useState(() => {
     const today = new Date();
-    return today.toLocaleDateString('en-CA'); // YYYY-MM-DD format in local timezone
+    return today.toLocaleDateString('en-CA');
   });
+  const [selectedUser, setSelectedUser] = useState('');
+  const [usersList, setUsersList] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedBid, setSelectedBid] = useState(null);
   const [globalSearchResults, setGlobalSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/friends/added-me`);
+        const userResponse = await axios.get(`${process.env.REACT_APP_API_URL}/auth/user`);
+        setUsersList([
+          { _id: userResponse.data._id, name: 'My Applications' },
+          ...response.data
+        ]);
+        setSelectedUser(userResponse.data._id);
+      } catch (err) {
+        console.error('Failed to fetch users:', err);
+        toast.error('Failed to fetch users list');
+      }
+    };
+
+    fetchUsers();
+  }, []);
+
+  useEffect(() => {
     const fetchData = async () => {
       try {
-        // Convert selectedDate to local timezone's 00:00:00 to 23:59:59
         const fromDate = new Date(dateFilter);
         fromDate.setHours(0, 0, 0, 0);
         const toDate = new Date(dateFilter);
         toDate.setHours(23, 59, 59, 999);
 
-        // Convert to GMT+0
         const fromGMT = new Date(fromDate.getTime());
         const toGMT = new Date(toDate.getTime());
 
         const params = {
           fromDate: fromGMT.toISOString(),
-          toDate: toGMT.toISOString()
+          toDate: toGMT.toISOString(),
+          userId: selectedUser
         };
 
         const response = await axios.get(
@@ -79,7 +100,7 @@ const BidHistory = () => {
     };
 
     fetchData();
-  }, [dateFilter]);
+  }, [dateFilter, selectedUser]);
 
   const filteredBids = bidHistory.filter(bid => {
     const matchesTitle = bid.url.toLowerCase().includes(titleFilter.toLowerCase());
@@ -171,8 +192,25 @@ const BidHistory = () => {
     <>
       <ToastContainer />
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <Box sx={{ width: '80%', mb: 2 }}>
-          <Typography variant="subtitle1" align="right">
+        <Box sx={{ width: '80%', mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box sx={{ minWidth: 200 }}>
+            <TextField
+              select
+              label="User"
+              value={selectedUser}
+              onChange={(e) => setSelectedUser(e.target.value)}
+              variant="outlined"
+              size="small"
+              fullWidth
+            >
+              {usersList.map((user) => (
+                <MenuItem key={user._id} value={user._id}>
+                  {user.name}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Box>
+          <Typography variant="subtitle1">
             {globalSearchResults.length > 0 ? 'Search Results' : 'Total'}: {displayedBids.length}
           </Typography>
         </Box>
@@ -313,9 +351,11 @@ const BidHistory = () => {
                 <Typography variant="h6" gutterBottom>Filled Fields</Typography>
                 <List>
                   {selectedBid.filledFields.map((field, index) => (
-                    <ListItem key={index}>
-                      <ListItemText primary={field} />
-                    </ListItem>
+                    field.trim() !== '' && (
+                      <ListItem key={index}>
+                        <ListItemText primary={field} />
+                      </ListItem>
+                    )
                   ))}
                 </List>
               </Box>

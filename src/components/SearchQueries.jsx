@@ -52,6 +52,7 @@ const TIME_OPTIONS = [
   { value: 'm', label: 'Past Month' },
   { value: 'y', label: 'Past Year' },
   { value: '', label: 'All Time' },
+  { value: 'a', label: 'All above' },
 ];
 
 const JOB_SCRAPING_TIME_OPTIONS = [
