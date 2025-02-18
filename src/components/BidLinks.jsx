@@ -438,73 +438,78 @@ const BidLinks = () => {
   const FilteredBidLinks = React.memo(
     ({ filteredBidLinks, hiddenLinks, users, onToggleHide }) => {
       console.log("FilteredBidLinks rendered");
-      return filteredBidLinks.map((link, index) => (
-        <Grid item xs={12} key={link._id}>
-          <Card>
-            <CardContent>
-              <Box
-                display="flex"
-                alignItems="center"
-                justifyContent="space-between"
-              >
-                <Typography
-                  variant="h6"
-                  sx={{ flex: 1, display: "flex", alignItems: "center" }}
+      return filteredBidLinks.map((link) => {
+        // Find the index of this link in the full bidLinks array
+        const fullIndex = bidLinks.findIndex(item => item._id === link._id);
+        
+        return (
+          <Grid item xs={12} key={link._id}>
+            <Card>
+              <CardContent>
+                <Box
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="space-between"
                 >
-                  <Typography 
-                    component="span" 
-                    sx={{ 
-                      color: 'text.disabled',
-                      minWidth: '30px',
-                      mr: 1
-                    }}
+                  <Typography
+                    variant="h6"
+                    sx={{ flex: 1, display: "flex", alignItems: "center" }}
                   >
-                    {index + 1}.
+                    <Typography 
+                      component="span" 
+                      sx={{ 
+                        color: 'text.disabled',
+                        minWidth: '30px',
+                        mr: 1
+                      }}
+                    >
+                      {fullIndex + 1}.
+                    </Typography>
+                    <Link
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      sx={{ "&:visited": { color: "purple" } }}
+                    >
+                      {link.title}
+                    </Link>
                   </Typography>
-                  <Link
-                    href={link.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    sx={{ "&:visited": { color: "purple" } }}
-                  >
-                    {link.title}
-                  </Link>
-                </Typography>
-                <Box sx={{ display: "flex", gap: 1 }}>
-                  {link.company && (
-                    <Tooltip title={`Add ${link.company} to blacklist`}>
-                      <Button
-                        size="small"
-                        onClick={() =>
-                          handleAddCompanyToBlacklist(link.company)
-                        }
-                        sx={{ minWidth: "auto", p: 0.5, marginLeft: "8px" }}
-                      >
-                        <DoNotTouchIcon color="action" />
-                      </Button>
-                    </Tooltip>
-                  )}
-                  <VisibilityToggleButton 
-                    linkId={link._id}
-                    isHidden={hiddenLinks.includes(link._id)}
-                    onToggle={onToggleHide}
-                  />
+                  <Box sx={{ display: "flex", gap: 1 }}>
+                    {link.company && (
+                      <Tooltip title={`Add ${link.company} to blacklist`}>
+                        <Button
+                          size="small"
+                          onClick={() =>
+                            handleAddCompanyToBlacklist(link.company)
+                          }
+                          sx={{ minWidth: "auto", p: 0.5, marginLeft: "8px" }}
+                        >
+                          <DoNotTouchIcon color="action" />
+                        </Button>
+                      </Tooltip>
+                    )}
+                    <VisibilityToggleButton 
+                      linkId={link._id}
+                      isHidden={hiddenLinks.includes(link._id)}
+                      onToggle={onToggleHide}
+                    />
+                  </Box>
                 </Box>
-              </Box>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Company: {link.company || "N/A"} | Posted: {link.date || "N/A"}{" "}
-                | Added: {new Date(link.created_at).toLocaleString()}
-                {link.created_by && users[link.created_by] && (
-                  <> | Searched by: {users[link.created_by]}</>
-                )}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" paragraph>
-                {link.description}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      ));
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Company: {link.company || "N/A"} | Posted: {link.date || "N/A"}{" "}
+                  | Added: {new Date(link.created_at).toLocaleString()}
+                  {link.created_by && users[link.created_by] && (
+                    <> | Searched by: {users[link.created_by]}</>
+                  )}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" paragraph>
+                  {link.description}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        );
+      });
     }
   );
 
