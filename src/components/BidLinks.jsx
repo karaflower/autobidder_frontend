@@ -438,7 +438,7 @@ const BidLinks = () => {
   const FilteredBidLinks = React.memo(
     ({ filteredBidLinks, hiddenLinks, users, onToggleHide }) => {
       console.log("FilteredBidLinks rendered");
-      return filteredBidLinks.map((link) => (
+      return filteredBidLinks.map((link, index) => (
         <Grid item xs={12} key={link._id}>
           <Card>
             <CardContent>
@@ -451,6 +451,16 @@ const BidLinks = () => {
                   variant="h6"
                   sx={{ flex: 1, display: "flex", alignItems: "center" }}
                 >
+                  <Typography 
+                    component="span" 
+                    sx={{ 
+                      color: 'text.disabled',
+                      minWidth: '30px',
+                      mr: 1
+                    }}
+                  >
+                    {index + 1}.
+                  </Typography>
                   <Link
                     href={link.url}
                     target="_blank"
