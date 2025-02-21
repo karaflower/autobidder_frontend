@@ -34,13 +34,10 @@ import CheckIcon from "@mui/icons-material/Check";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DoNotTouchIcon from "@mui/icons-material/DoNotTouch";
-import ManageSearchIcon from "@mui/icons-material/ManageSearch";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 
 const BidLinks = () => {
   const [bidLinks, setBidLinks] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
   const [currentUserId, setCurrentUserId] = useState("user123");
   const [users, setUsers] = useState({}); // Add this state for users lookup
   const [selectedDate, setSelectedDate] = useState(() => {
@@ -64,40 +61,15 @@ const BidLinks = () => {
     return stored ? JSON.parse(stored) : [];
   });
   const [showFriendsMenu, setShowFriendsMenu] = useState(false);
-  const [showBlacklisted, setShowBlacklisted] = useState(() => {
-    const stored = localStorage.getItem("showBlacklisted");
-    return stored ? JSON.parse(stored) : false;
-  });
   const [openBlacklistDialog, setOpenBlacklistDialog] = useState(false);
   const [blacklists, setBlacklists] = useState([]);
-  const [newBlacklist, setNewBlacklist] = useState("");
   const [openSearchDialog, setOpenSearchDialog] = useState(false);
   const [globalSearchResults, setGlobalSearchResults] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [isAddingBlacklist, setIsAddingBlacklist] = useState(false);
   const [isReloadingBids, setIsReloadingBids] = useState(false);
+  const [isSearchInputLoading, setIsSearchInputLoading] = useState(false);
 
-  console.log("Search Term:", searchTerm);
-
-  const filteredBidLinks = useMemo(() => {
+    const filteredBidLinks = useMemo(() => {
     const filterLink = (link) => {
-      // Search criteria
-      if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase();
-        const searchFields = [
-          link.title,
-          link.url,
-          link.description,
-          link.company,
-        ].filter(Boolean);
-
-        const meetsSearchCriteria = searchFields.some((field) =>
-          field.toLowerCase().includes(searchLower)
-        );
-
-        if (!meetsSearchCriteria) return false;
-      }
-
       // Hidden criteria
       if (!showHiddenLinks && hiddenLinks.includes(link._id)) {
         return false;
@@ -124,7 +96,6 @@ const BidLinks = () => {
     return bidLinks.filter(filterLink);
   }, [
     bidLinks,
-    searchTerm,
     showHiddenLinks,
     hiddenLinks,
     showFilter,
@@ -150,7 +121,7 @@ const BidLinks = () => {
       const toGMT = new Date(toDate.getTime());
 
       const params = new URLSearchParams({
-        showBlacklisted: showBlacklisted,
+        showBlacklisted: false,
         from: fromGMT.toISOString(),
         to: toGMT.toISOString(),
       });
@@ -169,14 +140,13 @@ const BidLinks = () => {
       console.error("Failed to fetch bid links:", err);
     } finally {
       setIsReloadingBids(false);
-      setIsLoading(false);
     }
   };
 
   const fetchUsers = async () => {
     try {
       const response = await axios.get(
-        `${process.env.REACT_APP_API_URL}/friends`
+        `${process.env.REACT_APP_API_URL}/friends/added-me`
       );
       const usersMap = response.data.reduce((acc, user) => {
         acc[user._id] = user.name;
@@ -197,7 +167,7 @@ const BidLinks = () => {
   useEffect(() => {
     console.log("Selected Date:", selectedDate);
     fetchBidLinks();
-  }, [selectedDate, showBlacklisted]);
+  }, [selectedDate]);
 
   const fetchBlacklists = async () => {
     try {
@@ -213,13 +183,10 @@ const BidLinks = () => {
 
   const handleAddBlacklist = async (newBlackWord) => {
     if (!newBlackWord.trim()) return;
-
-    setIsAddingBlacklist(true);
     try {
       await axios.post(`${process.env.REACT_APP_API_URL}/bid-links/blacklist`, {
         blacklists: [newBlackWord.trim()],
       });
-      setNewBlacklist("");
       await fetchBlacklists();
       await fetchBidLinks();
       toast.success("URL added to blacklist");
@@ -227,7 +194,6 @@ const BidLinks = () => {
       console.error("Failed to add to blacklist:", error);
       toast.error("Failed to add to blacklist");
     } finally {
-      setIsAddingBlacklist(false);
     }
   };
 
@@ -288,20 +254,20 @@ const BidLinks = () => {
     toast.success(`${linksToHide.length} link(s) hidden`);
   };
 
-  const handleGlobalSearch = async () => {
+  const handleGlobalSearch = async (searchTerm) => {
     if (!searchTerm.trim()) {
       toast.error("Please enter a search term");
       return;
     }
 
-    setIsSearching(true);
+    setIsSearchInputLoading(true);
     try {
       const response = await axios.get(
         `${process.env.REACT_APP_API_URL}/bid-links/search`,
         {
           params: {
             searchTerm: searchTerm,
-            showBlacklisted: showBlacklisted,
+            showBlacklisted: false,
           },
         }
       );
@@ -311,8 +277,18 @@ const BidLinks = () => {
       console.error("Failed to perform global search:", error);
       toast.error("Failed to perform global search");
     } finally {
-      setIsSearching(false);
+      setIsSearchInputLoading(false);
     }
+  };
+
+  const handleFriendToggle = (userId) => {
+    setSelectedFriends((prev) => {
+      const newSelection = prev.includes(userId)
+        ? prev.filter((id) => id !== userId)
+        : [...prev, userId];
+      localStorage.setItem("selectedFriends", JSON.stringify(newSelection));
+      return newSelection;
+    });
   };
 
   const renderBlacklistPanel = () => (
@@ -334,9 +310,7 @@ const BidLinks = () => {
         <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
           <TextField
             fullWidth
-            label="Add to blacklist"
-            // value={newBlacklist}
-            // onChange={(e) => setNewBlacklist(e.target.value)}
+            label="Enter blacklist"
             variant="standard"
             size="small"
             onKeyDown={async (e) => {
@@ -346,13 +320,6 @@ const BidLinks = () => {
               }
             }}
           />
-          <Button 
-            variant="contained" 
-            onClick={() => handleAddBlacklist(newBlacklist)}
-            disabled={isAddingBlacklist}
-          >
-            {isAddingBlacklist ? <CircularProgress size={24} /> : "Add"}
-          </Button>
         </Box>
 
         <List sx={{ maxHeight: "calc(100vh - 200px)", overflow: "auto" }}>
@@ -406,17 +373,6 @@ const BidLinks = () => {
   // }, [openBlacklistDialog, newBlacklist, handleAddBlacklist]);
 
   // Add this useEffect for the keyboard shortcut
-  useEffect(() => {
-    const handleKeyPress = (e) => {
-      if (e.ctrlKey && e.key === 'Enter' && searchTerm.trim()) {
-        handleGlobalSearch();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [searchTerm]);
-
   const VisibilityToggleButton = React.memo(({ linkId, isHidden, onToggle }) => {
     return (
       <Tooltip title={isHidden ? "Show Link" : "Hide Link"}>
@@ -548,39 +504,21 @@ const BidLinks = () => {
                 <Grid item>
                   <TextField
                     size="small"
-                    // value={searchTerm}
-                    // onChange={(e) => setSearchTerm(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
-                        setSearchTerm(e.target.value);
+                        handleGlobalSearch(e.target.value);
                       }
                     }}
-                    onKeyUp={(e) => {
-                      if (e.target.value === '') {
-                        setSearchTerm('');
-                      }
-                    }}
-                    placeholder="Search..."
+                    placeholder="Enter Search Term..."
                     sx={{ width: "150px" }}
                     variant="standard"
+                    InputProps={{
+                      endAdornment: isSearchInputLoading && (
+                        <CircularProgress size={16} sx={{ mr: 1 }} />
+                      ),
+                    }}
                   />
                 </Grid>
-
-                {/* <Grid item>
-                  <Tooltip title="Global Search (Ctrl+Enter)">
-                    <Button
-                      variant="outlined"
-                      onClick={handleGlobalSearch}
-                      disabled={isSearching}
-                      startIcon={
-                        isSearching ? <CircularProgress size={20} /> : null
-                      }
-                      size="small"
-                    >
-                      {isSearching ? "Searching..." : <ManageSearchIcon />}
-                    </Button>
-                  </Tooltip>
-                </Grid> */}
 
                 <Grid item>
                   <FormControlLabel
