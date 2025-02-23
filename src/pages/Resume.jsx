@@ -24,6 +24,11 @@ import AddIcon from '@mui/icons-material/Add';
 import SaveIcon from '@mui/icons-material/Save';
 import CancelIcon from '@mui/icons-material/Cancel';
 import Cookies from 'js-cookie';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Set the worker source using a local path instead of CDN
+pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+
 const Resume = () => {
   const [resumes, setResumes] = useState([]);
   const [selectedResumeIndex, setSelectedResumeIndex] = useState(0);
@@ -34,6 +39,8 @@ const Resume = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [resumeToDelete, setResumeToDelete] = useState(null);
   const [fileToUpload, setFileToUpload] = useState(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
   const fetchResumes = async () => {
     try { 
       const response = await axios.get(`${process.env.REACT_APP_API_URL}/resumes`);
@@ -107,15 +114,31 @@ const Resume = () => {
         formData.append('resume', fileToUpload);
       }
 
-      await axios.put(
-        `${process.env.REACT_APP_API_URL}/resumes/${editedResume._id}`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      );
+      // If it's a new resume (has temporary ID)
+      if (editedResume._id.startsWith('temp-')) {
+        const response = await axios.post(
+          `${process.env.REACT_APP_API_URL}/resumes`,
+          formData,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          }
+        );
+        // Update the resume with the real ID from the server
+        editedResume._id = response.data._id;
+        editedResume.path = response.data.path;
+      } else {
+        await axios.put(
+          `${process.env.REACT_APP_API_URL}/resumes/${editedResume._id}`,
+          formData,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          }
+        );
+      }
       
       const updatedResumes = [...resumes];
       updatedResumes[selectedResumeIndex] = editedResume;
@@ -205,64 +228,30 @@ const Resume = () => {
 
   const createNewResume = async () => {
     const emptyResume = {
+      _id: `temp-${Date.now()}`, // Temporary ID for local state
       owner: Cookies.get('userid'),
-      content: {
-        personal_info: {
-          name: 'John Doe',
-          title: 'Blockchain and Fullstack Developer',
-          email: '',
-          phone_number: '',
-          location: '',
-        },
-        profile: '',
-        education: [{
-          id: 1,
-          institution: '',
-          degree: "Bachelor's Degree of Computer Science",
-          year: ''
-        }],
-        experience: [{
-          id: 1,
-          company: '',
-          position: '',
-          duration: '',
-          description: ''
-        }],
-        skillset: [
-        ]
-      }
+      personal_info: {
+        name: '',
+        title: '',
+        email: '',
+        phone_number: '',
+        location: '',
+      },
+      profile: '',
+      education: [{
+        id: 1,
+        institution: '',
+        degree: "",
+        year: ''
+      }],
+      experience: [],
+      skillset: []
     };
 
-    try {
-      const formData = new FormData();
-      formData.append('owner', emptyResume.owner);
-      formData.append('content', JSON.stringify(emptyResume.content));
-      
-      const response = await axios.post(
-        `${process.env.REACT_APP_API_URL}/resumes`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      );
-      
-      const newResume = {
-        _id: response.data._id,
-        owner: emptyResume.owner,
-        ...emptyResume.content,
-        skills: emptyResume.content.skillset,
-        path: response.data.path
-      };
-      
-      setResumes([...resumes, newResume]);
-      setSelectedResumeIndex(resumes.length);
-      setIsEditing(true);
-      setEditedResume(newResume);
-    } catch (err) {
-      setError('Failed to create new resume');
-    }
+    setResumes([...resumes, emptyResume]);
+    setSelectedResumeIndex(resumes.length);
+    setIsEditing(true);
+    setEditedResume(emptyResume);
   };
 
   const handleDeleteClick = (resumeId, index) => {
@@ -324,6 +313,93 @@ const Resume = () => {
       ...editedResume,
       experience: editedResume.experience.filter(exp => exp.id !== id)
     });
+  };
+
+  const handleCancel = () => {
+    if (editedResume?._id.startsWith('temp-')) {
+      // Remove the temporary resume from the list
+      const updatedResumes = resumes.filter((_, index) => index !== selectedResumeIndex);
+      setResumes(updatedResumes);
+      setSelectedResumeIndex(Math.max(0, updatedResumes.length - 1));
+    }
+    setIsEditing(false);
+    setEditedResume(null);
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setFileToUpload(file);
+      setIsAnalyzing(true);
+      
+      try {
+        // Convert file to array buffer
+        const arrayBuffer = await file.arrayBuffer();
+        
+        // Load the PDF document
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = '';
+
+        // Extract text from each page
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map(item => item.str).join(' ');
+          fullText += pageText + '\n';
+        }
+
+        // Send the extracted text to backend for analysis
+        const response = await axios.post(
+          `${process.env.REACT_APP_API_URL}/analyze`,
+          { type: 'extractResumeInfo', data: { resumeText: fullText } },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        // Update the edited resume with the analyzed data
+        if (response.data) {
+          const analyzedResume = response.data;
+          setEditedResume(prev => ({
+            ...prev,
+            personal_info: {
+              name: analyzedResume.personal_info.name || prev.personal_info.name,
+              title: analyzedResume.personal_info.title || prev.personal_info.title,
+              email: analyzedResume.personal_info.email || prev.personal_info.email,
+              phone_number: analyzedResume.personal_info.phone_number || prev.personal_info.phone_number,
+              location: analyzedResume.personal_info.location || prev.personal_info.location,
+            },
+            profile: analyzedResume.profile || prev.profile,
+            experience: analyzedResume.experience.map((exp, index) => ({
+              id: index + 1,
+              company: exp.company,
+              position: exp.position,
+              duration: exp.duration,
+              description: exp.description
+            })),
+            education: analyzedResume.education.map((edu, index) => ({
+              id: index + 1,
+              institution: edu.institution,
+              degree: edu.degree,
+              year: edu.year
+            })),
+            skillset: analyzedResume.skillset.map((skill, index) => ({
+              id: index + 1,
+              category: skill.category,
+              skills: skill.skills
+            }))
+          }));
+        }
+
+      } catch (error) {
+        console.error('Error processing PDF:', error);
+        setError('Failed to process resume file');
+      } finally {
+        setIsAnalyzing(false);
+      }
+    }
   };
 
   if (loading) {
@@ -407,7 +483,7 @@ const Resume = () => {
                 <input
                   type="file"
                   accept=".pdf,.doc,.docx"
-                  onChange={(e) => setFileToUpload(e.target.files[0])}
+                  onChange={handleFileUpload}
                   style={{ display: 'none' }}
                   id="resume-file-input"
                 />
@@ -415,10 +491,11 @@ const Resume = () => {
                   <Button
                     variant="outlined"
                     component="span"
-                    startIcon={<AddIcon />}
+                    startIcon={isAnalyzing ? <CircularProgress size={20} /> : <AddIcon />}
                     sx={{ mr: 1 }}
+                    disabled={isAnalyzing}
                   >
-                    {fileToUpload ? fileToUpload.name : 'Upload Resume File'}
+                    {isAnalyzing ? 'Analyzing Resume...' : (fileToUpload ? fileToUpload.name : 'Upload Resume File')}
                   </Button>
                 </label>
                 <Button
@@ -432,7 +509,7 @@ const Resume = () => {
                 <Button
                   startIcon={<CancelIcon />}
                   variant="outlined"
-                  onClick={() => setIsEditing(false)}
+                  onClick={handleCancel}
                 >
                   Cancel
                 </Button>
@@ -448,6 +525,13 @@ const Resume = () => {
                   label="Name"
                   value={displayedResume.personal_info.name}
                   onChange={(e) => handleFieldChange('personal_info', 'name', e.target.value)}
+                  sx={{ mb: 2 }}
+                />
+                <TextField
+                  fullWidth
+                  label="Title"
+                  value={displayedResume.personal_info.title}
+                  onChange={(e) => handleFieldChange('personal_info', 'title', e.target.value)}
                   sx={{ mb: 2 }}
                 />
                 <TextField
@@ -475,6 +559,9 @@ const Resume = () => {
               <>
                 <Typography variant="h4" gutterBottom>
                   {displayedResume.personal_info.name}
+                </Typography>
+                <Typography variant="h6" gutterBottom color="text.secondary">
+                  {displayedResume.personal_info.title}
                 </Typography>
                 <Typography variant="body1">{displayedResume.personal_info.email}</Typography>
                 <Typography variant="body1">{displayedResume.personal_info.phone_number}</Typography>

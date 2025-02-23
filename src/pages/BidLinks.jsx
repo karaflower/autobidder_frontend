@@ -54,11 +54,7 @@ const BidLinks = () => {
   });
   const [showFilter, setShowFilter] = useState(() => {
     const stored = localStorage.getItem("showFilter");
-    return stored ? JSON.parse(stored) : "all"; // 'all', 'mine', 'friends'
-  });
-  const [selectedFriends, setSelectedFriends] = useState(() => {
-    const stored = localStorage.getItem("selectedFriends");
-    return stored ? JSON.parse(stored) : [];
+    return stored ? JSON.parse(stored) : "all"; // 'all', 'mine', 'team'
   });
   const [showFriendsMenu, setShowFriendsMenu] = useState(false);
   const [openBlacklistDialog, setOpenBlacklistDialog] = useState(false);
@@ -68,7 +64,7 @@ const BidLinks = () => {
   const [isReloadingBids, setIsReloadingBids] = useState(false);
   const [isSearchInputLoading, setIsSearchInputLoading] = useState(false);
 
-    const filteredBidLinks = useMemo(() => {
+  const filteredBidLinks = useMemo(() => {
     const filterLink = (link) => {
       // Hidden criteria
       if (!showHiddenLinks && hiddenLinks.includes(link._id)) {
@@ -78,16 +74,6 @@ const BidLinks = () => {
       // User filter criteria
       if (showFilter === "mine" && link.created_by !== currentUserId) {
         return false;
-      }
-
-      if (showFilter === "friends") {
-        if (selectedFriends.length === 0) {
-          // Show all friends' links
-          if (!users[link.created_by]) return false;
-        } else {
-          // Show only selected friends' links
-          if (!selectedFriends.includes(link.created_by)) return false;
-        }
       }
 
       return true;
@@ -100,8 +86,6 @@ const BidLinks = () => {
     hiddenLinks,
     showFilter,
     currentUserId,
-    selectedFriends,
-    users,
   ]);
 
   const fetchBidLinks = async () => {
@@ -281,16 +265,6 @@ const BidLinks = () => {
     }
   };
 
-  const handleFriendToggle = (userId) => {
-    setSelectedFriends((prev) => {
-      const newSelection = prev.includes(userId)
-        ? prev.filter((id) => id !== userId)
-        : [...prev, userId];
-      localStorage.setItem("selectedFriends", JSON.stringify(newSelection));
-      return newSelection;
-    });
-  };
-
   const renderBlacklistPanel = () => (
     <Drawer
       anchor="right"
@@ -361,17 +335,6 @@ const BidLinks = () => {
     </Button>
   );
 
-  // useEffect(() => {
-  //   const handleKeyPress = (e) => {
-  //     if (openBlacklistDialog && e.key === 'Enter' && newBlacklist.trim()) {
-  //       handleAddBlacklist();
-  //     }
-  //   };
-
-  //   window.addEventListener('keydown', handleKeyPress);
-  //   return () => window.removeEventListener('keydown', handleKeyPress);
-  // }, [openBlacklistDialog, newBlacklist, handleAddBlacklist]);
-
   // Add this useEffect for the keyboard shortcut
   const VisibilityToggleButton = React.memo(({ linkId, isHidden, onToggle }) => {
     return (
@@ -395,7 +358,6 @@ const BidLinks = () => {
     ({ filteredBidLinks, hiddenLinks, users, onToggleHide }) => {
       console.log("FilteredBidLinks rendered");
       return filteredBidLinks.map((link) => {
-        // Find the index of this link in the full bidLinks array
         const fullIndex = bidLinks.findIndex(item => item._id === link._id);
         
         return (
@@ -456,6 +418,14 @@ const BidLinks = () => {
                   | Added: {new Date(link.created_at).toLocaleString()}
                   {link.created_by && users[link.created_by] && (
                     <> | Searched by: {users[link.created_by]}</>
+                  )}
+                  <Tooltip title={link.queryId?.link}>
+                    {link.queryId?.link && (
+                      <> | Query Source: {link.queryId.link.slice(0, 30)}{link.queryId.link.length > 30 ? "..." : ""}</>
+                    )}
+                  </Tooltip>
+                  {link.queryDateLimit && (
+                    <> | Query Date Limit: {link.queryDateLimit}</>
                   )}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" paragraph>
@@ -550,103 +520,6 @@ const BidLinks = () => {
                 </Grid>
 
                 <Grid item>{blacklistButton}</Grid>
-
-                <Grid item>
-                  <Box sx={{ display: "flex", gap: 1 }}>
-                    <Button
-                      variant={showFilter === "all" ? "contained" : "outlined"}
-                      onClick={() => {
-                        setShowFilter("all");
-                        localStorage.setItem(
-                          "showFilter",
-                          JSON.stringify("all")
-                        );
-                      }}
-                      size="small"
-                    >
-                      All Links
-                    </Button>
-                    <Button
-                      variant={showFilter === "mine" ? "contained" : "outlined"}
-                      onClick={() => {
-                        setShowFilter("mine");
-                        localStorage.setItem(
-                          "showFilter",
-                          JSON.stringify("mine")
-                        );
-                      }}
-                      size="small"
-                    >
-                      My Links
-                    </Button>
-                    <Box sx={{ position: "relative" }}>
-                      <Button
-                        variant={
-                          showFilter === "friends" ? "contained" : "outlined"
-                        }
-                        onClick={() => {
-                          setShowFilter("friends");
-                          localStorage.setItem(
-                            "showFilter",
-                            JSON.stringify("friends")
-                          );
-                        }}
-                        endIcon={<KeyboardArrowDownIcon />}
-                        onMouseEnter={() => setShowFriendsMenu(true)}
-                        onMouseLeave={() => setShowFriendsMenu(false)}
-                        size="small"
-                      >
-                        Friends' Links{" "}
-                        {selectedFriends.length > 0 &&
-                          `(${selectedFriends.length})`}
-                      </Button>
-                      {showFilter === "friends" && showFriendsMenu && (
-                        <Paper
-                          sx={{
-                            position: "absolute",
-                            top: "100%",
-                            left: 0,
-                            zIndex: 1000,
-                            minWidth: "200px",
-                            maxHeight: "300px",
-                            overflow: "auto",
-                          }}
-                          onMouseEnter={() => setShowFriendsMenu(true)}
-                          onMouseLeave={() => setShowFriendsMenu(false)}
-                        >
-                          <List dense>
-                            <ListItem>
-                              <ListItemButton
-                                onClick={() => setSelectedFriends([])}
-                              >
-                                <ListItemText primary="All Friends" />
-                                {selectedFriends.length === 0 && (
-                                  <CheckIcon color="primary" />
-                                )}
-                              </ListItemButton>
-                            </ListItem>
-                            <Divider />
-                            {Object.entries(users).map(
-                              ([userId, userName]) =>
-                                userId !== currentUserId && (
-                                  <ListItem key={userId}>
-                                    <ListItemButton
-                                      onClick={() => handleFriendToggle(userId)}
-                                    >
-                                      <ListItemText primary={userName} />
-                                      {selectedFriends.includes(userId) && (
-                                        <CheckIcon color="primary" />
-                                      )}
-                                    </ListItemButton>
-                                  </ListItem>
-                                )
-                            )}
-                          </List>
-                        </Paper>
-                      )}
-                    </Box>
-                  </Box>
-                </Grid>
               </Grid>
             </Grid>
           </Grid>

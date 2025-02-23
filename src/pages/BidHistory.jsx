@@ -31,6 +31,7 @@ import GradingIcon from '@mui/icons-material/Grading';
 import DeleteIcon from '@mui/icons-material/Delete';
 import 'react-toastify/dist/ReactToastify.css';
 import { ToastContainer } from 'react-toastify';
+import Dashboard from './Dashboard';
 
 
 const BidHistory = () => {
@@ -48,20 +49,26 @@ const BidHistory = () => {
   const [selectedBid, setSelectedBid] = useState(null);
   const [globalSearchResults, setGlobalSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [openDashboard, setOpenDashboard] = useState(false);
 
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get(`${process.env.REACT_APP_API_URL}/friends/added-me`);
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/teams/my-team`);
         const userResponse = await axios.get(`${process.env.REACT_APP_API_URL}/auth/user`);
         setUsersList([
           { _id: userResponse.data._id, name: 'My Applications' },
           ...response.data
+            .filter(user => user._id !== userResponse.data._id)
+            .map(user => ({
+              _id: user._id,
+              name: user.name || user.email
+            }))
         ]);
         setSelectedUser(userResponse.data._id);
       } catch (err) {
-        console.error('Failed to fetch users:', err);
-        toast.error('Failed to fetch users list');
+        console.error('Failed to fetch team members:', err);
+        toast.error('Failed to fetch team members list');
       }
     };
 
@@ -172,6 +179,14 @@ const BidHistory = () => {
     }
   };
 
+  const handleOpenDashboard = () => {
+    setOpenDashboard(true);
+  };
+
+  const handleCloseDashboard = () => {
+    setOpenDashboard(false);
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
@@ -213,6 +228,13 @@ const BidHistory = () => {
           <Typography variant="subtitle1">
             {globalSearchResults.length > 0 ? 'Search Results' : 'Total'}: {displayedBids.length}
           </Typography>
+          <Button
+            variant="contained" 
+            color="primary" 
+            onClick={handleOpenDashboard}
+          >
+            Chart View
+          </Button>
         </Box>
         <TableContainer component={Paper} sx={{ maxWidth: '80%', padding: '20px' }}>
           <Table>
@@ -313,7 +335,6 @@ const BidHistory = () => {
           </Table>
         </TableContainer>
       </Box>
-
       <Dialog
         open={dialogOpen}
         onClose={handleCloseDetails}
@@ -365,6 +386,17 @@ const BidHistory = () => {
         <DialogActions>
           <Button onClick={handleCloseDetails}>Close</Button>
         </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={openDashboard}
+        onClose={handleCloseDashboard}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogContent>
+          <Dashboard />
+        </DialogContent>
       </Dialog>
     </>
   );

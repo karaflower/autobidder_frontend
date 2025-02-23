@@ -2,23 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { Container, CircularProgress, Box, IconButton } from '@mui/material';
+import { CircularProgress, Box, IconButton } from '@mui/material';
 import { ToastContainer } from 'react-toastify';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
 import Cookies from 'js-cookie';
 import 'react-toastify/dist/ReactToastify.css';
+import TeamManagement from './pages/TeamManagement';
+import { PeopleIcon } from '@mui/icons-material/People';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
-import BidLinks from './components/BidLinks';
-import Resume from './components/Resume';
-import Navigation from './components/Navigation';
-import SearchQueries from './components/SearchQueries';
-import Login from './components/Login';
-import AiPrompts from './components/AiPrompts';
-import Settings from './components/Settings';
-import BidHistory from './components/BidHistory';
-import CustomizedResumes from './components/CustomizedResumes';
+import BidLinks from './pages/BidLinks';
+import Resume from './pages/Resume';
+import Navigation from './pages/Navigation';
+import SearchQueries from './pages/SearchQueries';
+import Login from './pages/Login';
+import AiPrompts from './pages/AiPrompts';
+import Settings from './pages/Settings';
+import BidHistory from './pages/BidHistory';
+import CustomizedResumes from './pages/CustomizedResumes';
+import BossDashboard from './pages/BossDashboard';
 const getTheme = (mode) => createTheme({
   palette: {
     mode,
@@ -113,7 +116,7 @@ const getTheme = (mode) => createTheme({
   },
 });
 
-const ProtectedRoute = ({ children }) => {
+const ProtectedRoute = ({ children, requiredRole }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -126,6 +129,10 @@ const ProtectedRoute = ({ children }) => {
 
   if (!user) {
     return <Navigate to="/login" />;
+  }
+
+  if (requiredRole && user.role !== requiredRole) {
+    return <Navigate to="/" />;
   }
 
   return children;
@@ -173,12 +180,22 @@ function App() {
                     >
                       <Routes>
                         <Route path="/" element={<BidLinks />} />
-                        <Route path="/resume" element={<Resume />} />
+                        <Route path="/resumes" element={<Resume />} />
                         <Route path="/search-queries" element={<SearchQueries />} />
                         <Route path="/ai-prompts" element={<AiPrompts />} />
                         <Route path="/settings" element={<Settings />} />
                         <Route path="/bid-history" element={<BidHistory />} />
                         <Route path="/customized-resumes" element={<CustomizedResumes />} />
+                        <Route path="/boss-dashboard" element={
+                          <ProtectedRoute requiredRole="boss">
+                            <BossDashboard />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/team-management" element={
+                          <ProtectedRoute requiredRole="boss">
+                            <TeamManagement />
+                          </ProtectedRoute>
+                        } />
                       </Routes>
                     </Box>
                   </Box>

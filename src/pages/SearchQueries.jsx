@@ -244,7 +244,7 @@ const SearchTimeline = ({ queries, users, selectedCategories }) => {
         >
           <ResponsiveContainer width="100%" height="100%">
             <ScatterChart
-              margin={{ top: 20, right: 30, bottom: 20 }}
+              margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
             >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
@@ -261,14 +261,17 @@ const SearchTimeline = ({ queries, users, selectedCategories }) => {
                 ticks={[...Array(uniqueQueries.length)].map((_, i) => i + 1)}
                 tickFormatter={(value) => {
                   const data = formatChartData().find(d => d.yAxis === value);
-                  return data ? data.shortQuery : '';
+                  if (!data) return '';
+                  // Truncate text if longer than 40 characters
+                  return data.query.length > 40 ? data.query.substring(0, 37) + '...' : data.query;
                 }}
-                width={280}
+                width={350}
                 tick={{ 
                   textAnchor: 'end',
-                  width: 270,
+                  width: 340,
                   fontSize: 12,
-                  fill: '#666'
+                  fill: '#666',
+                  dx: -10
                 }}
               />
               <RechartsTooltip
@@ -347,26 +350,12 @@ const useSearchQueries = () => {
     }
   };
 
-  // Add new state for users who added me
-  const [usersWhoAddedMe, setUsersWhoAddedMe] = useState([]);
-
-  // Modify the fetchUsers function to also fetch users who added me
   const fetchUsers = async () => {
     try {
-      const [friendsResponse, addedMeResponse] = await Promise.all([
-        axios.get(`${process.env.REACT_APP_API_URL}/friends`),
-        axios.get(`${process.env.REACT_APP_API_URL}/friends/added-me`)
-      ]);
-      
       const usersMap = {
-        [user._id]: user.name, // Add current user
-        ...friendsResponse.data.reduce((acc, friend) => {
-          acc[friend._id] = friend.name;
-          return acc;
-        }, {})
+        [user._id]: user.name // Add current user only
       };
       setUsers(usersMap);
-      setUsersWhoAddedMe(addedMeResponse.data);
     } catch (err) {
       console.error('Failed to fetch users:', err);
     }
@@ -509,7 +498,6 @@ const useSearchQueries = () => {
     lastAutoSearch,
     jobScrapingInProgress,
     executeJobScraping,
-    usersWhoAddedMe,
   };
 };
 
@@ -532,7 +520,6 @@ const SearchQueries = () => {
     lastAutoSearch,
     jobScrapingInProgress,
     executeJobScraping,
-    usersWhoAddedMe,
   } = useSearchQueries();
 
   const [openDialog, setOpenDialog] = useState(false);
@@ -549,8 +536,6 @@ const SearchQueries = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editQuery, setEditQuery] = useState('');
   const [queryToEdit, setQueryToEdit] = useState(null);
-  const [nextAutoSearchTime, setNextAutoSearchTime] = useState(null);
-  const [canAutoSearch, setCanAutoSearch] = useState(false);
   const [jobScrapingLoading, setJobScrapingLoading] = useState(false);
   const [jobScrapingDialogOpen, setJobScrapingDialogOpen] = useState(false);
   const [jobScrapingTimeUnit, setJobScrapingTimeUnit] = useState('');
@@ -569,9 +554,6 @@ const SearchQueries = () => {
   const [selectedTimelineCategories, setSelectedTimelineCategories] = useState([]);
   const [deleteCategoryDialogOpen, setDeleteCategoryDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState(null);
-  const [userFilterAnchorEl, setUserFilterAnchorEl] = useState(null);
-  const [selectedUserFilter, setSelectedUserFilter] = useState('all');
-  const [categoryOwnerFilter, setCategoryOwnerFilter] = useState(null);
 
   useEffect(() => {
     fetchCategories();
@@ -640,53 +622,14 @@ const SearchQueries = () => {
     }
   };
 
-  const handleCategorySelect = (category, owner) => {
+  const handleCategorySelect = (category) => {
     setSelectedCategoriesForSearch([category]);
     setSelectedCategory(category);
-    setCategoryOwnerFilter(owner);
   };
 
   const handleQueryMenuClose = () => {
     setAnchorEl(null);
     setSelectedQuery(null);
-  };
-
-  useEffect(() => {
-    const calculateNextAutoSearch = () => {
-      if (!lastAutoSearch) {
-        setCanAutoSearch(true);
-        return;
-      }
-
-      const lastSearch = new Date(lastAutoSearch);
-      const now = new Date();
-      const nextSearch = new Date(lastSearch.getTime() + 12 * 60 * 60 * 1000); // Add 24 hours
-      const timeDiff = nextSearch.getTime() - now.getTime();
-
-      if (timeDiff <= 0) {
-        setCanAutoSearch(true);
-        setNextAutoSearchTime(null);
-      } else {
-        setCanAutoSearch(false);
-        setNextAutoSearchTime(nextSearch);
-      }
-    };
-
-    calculateNextAutoSearch();
-    const interval = setInterval(calculateNextAutoSearch, 1000);
-    return () => clearInterval(interval);
-  }, [lastAutoSearch]);
-
-  const getTimeRemaining = () => {
-    if (!nextAutoSearchTime) return '';
-    const now = new Date();
-    const diff = nextAutoSearchTime.getTime() - now.getTime();
-    
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-    return `${hours}h ${minutes}m ${seconds}s`;
   };
 
   const handleSearch = async (queryId) => {
@@ -789,41 +732,30 @@ const SearchQueries = () => {
     }
   };
 
-  // Filter queries based on selected category and user filter
+  // Filter queries based only on selected category
   const filteredQueries = queries.filter(query => {
     // Always exclude web3Jobsites query
     if (query.link === 'web3Jobsites') return false;
 
-    // Category filter
-    const matchesCategory = selectedCategory === 'all' || 
-      (query.category === selectedCategory && query.created_by === categoryOwnerFilter);
-
-    // User filter
-    const matchesUser = selectedUserFilter === 'all' || 
-      query.created_by === selectedUserFilter;
-
-    return matchesCategory && matchesUser;
+    // Only filter by category
+    return selectedCategory === 'all' || query.category === selectedCategory;
   });
 
+  // Add this before the categories mapping
+  const filteredCategories = categories.filter(category => 
+    category.name !== 'general' && // Exclude 'general' category if needed
+    (!categorySearch || category.name.toLowerCase().includes(categorySearch.toLowerCase()))
+  );
+
+  // Remove user filter initialization
+  useEffect(() => {
+    setSelectedCategory('all');
+  }, []);
+
+  // Add this function to handle opening the timeline dialog
   const handleTimelineOpen = () => {
-    // Initialize timeline with current category if it's not 'general'
-    setSelectedTimelineCategories(selectedCategory !== 'general' ? [selectedCategory] : []);
     setTimelineDialogOpen(true);
   };
-
-  // Update the categories filtering section
-  const filteredCategories = categories.filter(category => 
-    !categoryOwnerFilter || category.owner === categoryOwnerFilter
-  ).map(category => ({
-    name: category.name,
-    owner: category.owner
-  }));
-
-  // Add useEffect to set initial user filter
-  useEffect(() => {
-    setSelectedUserFilter(user._id);
-    setCategoryOwnerFilter(user._id);
-  }, [user._id]);
 
   if (loading) return <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
     <CircularProgress size={25} />
@@ -858,21 +790,8 @@ const SearchQueries = () => {
             }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Typography variant="h6">Categories</Typography>
-                <Chip
-                  size="small"
-                  label={users[categoryOwnerFilter] || 'Unknown User'}
-                  sx={{ fontSize: '0.7rem' }}
-                />
               </Box>
               <Box sx={{ display: 'flex', gap: 1 }}>
-                <Tooltip title="Filter by User">
-                  <IconButton
-                    size="small"
-                    onClick={(e) => setUserFilterAnchorEl(e.currentTarget)}
-                  >
-                    <FilterListIcon />
-                  </IconButton>
-                </Tooltip>
                 <Tooltip title="Add Category">
                   <IconButton
                     onClick={() => setOpenCategoryDialog(true)}
@@ -914,21 +833,19 @@ const SearchQueries = () => {
               background: '#555',
             },
           }}>
-            {/* Filtered categories list */}
             {filteredCategories
               .filter(category => 
-                category.name.toLowerCase().includes(categorySearch.toLowerCase())
+                category.toLowerCase().includes(categorySearch.toLowerCase())
               )
               .map((category) => {
                 const bidLinksCount = queries.filter(q => 
-                  q.category === category.name && 
-                  q.created_by === category.owner && 
+                  q.category === category && 
                   q.link !== 'web3Jobsites'
                 ).length;
 
                 return (
                   <ListItem
-                    key={`${category.name}-${category.owner}`}
+                    key={category}
                     disablePadding
                     sx={{
                       borderRadius: 1,
@@ -939,8 +856,8 @@ const SearchQueries = () => {
                     }}
                   >
                     <ListItemButton
-                      selected={selectedCategory === category.name && categoryOwnerFilter === category.owner}
-                      onClick={() => handleCategorySelect(category.name, category.owner)}
+                      selected={selectedCategory === category}
+                      onClick={() => handleCategorySelect(category)}
                       sx={{ 
                         borderRadius: 1,
                         display: 'flex',
@@ -949,14 +866,14 @@ const SearchQueries = () => {
                       }}
                     >
                       <Checkbox
-                        checked={selectedCategoriesForSearch.includes(category.name)}
+                        checked={selectedCategoriesForSearch.includes(category)}
                         onChange={(e) => {
                           e.stopPropagation();
                           if (e.target.checked) {
-                            setSelectedCategoriesForSearch(prev => [...prev, category.name]);
+                            setSelectedCategoriesForSearch(prev => [...prev, category]);
                           } else {
                             setSelectedCategoriesForSearch(prev => 
-                              prev.filter(cat => cat !== category.name)
+                              prev.filter(cat => cat !== category)
                             );
                           }
                         }}
@@ -965,42 +882,40 @@ const SearchQueries = () => {
                         sx={{ ml: 1 }}
                       />
                       <Box sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-                        <Typography>{category.name}</Typography>
+                        <Typography>{category}</Typography>
                         <Chip
                           size="small"
                           label={bidLinksCount}
                           sx={{ ml: 1, fontSize: '0.7rem' }}
                         />
                       </Box>
-                      {category.owner === user._id && (
-                        <Box sx={{ display: 'flex', gap: 0.5 }}>
-                          <Tooltip title="Edit">
-                            <IconButton
-                              size="small"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingCategory(category.name);
-                                setNewCategory(category.name);
-                                setOpenCategoryDialog(true);
-                              }}
-                            >
-                              <EditIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Delete">
-                            <IconButton
-                              size="small"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setCategoryToDelete(category.name);
-                                setDeleteCategoryDialogOpen(true);
-                              }}
-                            >
-                              <DeleteIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        </Box>
-                      )}
+                      <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        <Tooltip title="Edit">
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingCategory(category);
+                              setNewCategory(category);
+                              setOpenCategoryDialog(true);
+                            }}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete">
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCategoryToDelete(category);
+                              setDeleteCategoryDialogOpen(true);
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
                     </ListItemButton>
                   </ListItem>
                 );
@@ -1017,7 +932,7 @@ const SearchQueries = () => {
               variant="contained"
               color="secondary"
               onClick={handleAutoSearchClick}
-              disabled={autoSearchLoading || !canAutoSearch || selectedCategoriesForSearch.length === 0}
+              disabled={autoSearchLoading}
               sx={{ minWidth: 200 }}
             >
               {autoSearchLoading ? (
@@ -1041,29 +956,8 @@ const SearchQueries = () => {
                   </Box>
                   Searching...
                 </>
-              ) : !canAutoSearch ? (
-                <Box display="flex" alignItems="center" gap={1}>
-                  <Box sx={{ position: 'relative', display: 'inline-flex' }}>
-                    <CircularProgress
-                      variant="determinate"
-                      value={100}
-                      size={20}
-                      sx={{
-                        color: (theme) => theme.palette.grey[300],
-                        position: 'absolute',
-                      }}
-                    />
-                    <CircularProgress
-                      variant="determinate"
-                      value={(nextAutoSearchTime - new Date()) / (24 * 60 * 60 * 1000) * 100}
-                      size={20}
-                      color="inherit"
-                    />
-                  </Box>
-                  Next auto search in: {getTimeRemaining()}
-                </Box>
               ) : selectedCategoriesForSearch.length === 0 ? (
-                'Select categories to search'
+                'Search All'
               ) : (
                 `Search ${selectedCategoriesForSearch.length} Categories`
               )}
@@ -1534,38 +1428,6 @@ const SearchQueries = () => {
             </Button>
           </DialogActions>
         </Dialog>
-
-        {/* User Filter Menu */}
-        <Menu
-          anchorEl={userFilterAnchorEl}
-          open={Boolean(userFilterAnchorEl)}
-          onClose={() => setUserFilterAnchorEl(null)}
-        >
-          <MenuItem
-            onClick={() => {
-              setSelectedUserFilter(user._id);
-              setCategoryOwnerFilter(user._id);
-              setUserFilterAnchorEl(null);
-            }}
-          >
-            <ListItemText primary={`${users[user._id]} (Me)`} />
-            {selectedUserFilter === user._id && <CheckIcon sx={{ ml: 1 }} />}
-          </MenuItem>
-          <Divider />
-          {usersWhoAddedMe.map(({ _id, name }) => (
-            <MenuItem
-              key={_id}
-              onClick={() => {
-                setSelectedUserFilter(_id);
-                setCategoryOwnerFilter(_id);
-                setUserFilterAnchorEl(null);
-              }}
-            >
-              <ListItemText primary={name} />
-              {selectedUserFilter === _id && <CheckIcon sx={{ ml: 1 }} />}
-            </MenuItem>
-          ))}
-        </Menu>
       </Box>
     </Box>
   );
