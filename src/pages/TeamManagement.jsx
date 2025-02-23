@@ -82,7 +82,11 @@ const TeamManagement = () => {
 
   const handleDialog = (type, data = null) => {
     setDialogType(type);
-    setDialogData(data || { name: '', password: '' });
+    if (type === 'resetPassword') {
+      setDialogData({ ...data, password: '' });
+    } else {
+      setDialogData(data || { name: '', password: '' });
+    }
     setDialogOpen(true);
   };
 

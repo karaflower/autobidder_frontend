@@ -660,7 +660,12 @@ const SearchQueries = () => {
     setAutoSearchTimeUnit('');
     setAutoSearchLoading(true);
     try {
-      const response = await executeAutoSearch(autoSearchTimeUnit, autoSearchFilterClosed, selectedCategoriesForSearch);
+      // Get all available categories if none are selected
+      const categoriesToSearch = selectedCategoriesForSearch.length === 0 
+        ? categories.map(category => category) // Send all categories
+        : selectedCategoriesForSearch;
+        
+      const response = await executeAutoSearch(autoSearchTimeUnit, autoSearchFilterClosed, categoriesToSearch);
       setSnackbar({
         open: true,
         message: `Auto-search completed! Found ${response.jobsFound || 0} new jobs.`,
