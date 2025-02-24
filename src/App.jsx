@@ -140,6 +140,7 @@ const ProtectedRoute = ({ children, requiredRole }) => {
 
 function App() {
   const [mode, setMode] = useState(Cookies.get('theme') || 'light');
+  const [isNavExpanded, setIsNavExpanded] = useState(true);
   const theme = React.useMemo(() => getTheme(mode), [mode]);
 
   const toggleTheme = () => {
@@ -165,17 +166,21 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Box sx={{ display: 'flex' }}>
-                    <Navigation />
+                    <Navigation 
+                      isNavExpanded={isNavExpanded} 
+                      setIsNavExpanded={setIsNavExpanded} 
+                    />
                     <Box
                       component="main"
                       sx={{
                         flexGrow: 1,
-                        ml: '280px',
+                        ml: isNavExpanded ? '250px' : '65px',
                         mt: 4,
                         p: 3,
                         minHeight: '100vh',
                         bgcolor: 'background.default',
-                        maxWidth: '80%',
+                        transition: 'margin-left 0.3s ease',
+                        width: `calc(100% - ${isNavExpanded ? '250px' : '65px'})`,
                       }}
                     >
                       <Routes>

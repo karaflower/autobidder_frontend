@@ -233,7 +233,7 @@ const BidHistory = () => {
             color="primary" 
             onClick={handleOpenDashboard}
           >
-            Chart View
+            View Chart
           </Button>
         </Box>
         <TableContainer component={Paper} sx={{ maxWidth: '80%', padding: '20px' }}>

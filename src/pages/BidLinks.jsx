@@ -22,16 +22,19 @@ import {
   Tooltip,
   Paper,
   ListItemText,
-  Divider,
   IconButton,
+  TableContainer,
+  Table,
+  TableHead,
+  TableBody,
+  TableCell,
+  TableRow,
+  TablePagination,
 } from "@mui/material";
 import axios from "axios";
-import Cookies from "js-cookie";
-import { ToastContainer, toast } from "react-toastify";
+import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
-import CheckIcon from "@mui/icons-material/Check";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DoNotTouchIcon from "@mui/icons-material/DoNotTouch";
 import VisibilityIcon from "@mui/icons-material/Visibility";
@@ -56,13 +59,16 @@ const BidLinks = () => {
     const stored = localStorage.getItem("showFilter");
     return stored ? JSON.parse(stored) : "all"; // 'all', 'mine', 'team'
   });
-  const [showFriendsMenu, setShowFriendsMenu] = useState(false);
   const [openBlacklistDialog, setOpenBlacklistDialog] = useState(false);
   const [blacklists, setBlacklists] = useState([]);
   const [openSearchDialog, setOpenSearchDialog] = useState(false);
   const [globalSearchResults, setGlobalSearchResults] = useState([]);
   const [isReloadingBids, setIsReloadingBids] = useState(false);
   const [isSearchInputLoading, setIsSearchInputLoading] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
 
   const filteredBidLinks = useMemo(() => {
     const filterLink = (link) => {
@@ -76,6 +82,11 @@ const BidLinks = () => {
         return false;
       }
 
+      // Category filter
+      if (selectedCategory !== 'all' && link.queryId?.category !== selectedCategory) {
+        return false;
+      }
+
       return true;
     };
 
@@ -86,6 +97,7 @@ const BidLinks = () => {
     hiddenLinks,
     showFilter,
     currentUserId,
+    selectedCategory,
   ]);
 
   const fetchBidLinks = async () => {
@@ -127,31 +139,29 @@ const BidLinks = () => {
     }
   };
 
-  const fetchUsers = async () => {
-    try {
-      const response = await axios.get(
-        `${process.env.REACT_APP_API_URL}/friends/added-me`
-      );
-      const usersMap = response.data.reduce((acc, user) => {
-        acc[user._id] = user.name;
-        return acc;
-      }, {});
-      setUsers(usersMap);
-    } catch (err) {
-      console.error("Failed to fetch users:", err);
-    }
-  };
-
-  useEffect(() => {
-    fetchBlacklists();
-    fetchUsers();
-    setCurrentUserId(Cookies.get("userid"));
-  }, []);
-
   useEffect(() => {
     console.log("Selected Date:", selectedDate);
     fetchBidLinks();
   }, [selectedDate]);
+
+  useEffect(() => {
+    // Extract unique categories from bidLinks
+    const uniqueCategories = [...new Set(bidLinks
+      .filter(link => link.queryId?.category) // Only include links with queryId.category
+      .map(link => link.queryId.category)
+    )].sort();
+    
+    setCategories(uniqueCategories);
+  }, [bidLinks]);
+
+  // Add this new useEffect to reset page when category changes
+  useEffect(() => {
+    setPage(0);
+  }, [selectedCategory]);
+
+  useEffect(() => {
+    fetchBlacklists();
+  }, []);
 
   const fetchBlacklists = async () => {
     try {
@@ -342,7 +352,7 @@ const BidLinks = () => {
         <Button
           size="small"
           onClick={() => onToggle(linkId)}
-          sx={{ minWidth: "auto", p: 0.5, marginLeft: "8px" }}
+          sx={{ minWidth: "auto", p: 0.5 }}
         >
           {isHidden ? (
             <VisibilityOffIcon color="action" />
@@ -356,245 +366,405 @@ const BidLinks = () => {
 
   const FilteredBidLinks = React.memo(
     ({ filteredBidLinks, hiddenLinks, users, onToggleHide }) => {
-      console.log("FilteredBidLinks rendered");
-      return filteredBidLinks.map((link) => {
-        const fullIndex = bidLinks.findIndex(item => item._id === link._id);
-        
+      const emptyRows = page > 0 
+        ? Math.max(0, (1 + page) * rowsPerPage - filteredBidLinks.length) 
+        : 0;
+
+      if (filteredBidLinks.length === 0) {
         return (
-          <Grid item xs={12} key={link._id}>
-            <Card>
-              <CardContent>
-                <Box
-                  display="flex"
-                  alignItems="center"
-                  justifyContent="space-between"
-                >
-                  <Typography
-                    variant="h6"
-                    sx={{ flex: 1, display: "flex", alignItems: "center" }}
-                  >
-                    <Typography 
-                      component="span" 
-                      sx={{ 
-                        color: 'text.disabled',
-                        minWidth: '30px',
-                        mr: 1
-                      }}
-                    >
-                      {fullIndex + 1}.
-                    </Typography>
-                    <Link
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      sx={{ "&:visited": { color: "purple" } }}
-                    >
-                      {link.title}
-                    </Link>
-                  </Typography>
-                  <Box sx={{ display: "flex", gap: 1 }}>
-                    {link.company && (
-                      <Tooltip title={`Add ${link.company} to blacklist`}>
-                        <Button
-                          size="small"
-                          onClick={() =>
-                            handleAddCompanyToBlacklist(link.company)
-                          }
-                          sx={{ minWidth: "auto", p: 0.5, marginLeft: "8px" }}
-                        >
-                          <DoNotTouchIcon color="action" />
-                        </Button>
-                      </Tooltip>
-                    )}
-                    <VisibilityToggleButton 
-                      linkId={link._id}
-                      isHidden={hiddenLinks.includes(link._id)}
-                      onToggle={onToggleHide}
-                    />
-                  </Box>
-                </Box>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Company: {link.company || "N/A"} | Posted: {link.date || "N/A"}{" "}
-                  | Added: {new Date(link.created_at).toLocaleString()}
-                  {link.created_by && users[link.created_by] && (
-                    <> | Searched by: {users[link.created_by]}</>
-                  )}
-                  <Tooltip title={link.queryId?.link}>
-                    {link.queryId?.link && (
-                      <> | Query Source: {link.queryId.link.slice(0, 30)}{link.queryId.link.length > 30 ? "..." : ""}</>
-                    )}
-                  </Tooltip>
-                  {link.queryDateLimit && (
-                    <> | Query Date Limit: {link.queryDateLimit}</>
-                  )}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" paragraph>
-                  {link.description}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
+          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+            <Typography variant="h6" color="text.secondary">
+              No links
+            </Typography>
+          </Box>
         );
-      });
+      }
+
+      return (
+        <Box sx={{ width: '100%' }}>
+          <Paper sx={{ 
+            ml: 2,
+            mb: 2,
+            mt: 2,
+            borderRadius: 2,
+            overflow: 'hidden',
+          }}>
+            <TableContainer sx={{ minWidth: "100%" }}>
+              <Table aria-labelledby="tableTitle">
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ 
+                      py: 3,
+                      px: 3,
+                      backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                      fontWeight: 600,
+                      fontSize: '0.95rem'
+                    }}>#</TableCell>
+                    <TableCell sx={{ 
+                      py: 3,
+                      px: 3,
+                      backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                      fontWeight: 600,
+                      fontSize: '0.95rem'
+                    }}>Title</TableCell>
+                    <TableCell sx={{ 
+                      py: 3,
+                      px: 3,
+                      backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                      fontWeight: 600,
+                      fontSize: '0.95rem'
+                    }}>Company</TableCell>
+                    <TableCell sx={{ 
+                      py: 3,
+                      px: 3,
+                      backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                      fontWeight: 600,
+                      fontSize: '0.95rem'
+                    }}>Posted</TableCell>
+                    <TableCell sx={{ 
+                      py: 3,
+                      px: 3,
+                      backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                      fontWeight: 600,
+                      fontSize: '0.95rem'
+                    }}>Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredBidLinks
+                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                    .map((link, index) => {
+                      const fullIndex = page * rowsPerPage + index + 1;
+                      return (
+                        <TableRow 
+                          hover 
+                          key={link._id}
+                          sx={{ 
+                            '&:hover': {
+                              backgroundColor: 'rgba(0, 0, 0, 0.02) !important'
+                            },
+                            '&:nth-of-type(even)': {
+                              backgroundColor: 'rgba(0, 0, 0, 0.01)'
+                            }
+                          }}
+                        >
+                          <TableCell sx={{ py: 3, px: 3 }}>{fullIndex}</TableCell>
+                          <TableCell sx={{ py: 3, px: 3 }}>
+                            <Link
+                              href={link.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              sx={{ 
+                                fontSize: "1.1rem",
+                                fontFamily: '"Inter","Roboto","Helvetica","Arial",sans-serif',
+                                fontWeight: 500,
+                                textDecoration: 'none',
+                                color: 'primary.main',
+                                '&:hover': {
+                                  textDecoration: 'underline'
+                                },
+                                "&:visited": { 
+                                  color: 'purple'
+                                }
+                              }}
+                            >
+                              {link.title}
+                            </Link>
+                            <Typography 
+                              variant="body2" 
+                              color="text.secondary"
+                              sx={{ 
+                                mt: 1,
+                                lineHeight: 1.6
+                              }}
+                            >
+                              {link.description}
+                            </Typography>
+                          </TableCell>
+                          <TableCell sx={{ 
+                            py: 3,
+                            px: 3,
+                            fontSize: '0.95rem'
+                          }}>
+                            {link.company || "N/A"}
+                          </TableCell>
+                          <TableCell sx={{ 
+                            py: 3,
+                            px: 3,
+                            fontSize: '0.95rem'
+                          }}>
+                            {link.date || "N/A"}
+                          </TableCell>
+                          <TableCell sx={{ py: 3, px: 3 }}>
+                            <Box sx={{ 
+                              display: "flex",
+                              gap: 2
+                            }}>
+                              {link.company && (
+                                <Tooltip title={`Add ${link.company} to blacklist`}>                                  
+                                  <Button
+                                    size="small"
+                                    onClick={() => handleAddCompanyToBlacklist(link.company)}
+                                    sx={{ 
+                                      minWidth: "40px",
+                                      height: "40px",
+                                      borderRadius: 1
+                                    }}
+                                  >
+                                    <DoNotTouchIcon color="action" />
+                                  </Button>
+                                </Tooltip>
+                              )}
+                              <VisibilityToggleButton 
+                                linkId={link._id}
+                                isHidden={hiddenLinks.includes(link._id)}
+                                onToggle={onToggleHide}
+                              />
+                            </Box>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', p: 2 }}>
+              <TablePagination
+                component="div"
+                count={filteredBidLinks.length}
+                page={page}
+                onPageChange={(event, newPage) => setPage(newPage)}
+                rowsPerPage={rowsPerPage}
+                onRowsPerPageChange={(event) => {
+                  setRowsPerPage(parseInt(event.target.value, 10));
+                  setPage(0);
+                }}
+              />
+            </Box>
+          </Paper>
+        </Box>
+      );
     }
   );
 
   return (
-    <Grid container spacing={2}>
-      <ToastContainer />
-      <Grid item xs={12}>
-        <Box
-          sx={{
-            mb: 2,
-            position: "sticky",
-            top: 10,
-            zIndex: 1000,
-            backgroundColor: "background.default",
-            pt: 2,
-            pl: 2,
+    <Box sx={{ display: 'flex', gap: 3 }}>
+      {/* Left Panel - Categories */}
+      <Card sx={{ 
+        width: 250, 
+        height: 'fit-content',
+        position: 'sticky',
+        top: 20
+      }}>
+        <CardContent>
+          <Box sx={{ 
+            position: 'sticky',
+            top: 0,
+            bgcolor: 'background.paper',
+            zIndex: 1,
             pb: 2,
-            boxShadow:
-              "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
-          }}
-        >
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <Grid container spacing={2} alignItems="center">
-                <Grid item>
-                  <TextField
-                    variant="standard"
-                    type="date"
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    size="small"
-                    sx={{ width: "130px" }}
-                  />
-                </Grid>
+            borderBottom: '1px solid',
+            borderColor: 'divider'
+          }}>
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              mb: 2,
+              justifyContent: 'space-between'
+            }}>
+              <Typography variant="h6">Categories</Typography>
+            </Box>
+          </Box>
 
-                <Grid item>
-                  <TextField
-                    size="small"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        handleGlobalSearch(e.target.value);
-                      }
-                    }}
-                    placeholder="Enter Search Term..."
-                    sx={{ width: "150px" }}
-                    variant="standard"
-                    InputProps={{
-                      endAdornment: isSearchInputLoading && (
-                        <CircularProgress size={16} sx={{ mr: 1 }} />
-                      ),
-                    }}
-                  />
-                </Grid>
+          <List>
+            <ListItemButton
+              selected={selectedCategory === 'all'}
+              onClick={() => setSelectedCategory('all')}
+            >
+              <ListItemText 
+                primary="All"
+                secondary={`${bidLinks.length} links`}
+              />
+            </ListItemButton>
+            {categories.map((category) => {
+              const categoryCount = bidLinks.filter(link => 
+                link.queryId?.category === category
+              ).length;
 
-                <Grid item>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={showHiddenLinks}
-                        onChange={(e) => {
-                          setShowHiddenLinks(e.target.checked);
-                          localStorage.setItem(
-                            "showHiddenLinks",
-                            JSON.stringify(e.target.checked)
-                          );
+              return (
+                <ListItemButton
+                  key={category}
+                  selected={selectedCategory === category}
+                  onClick={() => setSelectedCategory(category)}
+                >
+                  <ListItemText 
+                    primary={category}
+                    secondary={`${categoryCount} links`}
+                  />
+                </ListItemButton>
+              );
+            })}
+          </List>
+        </CardContent>
+      </Card>
+
+      {/* Main Content */}
+      <Box sx={{ flex: 1 }}>
+        <Grid container spacing={2}>
+          <Grid item xs={12}>
+            <Box
+              sx={{
+                mb: 2,
+                position: "sticky",
+                top: 20,
+                zIndex: 1000,
+                backgroundColor: "#f8fafc",
+                padding: "16px",
+                paddingTop: "10px",
+                paddingLeft: "16px",
+                paddingBottom: "16px",
+                boxShadow: [
+                  "0 4px 6px -1px rgba(0, 0, 0, 0.5)",
+                  "0 2px 4px -1px rgba(0, 0, 0, 0.5)"
+                ],
+              }}
+            >
+              <Grid container spacing={2}>
+                <Grid item xs={12}>
+                  <Grid container spacing={2} alignItems="center">
+                    <Grid item>
+                      <TextField
+                        variant="standard"
+                        type="date"
+                        value={selectedDate}
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                        size="small"
+                        sx={{ width: "130px" }}
+                      />
+                    </Grid>
+
+                    <Grid item>
+                      <TextField
+                        size="small"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            handleGlobalSearch(e.target.value);
+                          }
+                        }}
+                        placeholder="Enter Search Term..."
+                        sx={{ width: "150px" }}
+                        variant="standard"
+                        InputProps={{
+                          endAdornment: isSearchInputLoading && (
+                            <CircularProgress size={16} sx={{ mr: 1 }} />
+                          ),
                         }}
                       />
-                    }
-                    label="Hidden"
-                  />
-                </Grid>
+                    </Grid>
 
-                <Grid item>
-                  <Button
-                    variant="outlined"
-                    startIcon={<VisibilityOffIcon />}
-                    onClick={handleHideAll}
-                    size="small"
-                  >
-                    Hide All ({filteredBidLinks.length})
-                  </Button>
-                </Grid>
+                    <Grid item>
+                      <FormControlLabel
+                        control={
+                          <Checkbox
+                            checked={showHiddenLinks}
+                            onChange={(e) => {
+                              setShowHiddenLinks(e.target.checked);
+                              localStorage.setItem(
+                                "showHiddenLinks",
+                                JSON.stringify(e.target.checked)
+                              );
+                            }}
+                          />
+                        }
+                        label="Hidden"
+                      />
+                    </Grid>
 
-                <Grid item>{blacklistButton}</Grid>
+                    <Grid item>
+                      <Button
+                        variant="outlined"
+                        startIcon={<VisibilityOffIcon />}
+                        onClick={handleHideAll}
+                        size="small"
+                      >
+                        Hide All ({filteredBidLinks.length})
+                      </Button>
+                    </Grid>
+
+                    <Grid item>{blacklistButton}</Grid>
+                  </Grid>
+                </Grid>
               </Grid>
+            </Box>
+
+            <Grid container spacing={2}>
+              {isReloadingBids ? (
+                <Grid item xs={12} sx={{ display: "flex", justifyContent: "center", p: 4 }}>
+                  <CircularProgress />
+                </Grid>
+              ) : (
+                <FilteredBidLinks
+                  filteredBidLinks={filteredBidLinks}
+                  hiddenLinks={hiddenLinks}
+                  users={users}
+                  onToggleHide={handleToggleHide}
+                />
+              )}
             </Grid>
           </Grid>
-        </Box>
-
-        <Grid container spacing={2}>
-          {isReloadingBids ? (
-            <Grid
-              item
-              xs={12}
-              sx={{ display: "flex", justifyContent: "center", p: 4 }}
-            >
-              <CircularProgress />
-            </Grid>
-          ) : (
-            <FilteredBidLinks
-              filteredBidLinks={filteredBidLinks}
-              hiddenLinks={hiddenLinks}
-              users={users}
-              onToggleHide={handleToggleHide}
-            />
-          )}
         </Grid>
-      </Grid>
 
-      {renderBlacklistPanel()}
+        {renderBlacklistPanel()}
 
-      <Dialog
-        open={openSearchDialog}
-        onClose={() => setOpenSearchDialog(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          Global Search Results ({globalSearchResults.length})
-        </DialogTitle>
-        <DialogContent>
-          <List sx={{ maxHeight: "60vh", overflow: "auto" }}>
-            {globalSearchResults.map((link) => (
-              <ListItem key={link._id} divider>
-                <ListItemText
-                  primary={
-                    <Link
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {link.title}
-                    </Link>
-                  }
-                  secondary={
-                    <>
-                      <Typography variant="body2" color="text.secondary">
-                        Company: {link.company || "N/A"} | Posted:{" "}
-                        {link.date || "N/A"} | Added:{" "}
-                        {new Date(link.created_at).toLocaleString()}
-                        {link.created_by && users[link.created_by] && (
-                          <> | By: {users[link.created_by]}</>
-                        )}
-                      </Typography>
-                      <Typography variant="body2">
-                        {link.description}
-                      </Typography>
-                    </>
-                  }
-                />
-              </ListItem>
-            ))}
-          </List>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenSearchDialog(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
-    </Grid>
+        <Dialog
+          open={openSearchDialog}
+          onClose={() => setOpenSearchDialog(false)}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>
+            Global Search Results ({globalSearchResults.length})
+          </DialogTitle>
+          <DialogContent>
+            <List sx={{ maxHeight: "60vh", overflow: "auto" }}>
+              {globalSearchResults.map((link) => (
+                <ListItem key={link._id} divider>
+                  <ListItemText
+                    primary={
+                      <Link
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {link.title}
+                      </Link>
+                    }
+                    secondary={
+                      <>
+                        <Typography variant="body2" color="text.secondary">
+                          Company: {link.company || "N/A"} | Posted:{" "}
+                          {link.date || "N/A"} | Added:{" "}
+                          {new Date(link.created_at).toLocaleString()}
+                          {link.created_by && users[link.created_by] && (
+                            <> | By: {users[link.created_by]}</>
+                          )}
+                        </Typography>
+                        <Typography variant="body2">
+                          {link.description}
+                        </Typography>
+                      </>
+                    }
+                  />
+                </ListItem>
+              ))}
+            </List>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenSearchDialog(false)}>Close</Button>
+          </DialogActions>
+        </Dialog>
+      </Box>
+    </Box>
   );
 };
 

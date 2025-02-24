@@ -25,7 +25,14 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  CircularProgress
+  CircularProgress,
+  TableContainer,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  Link
 } from '@mui/material';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -52,6 +59,12 @@ const BossDashboard = () => {
   const [error, setError] = useState(null);
   const [memberColors, setMemberColors] = useState({});
   const [initialLoading, setInitialLoading] = useState(true);
+  const [detailDialog, setDetailDialog] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [detailedBidData, setDetailedBidData] = useState([]);
+  const [bidDetailsDialog, setBidDetailsDialog] = useState(false);
+  const [selectedBid, setSelectedBid] = useState(null);
+  const [isBidDetailsLoading, setIsBidDetailsLoading] = useState(false);
 
   // Fetch all teams
   useEffect(() => {
@@ -174,7 +187,7 @@ const BossDashboard = () => {
     if (Object.keys(teamMembers).length > 0) {
       fetchBidHistory();
     }
-  }, [selectedTeam, selectedMember, dateRange, teamMembers]);
+  }, [selectedTeam, selectedMember, teamMembers, dateRange]);
 
   const getRandomColor = () => {
     const letters = '0123456789ABCDEF';
@@ -230,6 +243,45 @@ const BossDashboard = () => {
         title: {
           display: true,
           text: 'Date'
+        }
+      }
+    },
+    onClick: async (event, elements) => {
+      if (elements.length > 0) {
+        const datasetIndex = elements[0].datasetIndex;
+        const index = elements[0].index;
+        const date = chartData.labels[index];
+        const selectedUser = selectedMember === 'all' 
+          ? Object.values(teamMembers).flat()[datasetIndex]
+          : Object.values(teamMembers).flat().find(member => member._id === selectedMember);
+        const userId = selectedUser._id;
+
+        try {
+          setIsBidDetailsLoading(true);
+          // Create start and end of day timestamps
+          const fromDate = new Date(date);
+          fromDate.setHours(0, 0, 0, 0);
+          const toDate = new Date(date);
+          toDate.setHours(23, 59, 59, 999);
+
+          const response = await axios.get(
+            `${process.env.REACT_APP_API_URL}/applications/`,
+            { 
+              params: { 
+                fromDate: fromDate.toISOString(),
+                toDate: toDate.toISOString(),
+                userId: userId 
+              } 
+            }
+          );
+          setDetailedBidData(response.data);
+          setSelectedDate(date);
+          setSelectedBid({ ...response.data[0], userName: selectedUser.name });
+          setDetailDialog(true);
+        } catch (error) {
+          toast.error('Error fetching bid details: ' + error.message);
+        } finally {
+          setIsBidDetailsLoading(false);
         }
       }
     }
@@ -302,12 +354,24 @@ const BossDashboard = () => {
             </FormControl>
           </Box>
 
-          <Paper sx={{ p: 3, mb: 3 }}>
-            {isLoading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+          <Paper sx={{ p: 3, mb: 3, position: 'relative' }}>
+            {(isLoading || isBidDetailsLoading) ? (
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                alignItems: 'center', 
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                zIndex: 1
+              }}>
                 <CircularProgress />
               </Box>
-            ) : Object.keys(bidData).length > 0 ? (
+            ) : null}
+            {Object.keys(bidData).length > 0 ? (
               <Line data={chartData} options={chartOptions} />
             ) : (
               <Typography>No bid data available for the selected period</Typography>
@@ -315,6 +379,120 @@ const BossDashboard = () => {
           </Paper>
         </>
       )}
+      
+      <Dialog 
+        open={detailDialog} 
+        onClose={() => setDetailDialog(false)}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>
+          Bid Details for {selectedBid?.userName} on {selectedDate}
+        </DialogTitle>
+        <DialogContent>
+          {detailedBidData.length > 0 ? (
+            <TableContainer component={Paper} sx={{ mt: 2 }}>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>#</TableCell>
+                    <TableCell>Time</TableCell>
+                    <TableCell>URL</TableCell>
+                    <TableCell>Details</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {detailedBidData.map((bid, index) => (
+                    <TableRow key={index}>
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>
+                        {new Date(bid.timestamp).toLocaleTimeString()}
+                      </TableCell>
+                      <TableCell>
+                        <Link 
+                          href={bid.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {bid.url.length > 60 ? bid.url.substring(0, 60) + '...' : bid.url}
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        <Button 
+                          variant="outlined" 
+                          size="small"
+                          onClick={() => {
+                            setSelectedBid(bid);
+                            setBidDetailsDialog(true);
+                          }}
+                        >
+                          View Details
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          ) : (
+            <Typography>No detailed bid data available for this date.</Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDetailDialog(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog 
+        open={bidDetailsDialog} 
+        onClose={() => setBidDetailsDialog(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Bid Details</DialogTitle>
+        <DialogContent>
+          {selectedBid && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="h6" gutterBottom>URL</Typography>
+              <Link 
+                href={selectedBid.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                display="block"
+                mb={3}
+              >
+                {selectedBid.url}
+              </Link>
+
+              {selectedBid.screenshot && (
+                <>
+                  <Typography variant="h6" gutterBottom>Screenshot</Typography>
+                  <Box mb={3}>
+                    <img 
+                      src={`${process.env.REACT_APP_API_URL}/resumefiles/${selectedBid.screenshot}`}
+                      alt="Application Screenshot"
+                      style={{ maxWidth: '100%', height: 'auto' }}
+                    />
+                  </Box>
+                </>
+              )}
+
+              <Typography variant="h6" gutterBottom>Filled Fields</Typography>
+              <Typography>
+                {selectedBid.filledFields ? selectedBid.filledFields.map((field, index) => (
+                  <React.Fragment key={index}>
+                    {field}
+                    <br />
+                  </React.Fragment>
+                )) : 'No fields data available'}
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBidDetailsDialog(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };
