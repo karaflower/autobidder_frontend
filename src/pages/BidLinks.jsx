@@ -391,31 +391,6 @@ const BidLinks = () => {
           }}>
             <TableContainer sx={{ minWidth: "100%" }}>
               <Table aria-labelledby="tableTitle">
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ 
-                      py: 3,
-                      px: 3,
-                      backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                      fontWeight: 600,
-                      fontSize: '0.95rem'
-                    }}>#</TableCell>
-                    <TableCell sx={{ 
-                      py: 3,
-                      px: 3,
-                      backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                      fontWeight: 600,
-                      fontSize: '0.95rem'
-                    }}>Title</TableCell>
-                    <TableCell sx={{ 
-                      py: 3,
-                      px: 3,
-                      backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                      fontWeight: 600,
-                      fontSize: '0.95rem'
-                    }}>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
                 <TableBody>
                   {filteredBidLinks
                     .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
