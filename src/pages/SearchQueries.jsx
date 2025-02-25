@@ -536,8 +536,6 @@ const SearchQueries = () => {
 
   const [openDialog, setOpenDialog] = useState(false);
   const [newQuery, setNewQuery] = useState('');
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [queryToDelete, setQueryToDelete] = useState(null);
   const [searchLoading, setSearchLoading] = useState(null);
   const [searchDialogOpen, setSearchDialogOpen] = useState(false);
   const [selectedTimeUnit, setSelectedTimeUnit] = useState('');
@@ -1133,10 +1131,7 @@ const SearchQueries = () => {
                       <Button
                         variant="outlined"
                         color="error"
-                        onClick={() => {
-                          setQueryToDelete(query._id);
-                          setDeleteDialogOpen(true);
-                        }}
+                        onClick={() => handleDeleteQuery(query._id)}
                       >
                         DELETE
                       </Button>
@@ -1175,36 +1170,6 @@ const SearchQueries = () => {
             <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
             <Button onClick={handleAddQuery} variant="contained" color="primary">
               Add
-            </Button>
-          </DialogActions>
-        </Dialog>
-
-        <Dialog
-          open={deleteDialogOpen}
-          onClose={() => {
-            setDeleteDialogOpen(false);
-            setQueryToDelete(null);
-          }}
-        >
-          <DialogTitle>Confirm Delete</DialogTitle>
-          <DialogContent>
-            <Typography>Are you sure you want to delete this search query?</Typography>
-          </DialogContent>
-          <DialogActions>
-            <Button
-              onClick={() => {
-                setDeleteDialogOpen(false);
-                setQueryToDelete(null);
-              }}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={() => queryToDelete && handleDeleteQuery(queryToDelete)}
-              color="error"
-              variant="contained"
-            >
-              Delete
             </Button>
           </DialogActions>
         </Dialog>
@@ -1265,20 +1230,18 @@ const SearchQueries = () => {
               value={editQuery}
               onChange={(e) => setEditQuery(e.target.value)}
               sx={{ mb: 2 }}
-
             />
             <Box sx={{ mt: 2 }}>
               <Typography variant="subtitle2" gutterBottom>Category</Typography>
               <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                 {categories
-                  .filter(category => category.owner === user._id) // Only show current user's categories
                   .map((category) => (
                   <Chip
-                    key={category.name}
-                    label={category.name}
-                    onClick={() => setSelectedCategory(category.name)}
-                    color={selectedCategory === category.name ? "primary" : "default"}
-                    variant={selectedCategory === category.name ? "filled" : "outlined"}
+                    key={category}
+                    label={category}
+                    onClick={() => setSelectedCategory(category)}
+                    color={selectedCategory === category ? "primary" : "default"}
+                    variant={selectedCategory === category ? "filled" : "outlined"}
                   />
                 ))}
               </Box>
