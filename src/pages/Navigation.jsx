@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AppBar, Toolbar, Typography, Button, Box, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, List, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { AppBar, Toolbar, Typography, Button, Box, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
 import { Link as RouterLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import LogoutIcon from '@mui/icons-material/Logout';
@@ -23,9 +23,60 @@ const Navigation = ({ isNavExpanded, setIsNavExpanded }) => {
     if (user?.role === 'boss') {
       return (
         <>
+          <Tooltip title="Bid Histories" placement="right" arrow disableHoverListener={isNavExpanded}>
+            <ListItemButton
+              component={RouterLink}
+              to="/boss-dashboard"
+              sx={{
+                "&.Mui-selected": {
+                  backgroundColor: "action.selected",
+                },
+                justifyContent: isNavExpanded ? 'initial' : 'center',
+                px: 2.5,
+              }}
+              selected={location.pathname === "/boss-dashboard"}
+            >
+              <ListItemIcon sx={{ 
+                minWidth: isNavExpanded ? 56 : 'auto',
+                justifyContent: 'center',
+              }}>
+                <SmartToyIcon sx={{ color: "primary.main" }} />
+              </ListItemIcon>
+              {isNavExpanded && <ListItemText primary="Bid Histories" />}
+            </ListItemButton>
+          </Tooltip>
+          <Tooltip title="Team Management" placement="right" arrow disableHoverListener={isNavExpanded}>
+            <ListItemButton
+              component={RouterLink}
+              to="/team-management"
+              sx={{
+                "&.Mui-selected": {
+                  backgroundColor: "action.selected",
+                },
+                justifyContent: isNavExpanded ? 'initial' : 'center',
+                px: 2.5,
+              }}
+              selected={location.pathname === "/team-management"}
+            >
+              <ListItemIcon sx={{ 
+                minWidth: isNavExpanded ? 56 : 'auto',
+                justifyContent: 'center',
+              }}>
+                <PeopleIcon sx={{ color: "primary.main" }} />
+              </ListItemIcon>
+              {isNavExpanded && <ListItemText primary="Team Management" />}
+            </ListItemButton>
+          </Tooltip>
+        </>
+      );
+    }
+
+    return (
+      <>
+        <Tooltip title="Bid Links" placement="right" arrow disableHoverListener={isNavExpanded}>
           <ListItemButton
             component={RouterLink}
-            to="/boss-dashboard"
+            to="/"
             sx={{
               "&.Mui-selected": {
                 backgroundColor: "action.selected",
@@ -33,7 +84,122 @@ const Navigation = ({ isNavExpanded, setIsNavExpanded }) => {
               justifyContent: isNavExpanded ? 'initial' : 'center',
               px: 2.5,
             }}
-            selected={location.pathname === "/boss-dashboard"}
+            selected={location.pathname === "/"}
+          >
+            <ListItemIcon sx={{ 
+              minWidth: isNavExpanded ? 56 : 'auto',
+              justifyContent: 'center',
+            }}>
+              <LinkIcon sx={{ color: "primary.main" }} />
+            </ListItemIcon>
+            {isNavExpanded && <ListItemText primary="Bid Links" />}
+          </ListItemButton>
+        </Tooltip>
+
+        <Tooltip title="Bid History" placement="right" arrow disableHoverListener={isNavExpanded}>
+          <ListItemButton
+            component={RouterLink}
+            to="/bid-history"
+            sx={{
+              "&.Mui-selected": {
+                backgroundColor: "action.selected",
+              },
+              justifyContent: isNavExpanded ? 'initial' : 'center',
+              px: 2.5,
+            }}
+            selected={location.pathname === "/bid-history"}
+          >
+            <ListItemIcon sx={{ 
+              minWidth: isNavExpanded ? 56 : 'auto',
+              justifyContent: 'center',
+            }}>
+              <HistoryIcon sx={{ color: "primary.main" }} />
+            </ListItemIcon>
+            {isNavExpanded && <ListItemText primary="Bid History" />}
+          </ListItemButton>
+        </Tooltip>
+
+        <Tooltip title="Custom Resumes" placement="right" arrow disableHoverListener={isNavExpanded}>
+          <ListItemButton
+            component={RouterLink}
+            to="/customized-resumes"
+            sx={{
+              "&.Mui-selected": {
+                backgroundColor: "action.selected",
+              },
+              justifyContent: isNavExpanded ? 'initial' : 'center',
+              px: 2.5,
+            }}
+            selected={location.pathname === "/customized-resumes"}
+          >
+            <ListItemIcon sx={{ 
+              minWidth: isNavExpanded ? 56 : 'auto',
+              justifyContent: 'center',
+            }}>
+              <DescriptionIcon sx={{ color: "primary.main" }} />
+            </ListItemIcon>
+            {isNavExpanded && <ListItemText primary="Custom Resumes" />}
+          </ListItemButton>
+        </Tooltip>
+
+        <Tooltip title="Resumes" placement="right" arrow disableHoverListener={isNavExpanded}>
+          <ListItemButton
+            component={RouterLink}
+            to="/resumes"
+            sx={{
+              "&.Mui-selected": {
+                backgroundColor: "action.selected",
+              },
+              justifyContent: isNavExpanded ? 'initial' : 'center',
+              px: 2.5,
+            }}
+            selected={location.pathname === "/resumes"}
+          >
+            <ListItemIcon sx={{ 
+              minWidth: isNavExpanded ? 56 : 'auto',
+              justifyContent: 'center',
+            }}>
+              <DescriptionIcon sx={{ color: "primary.main" }} />
+            </ListItemIcon>
+            {isNavExpanded && <ListItemText primary="Resumes" />}
+          </ListItemButton>
+        </Tooltip>
+
+        <Tooltip title="Search Queries" placement="right" arrow disableHoverListener={isNavExpanded}>
+          <ListItemButton
+            component={RouterLink}
+            to="/search-queries"
+            sx={{
+              "&.Mui-selected": {
+                backgroundColor: "action.selected",
+              },
+              justifyContent: isNavExpanded ? 'initial' : 'center',
+              px: 2.5,
+            }}
+            selected={location.pathname === "/search-queries"}
+          >
+            <ListItemIcon sx={{ 
+              minWidth: isNavExpanded ? 56 : 'auto',
+              justifyContent: 'center',
+            }}>
+              <SearchIcon sx={{ color: "primary.main" }} />
+            </ListItemIcon>
+            {isNavExpanded && <ListItemText primary="Search Queries" />}
+          </ListItemButton>
+        </Tooltip>
+
+        <Tooltip title="AI Prompts" placement="right" arrow disableHoverListener={isNavExpanded}>
+          <ListItemButton
+            component={RouterLink}
+            to="/ai-prompts"
+            sx={{
+              "&.Mui-selected": {
+                backgroundColor: "action.selected",
+              },
+              justifyContent: isNavExpanded ? 'initial' : 'center',
+              px: 2.5,
+            }}
+            selected={location.pathname === "/ai-prompts"}
           >
             <ListItemIcon sx={{ 
               minWidth: isNavExpanded ? 56 : 'auto',
@@ -41,159 +207,9 @@ const Navigation = ({ isNavExpanded, setIsNavExpanded }) => {
             }}>
               <SmartToyIcon sx={{ color: "primary.main" }} />
             </ListItemIcon>
-            {isNavExpanded && <ListItemText primary="Bid Histories" />}
+            {isNavExpanded && <ListItemText primary="AI Prompts" />}
           </ListItemButton>
-          <ListItemButton
-            component={RouterLink}
-            to="/team-management"
-            sx={{
-              "&.Mui-selected": {
-                backgroundColor: "action.selected",
-              },
-              justifyContent: isNavExpanded ? 'initial' : 'center',
-              px: 2.5,
-            }}
-            selected={location.pathname === "/team-management"}
-          >
-            <ListItemIcon sx={{ 
-              minWidth: isNavExpanded ? 56 : 'auto',
-              justifyContent: 'center',
-            }}>
-              <PeopleIcon sx={{ color: "primary.main" }} />
-            </ListItemIcon>
-            {isNavExpanded && <ListItemText primary="Team Management" />}
-          </ListItemButton>
-        </>
-      );
-    }
-
-    return (
-      <>
-        <ListItemButton
-          component={RouterLink}
-          to="/"
-          sx={{
-            "&.Mui-selected": {
-              backgroundColor: "action.selected",
-            },
-            justifyContent: isNavExpanded ? 'initial' : 'center',
-            px: 2.5,
-          }}
-          selected={location.pathname === "/"}
-        >
-          <ListItemIcon sx={{ 
-            minWidth: isNavExpanded ? 56 : 'auto',
-            justifyContent: 'center',
-          }}>
-            <LinkIcon sx={{ color: "primary.main" }} />
-          </ListItemIcon>
-          {isNavExpanded && <ListItemText primary="Bid Links" />}
-        </ListItemButton>
-
-        <ListItemButton
-          component={RouterLink}
-          to="/bid-history"
-          sx={{
-            "&.Mui-selected": {
-              backgroundColor: "action.selected",
-            },
-            justifyContent: isNavExpanded ? 'initial' : 'center',
-            px: 2.5,
-          }}
-          selected={location.pathname === "/bid-history"}
-        >
-          <ListItemIcon sx={{ 
-            minWidth: isNavExpanded ? 56 : 'auto',
-            justifyContent: 'center',
-          }}>
-            <HistoryIcon sx={{ color: "primary.main" }} />
-          </ListItemIcon>
-          {isNavExpanded && <ListItemText primary="Bid History" />}
-        </ListItemButton>
-
-        <ListItemButton
-          component={RouterLink}
-          to="/customized-resumes"
-          sx={{
-            "&.Mui-selected": {
-              backgroundColor: "action.selected",
-            },
-            justifyContent: isNavExpanded ? 'initial' : 'center',
-            px: 2.5,
-          }}
-          selected={location.pathname === "/customized-resumes"}
-        >
-          <ListItemIcon sx={{ 
-            minWidth: isNavExpanded ? 56 : 'auto',
-            justifyContent: 'center',
-          }}>
-            <DescriptionIcon sx={{ color: "primary.main" }} />
-          </ListItemIcon>
-          {isNavExpanded && <ListItemText primary="Custom Resumes" />}
-        </ListItemButton>
-
-        <ListItemButton
-          component={RouterLink}
-          to="/resumes"
-          sx={{
-            "&.Mui-selected": {
-              backgroundColor: "action.selected",
-            },
-            justifyContent: isNavExpanded ? 'initial' : 'center',
-            px: 2.5,
-          }}
-          selected={location.pathname === "/resumes"}
-        >
-          <ListItemIcon sx={{ 
-            minWidth: isNavExpanded ? 56 : 'auto',
-            justifyContent: 'center',
-          }}>
-            <DescriptionIcon sx={{ color: "primary.main" }} />
-          </ListItemIcon>
-          {isNavExpanded && <ListItemText primary="Resumes" />}
-        </ListItemButton>
-
-        <ListItemButton
-          component={RouterLink}
-          to="/search-queries"
-          sx={{
-            "&.Mui-selected": {
-              backgroundColor: "action.selected",
-            },
-            justifyContent: isNavExpanded ? 'initial' : 'center',
-            px: 2.5,
-          }}
-          selected={location.pathname === "/search-queries"}
-        >
-          <ListItemIcon sx={{ 
-            minWidth: isNavExpanded ? 56 : 'auto',
-            justifyContent: 'center',
-          }}>
-            <SearchIcon sx={{ color: "primary.main" }} />
-          </ListItemIcon>
-          {isNavExpanded && <ListItemText primary="Search Queries" />}
-        </ListItemButton>
-
-        <ListItemButton
-          component={RouterLink}
-          to="/ai-prompts"
-          sx={{
-            "&.Mui-selected": {
-              backgroundColor: "action.selected",
-            },
-            justifyContent: isNavExpanded ? 'initial' : 'center',
-            px: 2.5,
-          }}
-          selected={location.pathname === "/ai-prompts"}
-        >
-          <ListItemIcon sx={{ 
-            minWidth: isNavExpanded ? 56 : 'auto',
-            justifyContent: 'center',
-          }}>
-            <SmartToyIcon sx={{ color: "primary.main" }} />
-          </ListItemIcon>
-          {isNavExpanded && <ListItemText primary="AI Prompts" />}
-        </ListItemButton>
+        </Tooltip>
       </>
     );
   };
@@ -232,44 +248,48 @@ const Navigation = ({ isNavExpanded, setIsNavExpanded }) => {
 
         <List>
           {renderNavigationItems()}
-          <ListItemButton
-            component={RouterLink}
-            to="/settings"
-            sx={{
-              "&.Mui-selected": {
-                backgroundColor: "action.selected",
-              },
-              justifyContent: isNavExpanded ? 'initial' : 'center',
-              px: 2.5,
-            }}
-            selected={location.pathname === "/settings"}
-          >
-            <ListItemIcon sx={{ 
-              minWidth: isNavExpanded ? 56 : 'auto',
-              justifyContent: 'center',
-            }}>
-              <SettingsIcon sx={{ color: "primary.main" }} />
-            </ListItemIcon>
-            {isNavExpanded && <ListItemText primary="Settings" />}
-          </ListItemButton>
-          <ListItemButton
-            onClick={() => setOpenDialog(true)}
-            sx={{
-              "&.Mui-selected": {
-                backgroundColor: "action.selected",
-              },
-              justifyContent: isNavExpanded ? 'initial' : 'center',
-              px: 2.5,
-            }}
-          >
-            <ListItemIcon sx={{ 
-              minWidth: isNavExpanded ? 56 : 'auto',
-              justifyContent: 'center',
-            }}>
-              <LogoutIcon sx={{ color: "error.main" }} />
-            </ListItemIcon>
-            {isNavExpanded && <ListItemText primary="Logout" />}
-          </ListItemButton>
+          <Tooltip title="Settings" placement="right" arrow disableHoverListener={isNavExpanded}>
+            <ListItemButton
+              component={RouterLink}
+              to="/settings"
+              sx={{
+                "&.Mui-selected": {
+                  backgroundColor: "action.selected",
+                },
+                justifyContent: isNavExpanded ? 'initial' : 'center',
+                px: 2.5,
+              }}
+              selected={location.pathname === "/settings"}
+            >
+              <ListItemIcon sx={{ 
+                minWidth: isNavExpanded ? 56 : 'auto',
+                justifyContent: 'center',
+              }}>
+                <SettingsIcon sx={{ color: "primary.main" }} />
+              </ListItemIcon>
+              {isNavExpanded && <ListItemText primary="Settings" />}
+            </ListItemButton>
+          </Tooltip>
+          <Tooltip title="Logout" placement="right" arrow disableHoverListener={isNavExpanded}>
+            <ListItemButton
+              onClick={() => setOpenDialog(true)}
+              sx={{
+                "&.Mui-selected": {
+                  backgroundColor: "action.selected",
+                },
+                justifyContent: isNavExpanded ? 'initial' : 'center',
+                px: 2.5,
+              }}
+            >
+              <ListItemIcon sx={{ 
+                minWidth: isNavExpanded ? 56 : 'auto',
+                justifyContent: 'center',
+              }}>
+                <LogoutIcon sx={{ color: "error.main" }} />
+              </ListItemIcon>
+              {isNavExpanded && <ListItemText primary="Logout" />}
+            </ListItemButton>
+          </Tooltip>
         </List>
       </Box>
 
