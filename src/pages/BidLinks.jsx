@@ -413,20 +413,6 @@ const BidLinks = () => {
                       backgroundColor: 'rgba(0, 0, 0, 0.04)',
                       fontWeight: 600,
                       fontSize: '0.95rem'
-                    }}>Company</TableCell>
-                    <TableCell sx={{ 
-                      py: 3,
-                      px: 3,
-                      backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                      fontWeight: 600,
-                      fontSize: '0.95rem'
-                    }}>Posted</TableCell>
-                    <TableCell sx={{ 
-                      py: 3,
-                      px: 3,
-                      backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                      fontWeight: 600,
-                      fontSize: '0.95rem'
                     }}>Actions</TableCell>
                   </TableRow>
                 </TableHead>
@@ -478,22 +464,20 @@ const BidLinks = () => {
                                 lineHeight: 1.6
                               }}
                             >
+                              {(link.company || link.date) && (
+                                <>
+                                  {link.company && (
+                                    <><strong>Company:</strong> {link.company}</>
+                                  )}
+                                  {link.company && link.date && " | "}
+                                  {link.date && (
+                                    <><strong>Posted:</strong> {link.date}</>
+                                  )}
+                                  <br />
+                                </>
+                              )}
                               {link.description}
                             </Typography>
-                          </TableCell>
-                          <TableCell sx={{ 
-                            py: 3,
-                            px: 3,
-                            fontSize: '0.95rem'
-                          }}>
-                            {link.company || "N/A"}
-                          </TableCell>
-                          <TableCell sx={{ 
-                            py: 3,
-                            px: 3,
-                            fontSize: '0.95rem'
-                          }}>
-                            {link.date || "N/A"}
                           </TableCell>
                           <TableCell sx={{ py: 3, px: 3 }}>
                             <Box sx={{ 

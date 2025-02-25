@@ -353,8 +353,20 @@ const useSearchQueries = () => {
   const fetchUsers = async () => {
     try {
       const usersMap = {
-        [user._id]: user.name // Add current user only
+        [user._id]: user.name // Add current user
       };
+
+      // Fetch team members
+      const teamResponse = await axios.get(`${process.env.REACT_APP_API_URL}/teams/my-team`);
+      const teamMembers = teamResponse.data;
+      
+      // Add team members to usersMap
+      teamMembers.forEach(member => {
+        if (member._id !== user._id) { // Avoid duplicating current user
+          usersMap[member._id] = member.name;
+        }
+      });
+
       setUsers(usersMap);
     } catch (err) {
       console.error('Failed to fetch users:', err);

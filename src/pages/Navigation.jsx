@@ -129,7 +129,7 @@ const Navigation = ({ isNavExpanded, setIsNavExpanded }) => {
           }}>
             <DescriptionIcon sx={{ color: "primary.main" }} />
           </ListItemIcon>
-          {isNavExpanded && <ListItemText primary="Customized Resumes" />}
+          {isNavExpanded && <ListItemText primary="Custom Resumes" />}
         </ListItemButton>
 
         <ListItemButton
