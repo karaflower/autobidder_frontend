@@ -38,6 +38,7 @@ import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DoNotTouchIcon from "@mui/icons-material/DoNotTouch";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import InfoIcon from '@mui/icons-material/Info';
 
 const BidLinks = () => {
   const [bidLinks, setBidLinks] = useState([]);
@@ -68,7 +69,11 @@ const BidLinks = () => {
   const [categories, setCategories] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(50);
+  const [rowsPerPage, setRowsPerPage] = useState(() => {
+    const stored = localStorage.getItem("rowsPerPage");
+    return stored ? parseInt(stored, 10) : 50;
+  });
+  const [teamMembers, setTeamMembers] = useState({}); // Add this state for team members lookup
 
   const filteredBidLinks = useMemo(() => {
     const filterLink = (link) => {
@@ -275,6 +280,32 @@ const BidLinks = () => {
     }
   };
 
+  const fetchTeamMembers = async () => {
+    try {
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/teams/my-team`);
+      const membersMap = {};
+      response.data.forEach(member => {
+        membersMap[member._id] = member.name;
+      });
+      setTeamMembers(membersMap);
+    } catch (error) {
+      console.error('Failed to fetch team members:', error);
+      toast.error('Failed to fetch team members');
+    }
+  };
+
+  useEffect(() => {
+    fetchTeamMembers();
+  }, []);
+
+  // Add this useEffect to scroll to top when page changes
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  }, [page]);
+
   const renderBlacklistPanel = () => (
     <Drawer
       anchor="right"
@@ -348,7 +379,7 @@ const BidLinks = () => {
   // Add this useEffect for the keyboard shortcut
   const VisibilityToggleButton = React.memo(({ linkId, isHidden, onToggle }) => {
     return (
-      <Tooltip title={isHidden ? "Show Link" : "Hide Link"}>
+      <Tooltip title={isHidden ? "Show Link" : "Hide Link"} placement="left">
         <Button
           size="small"
           onClick={() => onToggle(linkId)}
@@ -364,8 +395,107 @@ const BidLinks = () => {
     );
   });
 
+  const DetailDialog = React.memo(({ open, onClose, link }) => {
+    if (!link) return null;
+
+    return (
+      <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+        <DialogTitle>Link Details</DialogTitle>
+        <DialogContent>
+          <List>
+            <ListItem>
+              <ListItemText 
+                primary="Title"
+                secondary={link.title || 'N/A'}
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText 
+                primary="URL"
+                secondary={
+                  <Link href={link.url} target="_blank" rel="noopener noreferrer">
+                    {link.url}
+                  </Link>
+                }
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText 
+                primary="Company"
+                secondary={link.company || 'N/A'}
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText 
+                primary="Description"
+                secondary={link.description || 'N/A'}
+                secondaryTypographyProps={{ 
+                  style: { whiteSpace: 'pre-wrap' } 
+                }}
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText 
+                primary="Posted Date"
+                secondary={link.date || 'N/A'}
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText 
+                primary="Found By"
+                secondary={teamMembers[link.created_by] || 'Unknown'}
+              />
+            </ListItem>
+            <ListItem>
+              <ListItemText 
+                primary="Found At"
+                secondary={new Date(link.created_at).toLocaleString()}
+              />
+            </ListItem>
+            {link.queryId && (
+              <>
+                <ListItem>
+                  <ListItemText 
+                    primary="Query Used"
+                    secondary={link.queryId.link}
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText 
+                    primary="Category"
+                    secondary={link.queryId.category || 'N/A'}
+                  />
+                </ListItem>
+              </>
+            )}
+            {link.confidence && (
+              <>
+                <ListItem>
+                  <ListItemText 
+                    primary="Confidence"
+                    secondary={link.confidence || 'N/A'}
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText 
+                    primary="Reason"
+                    secondary={link.reason || 'N/A'}
+                  />
+                </ListItem>
+              </>
+            )}
+          </List>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={onClose}>Close</Button>
+        </DialogActions>
+      </Dialog>
+    );
+  });
+
   const FilteredBidLinks = React.memo(
     ({ filteredBidLinks, hiddenLinks, users, onToggleHide }) => {
+      const [selectedLink, setSelectedLink] = useState(null);
       const emptyRows = page > 0 
         ? Math.max(0, (1 + page) * rowsPerPage - filteredBidLinks.length) 
         : 0;
@@ -424,9 +554,9 @@ const BidLinks = () => {
                                 '&:hover': {
                                   textDecoration: 'underline'
                                 },
-                                "&:visited": { 
-                                  color: 'purple'
-                                }
+                                "&:visited": (theme) => ({
+                                  color: theme.palette.mode === 'dark' ? '#e0b0ff' : 'purple'
+                                })
                               }}
                             >
                               {link.title}
@@ -457,10 +587,24 @@ const BidLinks = () => {
                           <TableCell sx={{ py: 3, px: 3 }}>
                             <Box sx={{ 
                               display: "flex",
-                              gap: 2
+                              flexDirection: "column",
+                              gap: 1
                             }}>
+                              <Tooltip title="Show Details" placement="left">
+                                <Button
+                                  size="small"
+                                  onClick={() => setSelectedLink(link)}
+                                  sx={{ 
+                                    minWidth: "40px",
+                                    height: "40px",
+                                    borderRadius: 1
+                                  }}
+                                >
+                                  <InfoIcon color="action" />
+                                </Button>
+                              </Tooltip>
                               {link.company && (
-                                <Tooltip title={`Add ${link.company} to blacklist`}>                                  
+                                <Tooltip title={`Add ${link.company} to blacklist`} placement="left">                                  
                                   <Button
                                     size="small"
                                     onClick={() => handleAddCompanyToBlacklist(link.company)}
@@ -495,12 +639,20 @@ const BidLinks = () => {
                 onPageChange={(event, newPage) => setPage(newPage)}
                 rowsPerPage={rowsPerPage}
                 onRowsPerPageChange={(event) => {
-                  setRowsPerPage(parseInt(event.target.value, 10));
+                  const newRowsPerPage = parseInt(event.target.value, 10);
+                  setRowsPerPage(newRowsPerPage);
+                  localStorage.setItem("rowsPerPage", newRowsPerPage.toString());
                   setPage(0);
                 }}
               />
             </Box>
           </Paper>
+          
+          <DetailDialog 
+            open={Boolean(selectedLink)}
+            onClose={() => setSelectedLink(null)}
+            link={selectedLink}
+          />
         </Box>
       );
     }
@@ -519,7 +671,7 @@ const BidLinks = () => {
           <Box sx={{ 
             position: 'sticky',
             top: 0,
-            bgcolor: 'background.paper',
+            // bgcolor: 'background.paper',
             zIndex: 1,
             pb: 2,
             borderBottom: '1px solid',
@@ -577,15 +729,20 @@ const BidLinks = () => {
                 position: "sticky",
                 top: 20,
                 zIndex: 1000,
-                backgroundColor: "#f8fafc",
+                backgroundColor: 'background.paper',
                 padding: "16px",
                 paddingTop: "10px",
                 paddingLeft: "16px",
                 paddingBottom: "16px",
-                boxShadow: [
-                  "0 4px 6px -1px rgba(0, 0, 0, 0.5)",
-                  "0 2px 4px -1px rgba(0, 0, 0, 0.5)"
-                ],
+                boxShadow: (theme) => theme.palette.mode === 'light' 
+                  ? [
+                      "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                      "0 2px 4px -1px rgba(0, 0, 0, 0.1)"
+                    ]
+                  : [
+                      "0 4px 6px -1px rgba(0, 0, 0, 0.5)",
+                      "0 2px 4px -1px rgba(0, 0, 0, 0.5)"
+                    ],
               }}
             >
               <Grid container spacing={2}>

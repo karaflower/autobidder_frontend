@@ -76,6 +76,7 @@ const Resume = () => {
             education: educationEntries,
             experience: experienceEntries,
             skillset: skillEntries,
+            additional_info: content.additional_info || '',
             path: resumeData.path
           };
         });
@@ -107,7 +108,8 @@ const Resume = () => {
         profile: editedResume.profile,
         education: editedResume.education,
         experience: editedResume.experience,
-        skillset: editedResume.skillset
+        skillset: editedResume.skillset,
+        additional_info: editedResume.additional_info
       }));
 
       if (fileToUpload) {
@@ -245,7 +247,8 @@ const Resume = () => {
         year: ''
       }],
       experience: [],
-      skillset: []
+      skillset: [],
+      additional_info: ''
     };
 
     setResumes([...resumes, emptyResume]);
@@ -389,7 +392,8 @@ const Resume = () => {
               id: index + 1,
               category: skill.category,
               skills: skill.skills
-            }))
+            })),
+            additional_info: analyzedResume.additional_info || ''
           }));
         }
 
@@ -795,6 +799,37 @@ const Resume = () => {
                 </ListItem>
               ))}
             </List>
+          </Box>
+
+          <Box mb={4}>
+            <Typography variant="h5" gutterBottom>
+              Additional Information
+            </Typography>
+            <Divider />
+            {isEditing ? (
+              <TextField
+                fullWidth
+                multiline
+                minRows={4}
+                maxRows={Infinity}
+                label="Additional Information"
+                value={displayedResume.additional_info || ''}
+                onChange={(e) => handleFieldChange('additional_info', '', e.target.value)}
+                sx={{ mt: 2 }}
+                placeholder="Add any additional information, certifications, awards, or other relevant details"
+              />
+            ) : (
+              displayedResume.additional_info && (
+                <Typography variant="body1" sx={{ mt: 2 }}>
+                  {displayedResume.additional_info.split('\n').map((line, index) => (
+                    <React.Fragment key={index}>
+                      {line}
+                      <br />
+                    </React.Fragment>
+                  ))}
+                </Typography>
+              )
+            )}
           </Box>
         </Paper>
       )}
