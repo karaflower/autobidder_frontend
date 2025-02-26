@@ -40,6 +40,55 @@ import DoNotTouchIcon from "@mui/icons-material/DoNotTouch";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import InfoIcon from '@mui/icons-material/Info';
 
+const ConfidenceIndicator = React.memo(({ confidence }) => {
+  // Convert confidence from 0-1 to 0-100
+  const score = Math.round((confidence || 0) * 100);
+  
+  // Color gradient: red (0-40), yellow (40-80), green (80-100)
+  const getColor = (score) => {
+    if (score < 40) {
+      return 'hsl(0, 100%, 50%)'; // Red
+    } else if (score < 80) {
+      return 'hsl(60, 100.00%, 30.90%)'; // Yellow
+    }
+    return 'hsl(120, 100%, 40%)'; // Green
+  };
+
+  return (
+    <Tooltip title={`Confidence: ${score}%`}>
+      <Box
+        sx={{
+          display: 'inline-flex',
+          position: 'relative',
+          width: 16,
+          height: 16,
+          ml: 1,
+          verticalAlign: 'text-bottom'
+        }}
+      >
+        <CircularProgress
+          variant="determinate"
+          value={100}
+          sx={{
+            position: 'absolute',
+            color: (theme) => theme.palette.grey[200]
+          }}
+          size={16}
+        />
+        <CircularProgress
+          variant="determinate"
+          value={score}
+          sx={{
+            color: getColor(score),
+            position: 'absolute'
+          }}
+          size={16}
+        />
+      </Box>
+    </Tooltip>
+  );
+});
+
 const BidLinks = () => {
   const [bidLinks, setBidLinks] = useState([]);
   const [currentUserId, setCurrentUserId] = useState("user123");
@@ -510,6 +559,24 @@ const BidLinks = () => {
         );
       }
 
+      const PaginationComponent = () => (
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', p: 2 }}>
+          <TablePagination
+            component="div"
+            count={filteredBidLinks.length}
+            page={page}
+            onPageChange={(event, newPage) => setPage(newPage)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={(event) => {
+              const newRowsPerPage = parseInt(event.target.value, 10);
+              setRowsPerPage(newRowsPerPage);
+              localStorage.setItem("rowsPerPage", newRowsPerPage.toString());
+              setPage(0);
+            }}
+          />
+        </Box>
+      );
+
       return (
         <Box sx={{ width: '100%' }}>
           <Paper sx={{ 
@@ -519,6 +586,7 @@ const BidLinks = () => {
             borderRadius: 2,
             overflow: 'hidden',
           }}>
+            <PaginationComponent />
             <TableContainer sx={{ minWidth: "100%" }}>
               <Table aria-labelledby="tableTitle">
                 <TableBody>
@@ -532,15 +600,17 @@ const BidLinks = () => {
                           key={link._id}
                           sx={{ 
                             '&:hover': {
-                              backgroundColor: 'rgba(0, 0, 0, 0.02) !important'
+                              backgroundColor: 'rgba(0, 0, 0, 0.02) !important',
                             },
                             '&:nth-of-type(even)': {
                               backgroundColor: 'rgba(0, 0, 0, 0.01)'
                             }
                           }}
                         >
-                          <TableCell sx={{ py: 3, px: 3 }}>{fullIndex}</TableCell>
-                          <TableCell sx={{ py: 3, px: 3 }}>
+                          <TableCell sx={{ py: 1.5, px: 3 }}>{fullIndex}</TableCell>
+                          <TableCell 
+                            sx={{ py: 1.5, px: 3 }}
+                          >
                             <Link
                               href={link.url}
                               target="_blank"
@@ -551,6 +621,8 @@ const BidLinks = () => {
                                 fontWeight: 500,
                                 textDecoration: 'none',
                                 color: 'primary.main',
+                                display: 'inline-flex',
+                                alignItems: 'center',
                                 '&:hover': {
                                   textDecoration: 'underline'
                                 },
@@ -560,6 +632,7 @@ const BidLinks = () => {
                               }}
                             >
                               {link.title}
+                              {link.confidence && <ConfidenceIndicator confidence={link.confidence} />}
                             </Link>
                             <Typography 
                               variant="body2" 
@@ -584,7 +657,7 @@ const BidLinks = () => {
                               {link.description}
                             </Typography>
                           </TableCell>
-                          <TableCell sx={{ py: 3, px: 3 }}>
+                          <TableCell sx={{ py: 1, px: 3 }}>
                             <Box sx={{ 
                               display: "flex",
                               flexDirection: "column",
@@ -631,21 +704,7 @@ const BidLinks = () => {
                 </TableBody>
               </Table>
             </TableContainer>
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', p: 2 }}>
-              <TablePagination
-                component="div"
-                count={filteredBidLinks.length}
-                page={page}
-                onPageChange={(event, newPage) => setPage(newPage)}
-                rowsPerPage={rowsPerPage}
-                onRowsPerPageChange={(event) => {
-                  const newRowsPerPage = parseInt(event.target.value, 10);
-                  setRowsPerPage(newRowsPerPage);
-                  localStorage.setItem("rowsPerPage", newRowsPerPage.toString());
-                  setPage(0);
-                }}
-              />
-            </Box>
+            <PaginationComponent />
           </Paper>
           
           <DetailDialog 

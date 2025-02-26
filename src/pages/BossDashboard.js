@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Line } from 'react-chartjs-2';
+import { Line, Scatter } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -8,7 +8,10 @@ import {
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  ScatterController,
+  BarElement,
+  BarController
 } from 'chart.js';
 import axios from 'axios';
 import { 
@@ -43,6 +46,9 @@ ChartJS.register(
   LinearScale,
   PointElement,
   LineElement,
+  ScatterController,
+  BarElement,
+  BarController,
   Title,
   Tooltip,
   Legend
@@ -287,6 +293,65 @@ const BossDashboard = () => {
     }
   };
 
+  const getTimeScatterData = (bids) => {
+    return {
+      datasets: [{
+        label: 'Bid Times',
+        data: bids.map(bid => ({
+          x: new Date(bid.timestamp).getHours() + (new Date(bid.timestamp).getMinutes() / 60),
+          y: 1
+        })),
+        backgroundColor: 'rgba(75, 192, 192, 0.6)',
+        type: 'bar',
+        barThickness: 2,
+        barPercentage: 0.1,
+      }]
+    };
+  };
+
+  const timeScatterOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: {
+        min: 0,
+        max: 24,
+        title: {
+          display: true,
+          text: 'Hour of Day'
+        },
+        ticks: {
+          callback: (value) => {
+            return `${Math.floor(value)}:${String(Math.floor((value % 1) * 60)).padStart(2, '0')}`;
+          }
+        }
+      },
+      y: {
+        min: 0,
+        max: 1,
+        display: false,
+        grid: {
+          display: false
+        }
+      }
+    },
+    plugins: {
+      title: {
+        display: true,
+        text: 'Bid Time Distribution'
+      },
+      tooltip: {
+        callbacks: {
+          label: (context) => {
+            const hour = Math.floor(context.parsed.x);
+            const minute = Math.floor((context.parsed.x % 1) * 60);
+            return `Time: ${hour}:${String(minute).padStart(2, '0')}`;
+          }
+        }
+      }
+    }
+  };
+
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
       {initialLoading ? (
@@ -391,49 +456,57 @@ const BossDashboard = () => {
         </DialogTitle>
         <DialogContent>
           {detailedBidData.length > 0 ? (
-            <TableContainer component={Paper} sx={{ mt: 2 }}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell>#</TableCell>
-                    <TableCell>Time</TableCell>
-                    <TableCell>URL</TableCell>
-                    <TableCell>Details</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {detailedBidData.map((bid, index) => (
-                    <TableRow key={index}>
-                      <TableCell>{index + 1}</TableCell>
-                      <TableCell>
-                        {new Date(bid.timestamp).toLocaleTimeString()}
-                      </TableCell>
-                      <TableCell>
-                        <Link 
-                          href={bid.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          {bid.url.length > 60 ? bid.url.substring(0, 60) + '...' : bid.url}
-                        </Link>
-                      </TableCell>
-                      <TableCell>
-                        <Button 
-                          variant="outlined" 
-                          size="small"
-                          onClick={() => {
-                            setSelectedBid(bid);
-                            setBidDetailsDialog(true);
-                          }}
-                        >
-                          View Details
-                        </Button>
-                      </TableCell>
+            <>
+              <Paper sx={{ p: 2, mb: 3, height: '200px' }}>
+                <Scatter 
+                  data={getTimeScatterData(detailedBidData)} 
+                  options={timeScatterOptions}
+                />
+              </Paper>
+              <TableContainer component={Paper} sx={{ mt: 2 }}>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>#</TableCell>
+                      <TableCell>Time</TableCell>
+                      <TableCell>URL</TableCell>
+                      <TableCell>Details</TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                  </TableHead>
+                  <TableBody>
+                    {detailedBidData.map((bid, index) => (
+                      <TableRow key={index}>
+                        <TableCell>{index + 1}</TableCell>
+                        <TableCell>
+                          {new Date(bid.timestamp).toLocaleTimeString()}
+                        </TableCell>
+                        <TableCell>
+                          <Link 
+                            href={bid.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {bid.url.length > 60 ? bid.url.substring(0, 60) + '...' : bid.url}
+                          </Link>
+                        </TableCell>
+                        <TableCell>
+                          <Button 
+                            variant="outlined" 
+                            size="small"
+                            onClick={() => {
+                              setSelectedBid(bid);
+                              setBidDetailsDialog(true);
+                            }}
+                          >
+                            View Details
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </>
           ) : (
             <Typography>No detailed bid data available for this date.</Typography>
           )}
