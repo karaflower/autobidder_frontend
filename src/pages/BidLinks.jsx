@@ -229,19 +229,24 @@ const BidLinks = () => {
     }
   };
 
-  const handleAddBlacklist = async (newBlackWord) => {
-    if (!newBlackWord.trim()) return;
+  const handleAddBlacklist = async (newBlackWords) => {
+    if (!newBlackWords.trim()) return;
     try {
+      // Split by comma and trim each entry
+      const blacklistArray = newBlackWords
+        .split(',')
+        .map(word => word.trim())
+        .filter(word => word.length > 0); // Filter out empty strings
+
       await axios.post(`${process.env.REACT_APP_API_URL}/bid-links/blacklist`, {
-        blacklists: [newBlackWord.trim()],
+        blacklists: blacklistArray,
       });
       await fetchBlacklists();
       await fetchBidLinks();
-      toast.success("URL added to blacklist");
+      toast.success(`${blacklistArray.length} item(s) added to blacklist`);
     } catch (error) {
       console.error("Failed to add to blacklist:", error);
       toast.error("Failed to add to blacklist");
-    } finally {
     }
   };
 
@@ -374,13 +379,14 @@ const BidLinks = () => {
         <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
           <TextField
             fullWidth
-            label="Enter blacklist"
+            label="Enter blacklists"
             variant="standard"
             size="small"
+            helperText="Separate multiple items with commas"
             onKeyDown={async (e) => {
               if (e.key === "Enter") {
                 await handleAddBlacklist(e.target.value);
-                e.target.value = ''
+                e.target.value = '';
               }
             }}
           />

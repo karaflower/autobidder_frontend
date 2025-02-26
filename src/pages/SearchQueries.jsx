@@ -26,6 +26,8 @@ import {
   Chip,
   ListItemText,
   Divider,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import axios from 'axios';
 import {
@@ -535,7 +537,6 @@ const SearchQueries = () => {
   } = useSearchQueries();
 
   const [openDialog, setOpenDialog] = useState(false);
-  const [newQuery, setNewQuery] = useState('');
   const [searchLoading, setSearchLoading] = useState(null);
   const [searchDialogOpen, setSearchDialogOpen] = useState(false);
   const [selectedTimeUnit, setSelectedTimeUnit] = useState('');
@@ -564,6 +565,7 @@ const SearchQueries = () => {
   const [selectedTimelineCategories, setSelectedTimelineCategories] = useState([]);
   const [deleteCategoryDialogOpen, setDeleteCategoryDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(null);
 
   useEffect(() => {
     fetchCategories();
@@ -623,12 +625,15 @@ const SearchQueries = () => {
   };
 
   const handleDeleteQuery = async (queryId) => {
+    setDeleteLoading(queryId);
     try {
       await axios.delete(`${process.env.REACT_APP_API_URL}/search-queries/${queryId}`);
-      fetchQueries();
+      await fetchQueries();
       toast.success('Query deleted successfully');
     } catch (error) {
       toast.error('Failed to delete query');
+    } finally {
+      setDeleteLoading(null);
     }
   };
 
@@ -770,6 +775,35 @@ const SearchQueries = () => {
   // Add this function to handle opening the timeline dialog
   const handleTimelineOpen = () => {
     setTimelineDialogOpen(true);
+  };
+
+  // Modify the handleAddBulkQueries function
+  const handleAddBulkQueries = async () => {
+    const bulkQueriesInput = document.getElementById('bulk-queries-input');
+    const queries = bulkQueriesInput.value
+      .split('\n')
+      .map(q => q.trim())
+      .filter(q => q); // Filter out empty lines
+
+    if (queries.length === 0) return;
+
+    try {
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/search-queries/bulk`, {
+        links: queries,
+        category: selectedCategory
+      });
+      
+      setOpenDialog(false);
+      bulkQueriesInput.value = ''; // Clear the input
+      fetchQueries();
+      
+      toast.success(
+        `Successfully added ${response.data.totalCreated} queries. ` +
+        `${response.data.totalSkipped} duplicates were skipped.`
+      );
+    } catch (error) {
+      toast.error('Failed to add bulk queries');
+    }
   };
 
   if (loading) return <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
@@ -1132,8 +1166,13 @@ const SearchQueries = () => {
                         variant="outlined"
                         color="error"
                         onClick={() => handleDeleteQuery(query._id)}
+                        disabled={deleteLoading === query._id}
                       >
-                        DELETE
+                        {deleteLoading === query._id ? (
+                          <CircularProgress size={24} color="inherit" />
+                        ) : (
+                          'DELETE'
+                        )}
                       </Button>
                     </Box>
                   </Box>
@@ -1145,7 +1184,9 @@ const SearchQueries = () => {
 
         <Dialog 
           open={openDialog} 
-          onClose={() => setOpenDialog(false)}
+          onClose={() => {
+            setOpenDialog(false);
+          }}
           maxWidth="md"
           fullWidth
           PaperProps={{
@@ -1154,21 +1195,48 @@ const SearchQueries = () => {
             }
           }}
         >
-          <DialogTitle>Add New Search Query</DialogTitle>
+          <DialogTitle>Add New Search Queries</DialogTitle>
           <DialogContent>
             <TextField
               autoFocus
               margin="dense"
-              label="Search Query"
+              label="Search Queries"
               fullWidth
+              multiline
+              rows={6}
               variant="outlined"
-              value={newQuery}
-              onChange={(e) => setNewQuery(e.target.value)}
+              id="bulk-queries-input"
+              placeholder="Enter one query per line"
+              helperText="Enter multiple search queries, one per line"
             />
+
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="subtitle2" gutterBottom>Category</Typography>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                {categories.map((category) => (
+                  <Chip
+                    key={category}
+                    label={category}
+                    onClick={() => setSelectedCategory(category)}
+                    color={selectedCategory === category ? "primary" : "default"}
+                    variant={selectedCategory === category ? "filled" : "outlined"}
+                  />
+                ))}
+              </Box>
+            </Box>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setOpenDialog(false)}>Cancel</Button>
-            <Button onClick={handleAddQuery} variant="contained" color="primary">
+            <Button onClick={() => {
+              setOpenDialog(false);
+              document.getElementById('bulk-queries-input').value = '';
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleAddBulkQueries} 
+              variant="contained" 
+              color="primary"
+            >
               Add
             </Button>
           </DialogActions>
