@@ -601,6 +601,7 @@ const SearchQueries = () => {
       await axios.delete(`${process.env.REACT_APP_API_URL}/categories/${category}`);
       fetchCategories();
       setSelectedCategoriesForSearch(prev => prev.filter(cat => cat !== category));
+      await fetchQueries();
       toast.success('Category deleted successfully');
     } catch (error) {
       toast.error('Failed to delete category');
@@ -798,8 +799,7 @@ const SearchQueries = () => {
       fetchQueries();
       
       toast.success(
-        `Successfully added ${response.data.totalCreated} queries. ` +
-        `${response.data.totalSkipped} duplicates were skipped.`
+        `Successfully added ${response.data.totalCreated} queries.`
       );
     } catch (error) {
       toast.error('Failed to add bulk queries');
@@ -1411,12 +1411,14 @@ const SearchQueries = () => {
                       newCategory: newCategory.trim()
                     });
                     toast.success('Category updated successfully');
-                    fetchCategories();
+                    await fetchCategories();
+                    await fetchQueries();
                   } catch (error) {
                     toast.error('Failed to update category');
                   }
                 } else {
                   await handleAddCategory();
+                  await fetchQueries();
                 }
                 setOpenCategoryDialog(false);
                 setNewCategory('');

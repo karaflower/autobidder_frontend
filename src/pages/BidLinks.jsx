@@ -360,65 +360,89 @@ const BidLinks = () => {
     });
   }, [page]);
 
-  const renderBlacklistPanel = () => (
-    <Drawer
-      anchor="right"
-      open={openBlacklistDialog}
-      onClose={() => setOpenBlacklistDialog(false)}
-      sx={{
-        "& .MuiDrawer-paper": {
-          width: "400px",
-          padding: 2,
-        },
-      }}
-    >
-      <Box sx={{ p: 2 }}>
-        <Typography variant="h6" gutterBottom>
-          Manage Blacklisted Words
-        </Typography>
-        <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
-          <TextField
-            fullWidth
-            label="Enter blacklists"
-            variant="standard"
-            size="small"
-            helperText="Separate multiple items with commas"
-            onKeyDown={async (e) => {
-              if (e.key === "Enter") {
-                await handleAddBlacklist(e.target.value);
-                e.target.value = '';
-              }
-            }}
-          />
-        </Box>
+  const renderBlacklistPanel = () => {
+    const [isAddingBlacklist, setIsAddingBlacklist] = useState(false);
 
-        <List sx={{ maxHeight: "calc(100vh - 200px)", overflow: "auto" }}>
-          {[...blacklists].reverse().map((url, index) => (
-            <ListItem
-              key={index}
-              secondaryAction={
-                <IconButton
-                  edge="end"
-                  aria-label="delete"
-                  onClick={() => handleDeleteBlacklist(url)}
-                >
-                  <DeleteIcon />
-                </IconButton>
-              }
-            >
-              <ListItemText
-                primary={url}
-                sx={{
-                  wordBreak: "break-all",
-                  pr: 2,
-                }}
-              />
-            </ListItem>
-          ))}
-        </List>
-      </Box>
-    </Drawer>
-  );
+    const handleBlacklistSubmit = async (value) => {
+      if (!value.trim()) return;
+      setIsAddingBlacklist(true);
+      try {
+        await handleAddBlacklist(value);
+        // Clear the input value after successful addition
+        return true; // Return true to indicate success
+      } finally {
+        setIsAddingBlacklist(false);
+      }
+    };
+
+    return (
+      <Drawer
+        anchor="right"
+        open={openBlacklistDialog}
+        onClose={() => setOpenBlacklistDialog(false)}
+        sx={{
+          "& .MuiDrawer-paper": {
+            width: "400px",
+            padding: 2,
+          },
+        }}
+      >
+        <Box sx={{ p: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            Manage Blacklisted Words
+          </Typography>
+          <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
+            <TextField
+              fullWidth
+              label="Enter blacklists"
+              variant="standard"
+              size="small"
+              helperText="Separate multiple items with commas"
+              disabled={isAddingBlacklist}
+              onKeyDown={async (e) => {
+                if (e.key === "Enter") {
+                  const success = await handleBlacklistSubmit(e.target.value);
+                  if (success) {
+                    e.target.value = '';
+                  }
+                }
+              }}
+              InputProps={{
+                endAdornment: isAddingBlacklist && (
+                  <CircularProgress size={20} sx={{ mr: 1 }} />
+                ),
+              }}
+            />
+          </Box>
+
+          <List sx={{ maxHeight: "calc(100vh - 200px)", overflow: "auto" }}>
+            {[...blacklists].reverse().map((url, index) => (
+              <ListItem
+                key={index}
+                secondaryAction={
+                  <IconButton
+                    edge="end"
+                    aria-label="delete"
+                    onClick={() => handleDeleteBlacklist(url)}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                }
+              >
+                <ListItemText
+                  primary={url}
+                  sx={{
+                    wordBreak: "break-all",
+                    pr: 2,
+                  }}
+                />
+              </ListItem>
+            ))}
+          </List>
+        </Box>
+      </Drawer>
+    );
+  };
 
   const blacklistButton = (
     <Button
