@@ -32,7 +32,34 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import 'react-toastify/dist/ReactToastify.css';
 import { ToastContainer } from 'react-toastify';
 import Dashboard from './Dashboard';
+import { Line, Scatter } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Legend,
+  ScatterController,
+  BarElement,
+  BarController,
+  Tooltip as ChartTooltip
+} from 'chart.js';
 
+// Register ChartJS components
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  ScatterController,
+  BarElement,
+  BarController,
+  Title,
+  ChartTooltip,
+  Legend
+);
 
 const BidHistory = () => {
   const [bidHistory, setBidHistory] = useState([]);
@@ -187,6 +214,65 @@ const BidHistory = () => {
     setOpenDashboard(false);
   };
 
+  const getTimeScatterData = (bids) => {
+    return {
+      datasets: [{
+        label: 'Bid Times',
+        data: bids.map(bid => ({
+          x: new Date(bid.timestamp).getHours() + (new Date(bid.timestamp).getMinutes() / 60),
+          y: 1
+        })),
+        backgroundColor: 'rgba(75, 192, 192, 0.6)',
+        type: 'bar',
+        barThickness: 2,
+        barPercentage: 0.1,
+      }]
+    };
+  };
+
+  const timeScatterOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: {
+        min: 0,
+        max: 24,
+        title: {
+          display: true,
+          text: 'Hour of Day'
+        },
+        ticks: {
+          callback: (value) => {
+            return `${Math.floor(value)}:${String(Math.floor((value % 1) * 60)).padStart(2, '0')}`;
+          }
+        }
+      },
+      y: {
+        min: 0,
+        max: 1,
+        display: false,
+        grid: {
+          display: false
+        }
+      }
+    },
+    plugins: {
+      title: {
+        display: true,
+        text: 'Bid Time Distribution'
+      },
+      tooltip: {
+        callbacks: {
+          label: (context) => {
+            const hour = Math.floor(context.parsed.x);
+            const minute = Math.floor((context.parsed.x % 1) * 60);
+            return `Time: ${hour}:${String(minute).padStart(2, '0')}`;
+          }
+        }
+      }
+    }
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
@@ -207,6 +293,14 @@ const BidHistory = () => {
     <>
       <ToastContainer />
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <Box sx={{ width: '80%', mb: 4, height: '200px' }}>
+          <Paper sx={{ p: 2 }}>
+            <Scatter 
+              data={getTimeScatterData(displayedBids)} 
+              options={timeScatterOptions}
+            />
+          </Paper>
+        </Box>
         <Box sx={{ width: '80%', mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box sx={{ minWidth: 200 }}>
             <TextField

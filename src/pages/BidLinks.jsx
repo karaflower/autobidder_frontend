@@ -126,7 +126,7 @@ const BidLinks = () => {
   const [teamMembers, setTeamMembers] = useState({}); // Add this state for team members lookup
   const [queryDateLimit, setQueryDateLimit] = useState(() => {
     const stored = localStorage.getItem("queryDateLimit");
-    return stored ? parseInt(stored, 10) : 0;
+    return stored ? parseInt(stored, 10) : -1;
   });
 
   const filteredBidLinks = useMemo(() => {
@@ -145,7 +145,12 @@ const BidLinks = () => {
       if (selectedCategory !== 'all' && link.queryId?.category !== selectedCategory) {
         return false;
       }
-      if (queryDateLimit == 0) {
+
+      // Date limit filter
+      if (queryDateLimit === -1) {
+        // No filter applied
+        return true;
+      } else if (queryDateLimit === 0) {
         if (link.queryDateLimit != null) {
           return false;
         }
@@ -803,6 +808,7 @@ const BidLinks = () => {
                 }}
                 sx={{ width: "150px" }}
               >
+                <MenuItem value={-1}>All</MenuItem>
                 <MenuItem value={0}>Any time</MenuItem>
                 <MenuItem value={1}>Past 24 hours</MenuItem>
                 <MenuItem value={7}>Past week</MenuItem>
@@ -814,9 +820,10 @@ const BidLinks = () => {
             <Grid item>
               <TextField
                 size="small"
-                onKeyDown={(e) => {
+                onKeyDown={async (e) => {
                   if (e.key === "Enter") {
-                    handleGlobalSearch(e.target.value);
+                    await handleGlobalSearch(e.target.value);
+                    e.target.value = '';
                   }
                 }}
                 placeholder="Enter Search Term..."
@@ -824,7 +831,7 @@ const BidLinks = () => {
                 variant="standard"
                 InputProps={{
                   endAdornment: isSearchInputLoading && (
-                    <CircularProgress size={16} sx={{ mr: 1 }} />
+                    <CircularProgress size={16} />
                   ),
                 }}
               />
