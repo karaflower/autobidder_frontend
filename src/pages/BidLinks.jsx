@@ -30,6 +30,7 @@ import {
   TableCell,
   TableRow,
   TablePagination,
+  MenuItem,
 } from "@mui/material";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -123,6 +124,10 @@ const BidLinks = () => {
     return stored ? parseInt(stored, 10) : 50;
   });
   const [teamMembers, setTeamMembers] = useState({}); // Add this state for team members lookup
+  const [queryDateLimit, setQueryDateLimit] = useState(() => {
+    const stored = localStorage.getItem("queryDateLimit");
+    return stored ? parseInt(stored, 10) : 0;
+  });
 
   const filteredBidLinks = useMemo(() => {
     const filterLink = (link) => {
@@ -140,6 +145,13 @@ const BidLinks = () => {
       if (selectedCategory !== 'all' && link.queryId?.category !== selectedCategory) {
         return false;
       }
+      if (queryDateLimit == 0) {
+        if (link.queryDateLimit != null) {
+          return false;
+        }
+      } else if(link.queryDateLimit != queryDateLimit) {
+        return false;
+      }
 
       return true;
     };
@@ -152,6 +164,7 @@ const BidLinks = () => {
     showFilter,
     currentUserId,
     selectedCategory,
+    queryDateLimit,
   ]);
 
   const fetchBidLinks = async () => {
@@ -194,7 +207,6 @@ const BidLinks = () => {
   };
 
   useEffect(() => {
-    console.log("Selected Date:", selectedDate);
     fetchBidLinks();
   }, [selectedDate]);
 
@@ -747,6 +759,113 @@ const BidLinks = () => {
     }
   );
 
+  const renderSettingsBar = () => (
+    <Box
+      sx={{
+        mb: 2,
+        position: "sticky",
+        top: 20,
+        zIndex: 1000,
+        backgroundColor: 'background.paper',
+        padding: "16px",
+        paddingTop: "10px",
+        paddingLeft: "16px",
+        paddingBottom: "16px",
+        boxShadow: (theme) => theme.palette.mode === 'light' 
+          ? ["0 4px 6px -1px rgba(0, 0, 0, 0.1)", "0 2px 4px -1px rgba(0, 0, 0, 0.1)"]
+          : ["0 4px 6px -1px rgba(0, 0, 0, 0.5)", "0 2px 4px -1px rgba(0, 0, 0, 0.5)"],
+      }}
+    >
+      <Grid container spacing={2}>
+        <Grid item xs={12}>
+          <Grid container spacing={2} alignItems="center">
+            <Grid item>
+              <TextField
+                variant="standard"
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                size="small"
+                sx={{ width: "130px" }}
+              />
+            </Grid>
+
+            <Grid item>
+              <TextField
+                select
+                variant="standard"
+                size="small"
+                value={queryDateLimit}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value, 10);
+                  setQueryDateLimit(value);
+                  localStorage.setItem("queryDateLimit", value.toString());
+                }}
+                sx={{ width: "150px" }}
+              >
+                <MenuItem value={0}>Any time</MenuItem>
+                <MenuItem value={1}>Past 24 hours</MenuItem>
+                <MenuItem value={7}>Past week</MenuItem>
+                <MenuItem value={30}>Past month</MenuItem>
+                <MenuItem value={365}>Past year</MenuItem>
+              </TextField>
+            </Grid>
+
+            <Grid item>
+              <TextField
+                size="small"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleGlobalSearch(e.target.value);
+                  }
+                }}
+                placeholder="Enter Search Term..."
+                sx={{ width: "150px" }}
+                variant="standard"
+                InputProps={{
+                  endAdornment: isSearchInputLoading && (
+                    <CircularProgress size={16} sx={{ mr: 1 }} />
+                  ),
+                }}
+              />
+            </Grid>
+
+            <Grid item>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={showHiddenLinks}
+                    onChange={(e) => {
+                      setShowHiddenLinks(e.target.checked);
+                      localStorage.setItem(
+                        "showHiddenLinks",
+                        JSON.stringify(e.target.checked)
+                      );
+                    }}
+                  />
+                }
+                label="Hidden"
+              />
+            </Grid>
+
+            <Grid item>
+              <Button
+                variant="outlined"
+                startIcon={<VisibilityOffIcon />}
+                onClick={handleHideAll}
+                size="small"
+              >
+                Hide All ({filteredBidLinks.length})
+              </Button>
+            </Grid>
+
+            <Grid item>{blacklistButton}</Grid>
+          </Grid>
+        </Grid>
+      </Grid>
+    </Box>
+  );
+
   return (
     <Box sx={{ display: 'flex', gap: 3 }}>
       {/* Left Panel - Categories */}
@@ -812,110 +931,19 @@ const BidLinks = () => {
       <Box sx={{ flex: 1 }}>
         <Grid container spacing={2}>
           <Grid item xs={12}>
-            <Box
-              sx={{
-                mb: 2,
-                position: "sticky",
-                top: 20,
-                zIndex: 1000,
-                backgroundColor: 'background.paper',
-                padding: "16px",
-                paddingTop: "10px",
-                paddingLeft: "16px",
-                paddingBottom: "16px",
-                boxShadow: (theme) => theme.palette.mode === 'light' 
-                  ? [
-                      "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                      "0 2px 4px -1px rgba(0, 0, 0, 0.1)"
-                    ]
-                  : [
-                      "0 4px 6px -1px rgba(0, 0, 0, 0.5)",
-                      "0 2px 4px -1px rgba(0, 0, 0, 0.5)"
-                    ],
-              }}
-            >
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <Grid container spacing={2} alignItems="center">
-                    <Grid item>
-                      <TextField
-                        variant="standard"
-                        type="date"
-                        value={selectedDate}
-                        onChange={(e) => setSelectedDate(e.target.value)}
-                        size="small"
-                        sx={{ width: "130px" }}
-                      />
-                    </Grid>
-
-                    <Grid item>
-                      <TextField
-                        size="small"
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            handleGlobalSearch(e.target.value);
-                          }
-                        }}
-                        placeholder="Enter Search Term..."
-                        sx={{ width: "150px" }}
-                        variant="standard"
-                        InputProps={{
-                          endAdornment: isSearchInputLoading && (
-                            <CircularProgress size={16} sx={{ mr: 1 }} />
-                          ),
-                        }}
-                      />
-                    </Grid>
-
-                    <Grid item>
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            checked={showHiddenLinks}
-                            onChange={(e) => {
-                              setShowHiddenLinks(e.target.checked);
-                              localStorage.setItem(
-                                "showHiddenLinks",
-                                JSON.stringify(e.target.checked)
-                              );
-                            }}
-                          />
-                        }
-                        label="Hidden"
-                      />
-                    </Grid>
-
-                    <Grid item>
-                      <Button
-                        variant="outlined"
-                        startIcon={<VisibilityOffIcon />}
-                        onClick={handleHideAll}
-                        size="small"
-                      >
-                        Hide All ({filteredBidLinks.length})
-                      </Button>
-                    </Grid>
-
-                    <Grid item>{blacklistButton}</Grid>
-                  </Grid>
-                </Grid>
+            {renderSettingsBar()}
+            {isReloadingBids ? (
+              <Grid item xs={12} sx={{ display: "flex", justifyContent: "center", p: 4 }}>
+                <CircularProgress />
               </Grid>
-            </Box>
-
-            <Grid container spacing={2}>
-              {isReloadingBids ? (
-                <Grid item xs={12} sx={{ display: "flex", justifyContent: "center", p: 4 }}>
-                  <CircularProgress />
-                </Grid>
-              ) : (
-                <FilteredBidLinks
-                  filteredBidLinks={filteredBidLinks}
-                  hiddenLinks={hiddenLinks}
-                  users={users}
-                  onToggleHide={handleToggleHide}
-                />
-              )}
-            </Grid>
+            ) : (
+              <FilteredBidLinks
+                filteredBidLinks={filteredBidLinks}
+                hiddenLinks={hiddenLinks}
+                users={users}
+                onToggleHide={handleToggleHide}
+              />
+            )}
           </Grid>
         </Grid>
 

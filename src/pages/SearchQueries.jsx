@@ -53,7 +53,7 @@ const TIME_OPTIONS = [
   { value: 'w', label: 'Past Week' },
   { value: 'm', label: 'Past Month' },
   { value: 'y', label: 'Past Year' },
-  { value: '', label: 'All Time' },
+  { value: '', label: 'Any Time' },
   { value: 'a', label: 'All above' },
 ];
 
