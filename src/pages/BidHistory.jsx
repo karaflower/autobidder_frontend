@@ -388,6 +388,12 @@ const BidHistory = () => {
                       href={bid.url}
                       target="_blank"
                       rel="noopener noreferrer"
+                      sx={{
+                        textDecoration: 'none',
+                        "&:visited": (theme) => ({
+                          color: theme.palette.mode === 'dark' ? '#e0b0ff' : 'purple'
+                        })
+                      }}
                     >
                       {bid.url.length > 60 ? bid.url.substring(0, 60) + '...' : bid.url}
                     </Link>
@@ -444,6 +450,12 @@ const BidHistory = () => {
                 href={selectedBid?.url}
                 target="_blank"
                 rel="noopener noreferrer"
+                sx={{
+                  textDecoration: 'none',
+                  "&:visited": (theme) => ({
+                    color: theme.palette.mode === 'dark' ? '#e0b0ff' : 'purple'
+                  })
+                }}
               >
                 {selectedBid?.url}
               </Link>
