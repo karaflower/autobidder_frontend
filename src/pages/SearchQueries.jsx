@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Card,
   CardContent,
@@ -44,9 +44,6 @@ import { toast } from 'react-toastify';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
-import FilterListIcon from '@mui/icons-material/FilterList';
-import CheckIcon from '@mui/icons-material/Check';
-
 
 const TIME_OPTIONS = [
   { value: 'd', label: 'Past 24 Hours' },
@@ -158,47 +155,16 @@ const TimeSelectionDialog = ({
   </Dialog>
 );
 
-const SearchTimeline = ({ queries, users, selectedCategories }) => {
+const SearchTimeline = React.memo(({ queries, users, selectedCategories }) => {
   const [dateRange, setDateRange] = useState(2);
   const containerRef = useRef(null);
 
-  // Modified wheel event handler to check for shift key
-  useEffect(() => {
-    const chartContainer = containerRef.current;
-    if (chartContainer) {
-      const handleScroll = (e) => {
-        // Only prevent default and adjust date range if shift key is pressed
-        if (e.shiftKey) {
-          e.preventDefault();
-          e.stopPropagation();
-          
-          // Adjust dateRange based on scroll direction
-          const delta = Math.sign(e.deltaY);
-          setDateRange(prev => {
-            const newRange = prev + (delta * 1); // Change by 1 day at a time
-            return Math.max(1, Math.min(10, newRange)); // Keep between 1 and 10 days
-          });
-          
-          return false;
-        }
-      };
-
-      chartContainer.addEventListener('wheel', handleScroll, { passive: false });
-      chartContainer.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
-
-      return () => {
-        chartContainer.removeEventListener('wheel', handleScroll);
-        chartContainer.removeEventListener('touchmove', e => e.preventDefault());
-      };
-    }
-  }, []);
-
-  const formatChartData = () => {
+  // Memoize the chart data calculation
+  const { data, uniqueQueries } = useMemo(() => {
     const now = new Date();
     const cutoffDate = new Date(now.getTime() - (dateRange * 24 * 60 * 60 * 1000));
 
-    return queries
-      // Filter queries based on selected categories
+    const formattedData = queries
       .filter(query => 
         query.last_search_info?.[0]?.date && 
         (selectedCategories.length === 0 || selectedCategories.includes(query.category))
@@ -216,16 +182,88 @@ const SearchTimeline = ({ queries, users, selectedCategories }) => {
             dayRange: info.dayRange,
             jobsFound: info.count || 0,
             yAxis: queryIndex + 1,
-            category: query.category // Add category information
+            category: query.category
           }));
         return searchHistory;
       })
       .flat()
       .sort((a, b) => a.date - b.date);
-  };
 
-  const data = formatChartData();
-  const uniqueQueries = [...new Set(data.map(d => d.query))];
+    return {
+      data: formattedData,
+      uniqueQueries: [...new Set(formattedData.map(d => d.query))]
+    };
+  }, [queries, users, selectedCategories, dateRange]);
+
+  // Memoize the tooltip content component
+  const CustomTooltip = useMemo(() => {
+    return ({ active, payload }) => {
+      if (active && payload && payload.length) {
+        const data = payload[0].payload;
+        return (
+          <Box sx={{ bgcolor: 'background.paper', p: 1, border: '1px solid grey' }}>
+            <Typography variant="body2">Query: {data.query}</Typography>
+            <Typography variant="body2">Category: {data.category}</Typography>
+            <Typography variant="body2">Last Search: {data.relativeTime}</Typography>
+            <Typography variant="body2">Jobs Found: {data.jobsFound}</Typography>
+            {data.searchedBy && data.searchedBy !== 'Unknown User' && (
+              <Typography variant="body2">Searched By: {data.searchedBy}</Typography>
+            )}
+            {data.dayRange && (
+              <Typography variant="body2">Day Range: {data.dayRange}</Typography>
+            )}
+          </Box>
+        );
+      }
+      return null;
+    };
+  }, []);
+
+  // Memoize the scatter shape component
+  const CustomShape = useMemo(() => {
+    return (props) => {
+      const { cx, cy, payload } = props;
+      const radius = Math.max(4, Math.min(12, 4 + (payload.jobsFound / 5)));
+      return (
+        <circle 
+          cx={cx} 
+          cy={cy} 
+          r={radius} 
+          fill="#8884d8"
+          opacity={0.8}
+        />
+      );
+    };
+  }, []);
+
+  // Memoize the scroll handler
+  const handleScroll = useCallback((e) => {
+    if (e.shiftKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const delta = Math.sign(e.deltaY);
+      setDateRange(prev => {
+        const newRange = prev + (delta * 1);
+        return Math.max(1, Math.min(10, newRange));
+      });
+      
+      return false;
+    }
+  }, []);
+
+  useEffect(() => {
+    const chartContainer = containerRef.current;
+    if (chartContainer) {
+      chartContainer.addEventListener('wheel', handleScroll, { passive: false });
+      chartContainer.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+
+      return () => {
+        chartContainer.removeEventListener('wheel', handleScroll);
+        chartContainer.removeEventListener('touchmove', e => e.preventDefault());
+      };
+    }
+  }, [handleScroll]);
 
   return (
     <Card sx={{ mb: 3 }}>
@@ -262,10 +300,9 @@ const SearchTimeline = ({ queries, users, selectedCategories }) => {
                 domain={[0, uniqueQueries.length + 1]}
                 ticks={[...Array(uniqueQueries.length)].map((_, i) => i + 1)}
                 tickFormatter={(value) => {
-                  const data = formatChartData().find(d => d.yAxis === value);
-                  if (!data) return '';
-                  // Truncate text if longer than 40 characters
-                  return data.query.length > 40 ? data.query.substring(0, 37) + '...' : data.query;
+                  const dataPoint = data.find(d => d.yAxis === value);
+                  if (!dataPoint) return '';
+                  return dataPoint.query.length > 40 ? dataPoint.query.substring(0, 37) + '...' : dataPoint.query;
                 }}
                 width={350}
                 tick={{ 
@@ -276,45 +313,12 @@ const SearchTimeline = ({ queries, users, selectedCategories }) => {
                   dx: -10
                 }}
               />
-              <RechartsTooltip
-                content={({ active, payload }) => {
-                  if (active && payload && payload.length) {
-                    const data = payload[0].payload;
-                    return (
-                      <Box sx={{ bgcolor: 'background.paper', p: 1, border: '1px solid grey' }}>
-                        <Typography variant="body2">Query: {data.query}</Typography>
-                        <Typography variant="body2">Category: {data.category}</Typography>
-                        <Typography variant="body2">Last Search: {data.relativeTime}</Typography>
-                        <Typography variant="body2">Jobs Found: {data.jobsFound}</Typography>
-                        {data.searchedBy && data.searchedBy !== 'Unknown User' && (
-                          <Typography variant="body2">Searched By: {data.searchedBy}</Typography>
-                        )}
-                        {data.dayRange && (
-                          <Typography variant="body2">Day Range: {data.dayRange}</Typography>
-                        )}
-                      </Box>
-                    );
-                  }
-                  return null;
-                }}
-              />
+              <RechartsTooltip content={CustomTooltip} />
               <Scatter
-                data={formatChartData()}
+                data={data}
                 fill="#8884d8"
                 isAnimationActive={false}
-                shape={(props) => {
-                  const { cx, cy, payload } = props;
-                  const radius = Math.max(4, Math.min(12, 4 + (payload.jobsFound / 5)));
-                  return (
-                    <circle 
-                      cx={cx} 
-                      cy={cy} 
-                      r={radius} 
-                      fill="#8884d8"
-                      opacity={0.8}
-                    />
-                  );
-                }}
+                shape={CustomShape}
               />
             </ScatterChart>
           </ResponsiveContainer>
@@ -322,7 +326,7 @@ const SearchTimeline = ({ queries, users, selectedCategories }) => {
       </CardContent>
     </Card>
   );
-};
+});
 
 const useSearchQueries = () => {
   const [queries, setQueries] = useState([]);
@@ -567,6 +571,27 @@ const SearchQueries = () => {
   const [categoryToDelete, setCategoryToDelete] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(null);
 
+  // Add these new states for pagination
+  const [displayCount, setDisplayCount] = useState(25);
+  const containerRef = useRef(null);
+
+  // Add scroll handler
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!containerRef.current) return;
+
+      const { scrollTop, scrollHeight, clientHeight } = document.documentElement;
+      
+      // If we're near the bottom (within 100px)
+      if (scrollHeight - scrollTop - clientHeight < 10) {
+        setDisplayCount(prev => prev + 25);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   useEffect(() => {
     fetchCategories();
     fetchQueries();
@@ -596,7 +621,7 @@ const SearchQueries = () => {
   };
 
   const handleDeleteCategory = async (category) => {
-    if (category === 'general') return;
+    if (category === 'all') return; // Only prevent deletion of 'all' category
     try {
       await axios.delete(`${process.env.REACT_APP_API_URL}/categories/${category}`);
       fetchCategories();
@@ -639,8 +664,14 @@ const SearchQueries = () => {
   };
 
   const handleCategorySelect = (category) => {
-    setSelectedCategoriesForSearch([category]);
+    if (category === 'all') {
+      setSelectedCategoriesForSearch([]);
+    } else {
+      setSelectedCategoriesForSearch([category]);
+    }
     setSelectedCategory(category);
+    setDisplayCount(25); // Reset display count when changing categories
+    window.scrollTo(0, 0); // Reset scroll position to top
   };
 
   const handleQueryMenuClose = () => {
@@ -753,20 +784,12 @@ const SearchQueries = () => {
     }
   };
 
-  // Filter queries based only on selected category
-  const filteredQueries = queries.filter(query => {
-    // Always exclude web3Jobsites query
-    if (query.link === 'web3Jobsites') return false;
-
-    // Only filter by category
-    return selectedCategory === 'all' || query.category === selectedCategory;
-  });
-
-  // Add this before the categories mapping
-  const filteredCategories = categories.filter(category => 
-    category.name !== 'general' && // Exclude 'general' category if needed
-    (!categorySearch || category.name.toLowerCase().includes(categorySearch.toLowerCase()))
-  );
+  // Modify the filteredCategories calculation
+  const filteredCategories = ['all', ...categories]
+    .filter(category => 
+      category && // Add null check
+      (!categorySearch || category.toLowerCase().includes(categorySearch.toLowerCase()))
+    );
 
   // Remove user filter initialization
   useEffect(() => {
@@ -806,6 +829,151 @@ const SearchQueries = () => {
     }
   };
 
+  // Add this new memoized component for query cards
+  const QueryCard = React.memo(({ 
+    query, 
+    users, 
+    searchLoading, 
+    handleSearchClick, 
+    setQueryToEdit, 
+    setEditQuery, 
+    setSelectedCategory, 
+    setEditDialogOpen, 
+    handleDeleteQuery,
+    deleteLoading 
+  }) => (
+    <Card>
+      <CardContent>
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Box flex={1}>
+            <Box display="flex" alignItems="center" gap={1} mb={1}>
+              <Typography variant="h6">
+                Search Query
+              </Typography>
+              <Chip
+                label={query.category}
+                size="small"
+                sx={{
+                  bgcolor: 'success.light',
+                  color: 'success.contrastText',
+                  fontSize: '0.75rem',
+                  height: '24px'
+                }}
+              />
+            </Box>
+            <Typography 
+              variant="body1" 
+              sx={{ 
+                wordBreak: 'break-word',
+                mb: 2,
+                fontFamily: 'monospace',
+                color: 'text.primary' 
+              }}
+            >
+              {query.link}
+            </Typography>
+            {query.last_search_info && query.last_search_info.length > 0 && (
+              <Box sx={{ 
+                mt: 1,
+                display: 'flex',
+                gap: 2,
+                '& > div': {
+                  flex: 1,
+                  p: 1,
+                  borderRadius: 1,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                }
+              }}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'bold' }}>
+                    Last Search
+                  </Typography>
+                  <Typography variant="body2" color="text.primary">
+                    {query.last_search_info?.[0]?.date ? 
+                      getRelativeTimeString(new Date(query.last_search_info[0].date)) : 
+                      'Never'}
+                  </Typography>
+                </Box>
+
+                <Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'bold' }}>
+                    Jobs Found
+                  </Typography>
+                  <Typography variant="body2" color="text.primary">
+                    {query.last_search_info?.[0]?.count || 0}
+                  </Typography>
+                </Box>
+
+                <Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'bold' }}>
+                    Searched By
+                  </Typography>
+                  <Typography variant="body2" color="text.primary">
+                    {users[query.last_search_info?.[0]?.searchedBy] || 'Unknown User'}
+                  </Typography>
+                </Box>
+
+                <Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'bold' }}>
+                    Time Range
+                  </Typography>
+                  <Typography variant="body2" color="text.primary">
+                    {query.last_search_info?.[0]?.dayRange ? 
+                      `${query.last_search_info[0].dayRange} ${query.last_search_info[0].dayRange === 1 ? 'day' : 'days'}` :
+                      'N/A'}
+                  </Typography>
+                </Box>
+              </Box>
+            )}
+          </Box>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, ml: 2 }}>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => handleSearchClick(query._id)}
+              disabled={searchLoading === query._id}
+            >
+              {searchLoading === query._id ? (
+                <CircularProgress size={24} color="inherit" />
+              ) : (
+                'SEARCH'
+              )}
+            </Button>
+            <Button
+              variant="outlined"
+              color="info"
+              onClick={() => {
+                setQueryToEdit(query._id);
+                setEditQuery(query.link);
+                setSelectedCategory(query.category);
+                setEditDialogOpen(true);
+              }}
+            >
+              EDIT
+            </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              onClick={() => handleDeleteQuery(query._id)}
+              disabled={deleteLoading === query._id}
+            >
+              {deleteLoading === query._id ? (
+                <CircularProgress size={24} color="inherit" />
+              ) : (
+                'DELETE'
+              )}
+            </Button>
+          </Box>
+        </Box>
+      </CardContent>
+    </Card>
+  ));
+
+  const handleTimelineClose = React.useCallback(() => {
+    setTimelineDialogOpen(false);
+  }, []);
+
   if (loading) return <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
     <CircularProgress size={25} />
   </Box>;
@@ -813,7 +981,7 @@ const SearchQueries = () => {
   if (error) return <Typography color="error" align="center">{error}</Typography>;
 
   return (
-    <Box sx={{ display: 'flex', gap: 3 }}>
+    <Box sx={{ display: 'flex', gap: 3 }} ref={containerRef}>
       {/* Left Panel - Categories */}
       <Card sx={{ 
         width: 280, 
@@ -886,89 +1054,22 @@ const SearchQueries = () => {
               .filter(category => 
                 category.toLowerCase().includes(categorySearch.toLowerCase())
               )
-              .map((category) => {
-                const bidLinksCount = queries.filter(q => 
-                  q.category === category && 
-                  q.link !== 'web3Jobsites'
-                ).length;
-
-                return (
-                  <ListItem
-                    key={category}
-                    disablePadding
-                    sx={{
-                      borderRadius: 1,
-                      mb: 0.5,
-                      '&:hover': {
-                        bgcolor: 'action.hover',
-                      },
-                    }}
-                  >
-                    <ListItemButton
-                      selected={selectedCategory === category}
-                      onClick={() => handleCategorySelect(category)}
-                      sx={{ 
-                        borderRadius: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        pl: 0,
-                      }}
-                    >
-                      <Checkbox
-                        checked={selectedCategoriesForSearch.includes(category)}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          if (e.target.checked) {
-                            setSelectedCategoriesForSearch(prev => [...prev, category]);
-                          } else {
-                            setSelectedCategoriesForSearch(prev => 
-                              prev.filter(cat => cat !== category)
-                            );
-                          }
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                        size="small"
-                        sx={{ ml: 1 }}
-                      />
-                      <Box sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-                        <Typography>{category}</Typography>
-                        <Chip
-                          size="small"
-                          label={bidLinksCount}
-                          sx={{ ml: 1, fontSize: '0.7rem' }}
-                        />
-                      </Box>
-                      <Box sx={{ display: 'flex', gap: 0.5 }}>
-                        <Tooltip title="Edit">
-                          <IconButton
-                            size="small"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingCategory(category);
-                              setNewCategory(category);
-                              setOpenCategoryDialog(true);
-                            }}
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete">
-                          <IconButton
-                            size="small"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setCategoryToDelete(category);
-                              setDeleteCategoryDialogOpen(true);
-                            }}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </ListItemButton>
-                  </ListItem>
-                );
-              })}
+              .map((category) => (
+                <CategoryListItem
+                  key={category}
+                  category={category}
+                  selectedCategory={selectedCategory}
+                  selectedCategoriesForSearch={selectedCategoriesForSearch}
+                  handleCategorySelect={handleCategorySelect}
+                  setSelectedCategoriesForSearch={setSelectedCategoriesForSearch}
+                  queries={queries}
+                  setEditingCategory={setEditingCategory}
+                  setNewCategory={setNewCategory}
+                  setOpenCategoryDialog={setOpenCategoryDialog}
+                  setCategoryToDelete={setCategoryToDelete}
+                  setDeleteCategoryDialogOpen={setDeleteCategoryDialogOpen}
+                />
+              ))}
           </List>
         </CardContent>
       </Card>
@@ -1060,127 +1161,39 @@ const SearchQueries = () => {
         </Box>
 
         <Grid container spacing={3}>
-          {filteredQueries
+          {queries
+            .filter(query => selectedCategory === 'all' || query.category === selectedCategory)
             .sort((a, b) => b._id.localeCompare(a._id))
+            .slice(0, displayCount)
             .map((query) => (
-            <Grid item xs={12} key={query._id}>
-              <Card>
-                <CardContent>
-                  <Box display="flex" justifyContent="space-between" alignItems="center">
-                    <Box flex={1}>
-                      <Typography variant="h6" gutterBottom>
-                        Search Query
-                      </Typography>
-                      <Typography 
-                        variant="body1" 
-                        sx={{ 
-                          wordBreak: 'break-word',
-                          mb: 2,
-                          fontFamily: 'monospace',
-                          color: 'text.primary' 
-                        }}
-                      >
-                        {query.link}
-                      </Typography>
-                      {query.last_search_info && query.last_search_info.length > 0 && (
-                        <Box sx={{ 
-                          mt: 1,
-                          display: 'flex',
-                          gap: 2,
-                          '& > div': {
-                            flex: 1,
-                            p: 1,
-                            borderRadius: 1,
-                            border: '1px solid',
-                            borderColor: 'divider',
-                          }
-                        }}>
-                          <Box>
-                            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'bold' }}>
-                              Last Search
-                            </Typography>
-                            <Typography variant="body2" color="text.primary">
-                              {query.last_search_info?.[0]?.date ? 
-                                getRelativeTimeString(new Date(query.last_search_info[0].date)) : 
-                                'Never'}
-                            </Typography>
-                          </Box>
-
-                          <Box>
-                            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'bold' }}>
-                              Jobs Found
-                            </Typography>
-                            <Typography variant="body2" color="text.primary">
-                              {query.last_search_info?.[0]?.count || 0}
-                            </Typography>
-                          </Box>
-
-                          <Box>
-                            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'bold' }}>
-                              Searched By
-                            </Typography>
-                            <Typography variant="body2" color="text.primary">
-                              {users[query.last_search_info?.[0]?.searchedBy] || 'Unknown User'}
-                            </Typography>
-                          </Box>
-
-                          <Box>
-                            <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 'bold' }}>
-                              Time Range
-                            </Typography>
-                            <Typography variant="body2" color="text.primary">
-                              {query.last_search_info?.[0]?.dayRange ? 
-                                `${query.last_search_info[0].dayRange} ${query.last_search_info[0].dayRange === 1 ? 'day' : 'days'}` :
-                                'N/A'}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      )}
-                    </Box>
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, ml: 2 }}>
-                      <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={() => handleSearchClick(query._id)}
-                        disabled={searchLoading === query._id}
-                      >
-                        {searchLoading === query._id ? (
-                          <CircularProgress size={24} color="inherit" />
-                        ) : (
-                          'SEARCH'
-                        )}
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        color="info"
-                        onClick={() => {
-                          setQueryToEdit(query._id);
-                          setEditQuery(query.link);
-                          setSelectedCategory(query.category);
-                          setEditDialogOpen(true);
-                        }}
-                      >
-                        EDIT
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        color="error"
-                        onClick={() => handleDeleteQuery(query._id)}
-                        disabled={deleteLoading === query._id}
-                      >
-                        {deleteLoading === query._id ? (
-                          <CircularProgress size={24} color="inherit" />
-                        ) : (
-                          'DELETE'
-                        )}
-                      </Button>
-                    </Box>
-                  </Box>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
+              <Grid item xs={12} key={query._id}>
+                <QueryCard
+                  query={query}
+                  users={users}
+                  searchLoading={searchLoading}
+                  handleSearchClick={handleSearchClick}
+                  setQueryToEdit={setQueryToEdit}
+                  setEditQuery={setEditQuery}
+                  setSelectedCategory={setSelectedCategory}
+                  setEditDialogOpen={setEditDialogOpen}
+                  handleDeleteQuery={handleDeleteQuery}
+                  deleteLoading={deleteLoading}
+                />
+              </Grid>
+            ))}
         </Grid>
+
+        {/* Show message when all items are loaded */}
+        {displayCount >= queries.length && queries.length > 0 && (
+          <Typography 
+            variant="body2" 
+            color="text.secondary" 
+            align="center" 
+            sx={{ my: 3 }}
+          >
+            All queries loaded
+          </Typography>
+        )}
 
         <Dialog 
           open={openDialog} 
@@ -1301,7 +1314,7 @@ const SearchQueries = () => {
             />
             <Box sx={{ mt: 2 }}>
               <Typography variant="subtitle2" gutterBottom>Category</Typography>
-              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap' }}>
                 {categories
                   .map((category) => (
                   <Chip
@@ -1345,10 +1358,7 @@ const SearchQueries = () => {
 
         <TimelineDialog
           open={timelineDialogOpen}
-          onClose={() => {
-            setTimelineDialogOpen(false);
-            setSelectedTimelineCategories([]);
-          }}
+          onClose={handleTimelineClose}
           queries={queries}
           users={users}
           initialCategory={selectedCategory}
@@ -1483,7 +1493,99 @@ const SearchQueries = () => {
   );
 };
 
-const TimelineDialog = ({ 
+const CategoryListItem = React.memo(({ 
+  category, 
+  selectedCategory,
+  selectedCategoriesForSearch,
+  handleCategorySelect,
+  setSelectedCategoriesForSearch,
+  queries,
+  setEditingCategory,
+  setNewCategory,
+  setOpenCategoryDialog,
+  setCategoryToDelete,
+  setDeleteCategoryDialogOpen
+}) => (
+  <ListItem
+    disablePadding
+    sx={{
+      borderRadius: 1,
+      mb: 0.5,
+      '&:hover': {
+        bgcolor: 'action.hover',
+      },
+    }}
+  >
+    <ListItemButton
+      selected={selectedCategory === category}
+      onClick={() => handleCategorySelect(category)}
+      sx={{ 
+        borderRadius: 1,
+        display: 'flex',
+        alignItems: 'center',
+        pl: 0,
+      }}
+    >
+      <Checkbox
+        checked={category === 'all' ? selectedCategoriesForSearch.length === 0 : selectedCategoriesForSearch.includes(category)}
+        onChange={(e) => {
+          e.stopPropagation();
+          if (category === 'all') {
+            setSelectedCategoriesForSearch([]);
+          } else if (e.target.checked) {
+            setSelectedCategoriesForSearch(prev => [...prev, category]);
+          } else {
+            setSelectedCategoriesForSearch(prev => 
+              prev.filter(cat => cat !== category)
+            );
+          }
+        }}
+        onClick={(e) => e.stopPropagation()}
+        size="small"
+        sx={{ ml: 1 }}
+      />
+      <Box sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+        <Typography>{category}</Typography>
+        <Chip
+          size="small"
+          label={category === 'all' ? queries.length : queries.filter(q => q.category === category).length}
+          sx={{ ml: 1, fontSize: '0.7rem' }}
+        />
+      </Box>
+      {category !== 'all' && (
+        <Box sx={{ display: 'flex', gap: 0.5 }}>
+          <Tooltip title="Edit">
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditingCategory(category);
+                setNewCategory(category);
+                setOpenCategoryDialog(true);
+              }}
+            >
+              <EditIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Delete">
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                setCategoryToDelete(category);
+                setDeleteCategoryDialogOpen(true);
+              }}
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      )}
+    </ListItemButton>
+  </ListItem>
+));
+
+const TimelineDialog = React.memo(({ 
   open, 
   onClose, 
   queries, 
@@ -1492,36 +1594,52 @@ const TimelineDialog = ({
   selectedTimelineCategories,
   setSelectedTimelineCategories 
 }) => {
-  // Set 'all' as default when dialog opens
+  const handleClose = React.useCallback(() => {
+    onClose();
+  }, [onClose]);
+
+  const handleCategoryClick = React.useCallback((category) => {
+    if (category === 'all') {
+      setSelectedTimelineCategories([]);
+    } else {
+      setSelectedTimelineCategories([category]);
+    }
+  }, [setSelectedTimelineCategories]);
+
+  // Set initial category when dialog opens
   useEffect(() => {
     if (open) {
-      setSelectedTimelineCategories([]);
+      setSelectedTimelineCategories(initialCategory === 'all' ? [] : [initialCategory]);
     }
-  }, [open, setSelectedTimelineCategories]);
+  }, [open, initialCategory, setSelectedTimelineCategories]);
+
+  const MemoizedSearchTimeline = React.memo(SearchTimeline);
+  const categories = React.useMemo(() => {
+    const uniqueCategories = [...new Set(queries.map(q => q.category))];
+    return ['all', ...uniqueCategories]; // Add 'all' as the first option
+  }, [queries]);
 
   return (
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={handleClose}
       maxWidth="lg"
       fullWidth
+      TransitionProps={{
+        onExited: () => {
+          setSelectedTimelineCategories([]);
+        }
+      }}
     >
       <DialogTitle>Activity Timeline</DialogTitle>
       <DialogContent>
         <Box sx={{ mb: 2 }}>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-            {[...new Set(queries.map(q => q.category))].map((category) => (
+            {categories.map((category) => (
               <Chip
                 key={category}
-                label={category}
-                onClick={() => {
-                  if (category === 'all') {
-                    setSelectedTimelineCategories([]);
-                  } else {
-                    // Only set the clicked category, removing any previous selection
-                    setSelectedTimelineCategories([category]);
-                  }
-                }}
+                label={category === 'all' ? 'All Categories' : category}
+                onClick={() => handleCategoryClick(category)}
                 color={category === 'all' && selectedTimelineCategories.length === 0 ? "primary" : 
                        selectedTimelineCategories.includes(category) ? "primary" : "default"}
                 variant={category === 'all' && selectedTimelineCategories.length === 0 ? "filled" :
@@ -1530,17 +1648,107 @@ const TimelineDialog = ({
             ))}
           </Box>
         </Box>
-        <SearchTimeline 
+        <MemoizedSearchTimeline 
           queries={queries} 
           users={users} 
           selectedCategories={selectedTimelineCategories}
         />
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Close</Button>
+        <Button onClick={handleClose}>Close</Button>
       </DialogActions>
     </Dialog>
   );
-};
+});
 
-export default SearchQueries; 
+const QueryCard = React.memo(({ 
+  query, 
+  users, 
+  searchLoading, 
+  handleSearchClick, 
+  setQueryToEdit, 
+  setEditQuery, 
+  setSelectedCategory, 
+  setEditDialogOpen, 
+  handleDeleteQuery, 
+  deleteLoading
+}) => {
+  const [anchorEl, setAnchorEl] = useState(null);
+
+  const handleMenuOpen = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleEditClick = () => {
+    setQueryToEdit(query);
+    setEditQuery(query.link);
+    setSelectedCategory(query.category);
+    setEditDialogOpen(true);
+    handleMenuClose();
+  };
+
+  return (
+    <Card sx={{ mb: 3 }}>
+      <CardContent>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="body1">{query.link}</Typography>
+            <Chip label={query.category} size="small" />
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <IconButton
+              size="small"
+              onClick={handleMenuOpen}
+              disabled={searchLoading || deleteLoading}
+            >
+              <MoreVertIcon />
+            </IconButton>
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={handleMenuClose}
+            >
+              <MenuItem onClick={handleEditClick}>
+                <EditIcon sx={{ mr: 1 }} /> Edit
+              </MenuItem>
+              <MenuItem onClick={() => {
+                handleDeleteQuery(query._id);
+                handleMenuClose();
+              }}>
+                <DeleteIcon sx={{ mr: 1 }} /> Delete
+              </MenuItem>
+            </Menu>
+          </Box>
+        </Box>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              Last Search: {query.last_search_info?.[0]?.date ? getRelativeTimeString(new Date(query.last_search_info[0].date)) : 'Never'}
+            </Typography>
+            {query.last_search_info?.[0]?.searchedBy && (
+              <Typography variant="body2" color="text.secondary">
+                by {users[query.last_search_info[0].searchedBy] || 'Unknown User'}
+              </Typography>
+            )}
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => handleSearchClick(query._id)}
+              disabled={searchLoading || deleteLoading}
+            >
+              Search
+            </Button>
+          </Box>
+        </Box>
+      </CardContent>
+    </Card>
+  );
+});
+
+export default React.memo(SearchQueries); 

@@ -129,6 +129,38 @@ const BidLinks = () => {
     return stored ? parseInt(stored, 10) : -1;
   });
 
+  const getRelativeTimeString = (date) => {
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    // Handle days + hours specially
+    if (diffInSeconds >= 86400) { // More than a day
+      const days = Math.floor(diffInSeconds / 86400);
+      const remainingHours = Math.floor((diffInSeconds % 86400) / 3600);
+      
+      if (remainingHours === 0) {
+        return days === 1 ? '1 day ago' : `${days} days ago`;
+      }
+      return days === 1 
+        ? `1 day ${remainingHours} ${remainingHours === 1 ? 'hour' : 'hours'} ago`
+        : `${days} days ${remainingHours} ${remainingHours === 1 ? 'hour' : 'hours'} ago`;
+    }
+    const intervals = {
+      hour: 3600,
+      minute: 60
+    };
+  
+    for (const [unit, seconds] of Object.entries(intervals)) {
+      const interval = Math.floor(diffInSeconds / seconds);
+      if (interval >= 1) {
+        return interval === 1 ? `1 ${unit} ago` : `${interval} ${unit}s ago`;
+      }
+    }
+    
+    return 'just now';
+  };
+  
+
   const filteredBidLinks = useMemo(() => {
     const filterLink = (link) => {
       // Hidden criteria
@@ -229,6 +261,11 @@ const BidLinks = () => {
   useEffect(() => {
     setPage(0);
   }, [selectedCategory]);
+
+  // Add this new useEffect to reset page when queryDateLimit changes
+  useEffect(() => {
+    setPage(0);
+  }, [queryDateLimit]);
 
   useEffect(() => {
     fetchBlacklists();
@@ -544,8 +581,8 @@ const BidLinks = () => {
             </ListItem>
             <ListItem>
               <ListItemText 
-                primary="Found At"
-                secondary={new Date(link.created_at).toLocaleString()}
+                primary="Found"
+                secondary={getRelativeTimeString(new Date(link.created_at))}
               />
             </ListItem>
             {link.queryId && (
@@ -764,114 +801,126 @@ const BidLinks = () => {
     }
   );
 
-  const renderSettingsBar = () => (
-    <Box
-      sx={{
-        mb: 2,
-        position: "sticky",
-        top: 20,
-        zIndex: 1000,
-        backgroundColor: 'background.paper',
-        padding: "16px",
-        paddingTop: "10px",
-        paddingLeft: "16px",
-        paddingBottom: "16px",
-        boxShadow: (theme) => theme.palette.mode === 'light' 
-          ? ["0 4px 6px -1px rgba(0, 0, 0, 0.1)", "0 2px 4px -1px rgba(0, 0, 0, 0.1)"]
-          : ["0 4px 6px -1px rgba(0, 0, 0, 0.5)", "0 2px 4px -1px rgba(0, 0, 0, 0.5)"],
-      }}
-    >
-      <Grid container spacing={2}>
-        <Grid item xs={12}>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item>
-              <TextField
-                variant="standard"
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                size="small"
-                sx={{ width: "130px" }}
-              />
-            </Grid>
+  const renderSettingsBar = () => {
+    // Calculate counts for each date limit option
+    const getCountForDateLimit = (limit) => {
+      if (limit === -1) return bidLinks.length; // All links
+      
+      return bidLinks.filter(link => {
+        if (limit === 0) return link.queryDateLimit == null;
+        return link.queryDateLimit === limit;
+      }).length;
+    };
 
-            <Grid item>
-              <TextField
-                select
-                variant="standard"
-                size="small"
-                value={queryDateLimit}
-                onChange={(e) => {
-                  const value = parseInt(e.target.value, 10);
-                  setQueryDateLimit(value);
-                  localStorage.setItem("queryDateLimit", value.toString());
-                }}
-                sx={{ width: "150px" }}
-              >
-                <MenuItem value={-1}>All</MenuItem>
-                <MenuItem value={0}>Any time</MenuItem>
-                <MenuItem value={1}>Past 24 hours</MenuItem>
-                <MenuItem value={7}>Past week</MenuItem>
-                <MenuItem value={30}>Past month</MenuItem>
-                <MenuItem value={365}>Past year</MenuItem>
-              </TextField>
-            </Grid>
+    return (
+      <Box
+        sx={{
+          mb: 2,
+          position: "sticky",
+          top: 20,
+          zIndex: 1000,
+          backgroundColor: 'background.paper',
+          padding: "16px",
+          paddingTop: "10px",
+          paddingLeft: "16px",
+          paddingBottom: "16px",
+          boxShadow: (theme) => theme.palette.mode === 'light' 
+            ? ["0 4px 6px -1px rgba(0, 0, 0, 0.1)", "0 2px 4px -1px rgba(0, 0, 0, 0.1)"]
+            : ["0 4px 6px -1px rgba(0, 0, 0, 0.5)", "0 2px 4px -1px rgba(0, 0, 0, 0.5)"],
+        }}
+      >
+        <Grid container spacing={2}>
+          <Grid item xs={12}>
+            <Grid container spacing={2} alignItems="center">
+              <Grid item>
+                <TextField
+                  variant="standard"
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  size="small"
+                  sx={{ width: "130px" }}
+                />
+              </Grid>
 
-            <Grid item>
-              <TextField
-                size="small"
-                onKeyDown={async (e) => {
-                  if (e.key === "Enter") {
-                    await handleGlobalSearch(e.target.value);
-                    e.target.value = '';
+              <Grid item>
+                <TextField
+                  select
+                  variant="standard"
+                  size="small"
+                  value={queryDateLimit}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value, 10);
+                    setQueryDateLimit(value);
+                    localStorage.setItem("queryDateLimit", value.toString());
+                  }}
+                  sx={{ width: "200px" }}
+                >
+                  <MenuItem value={-1}>All ({getCountForDateLimit(-1)})</MenuItem>
+                  <MenuItem value={0}>Any time ({getCountForDateLimit(0)})</MenuItem>
+                  <MenuItem value={1}>Past 24 hours ({getCountForDateLimit(1)})</MenuItem>
+                  <MenuItem value={7}>Past week ({getCountForDateLimit(7)})</MenuItem>
+                  <MenuItem value={30}>Past month ({getCountForDateLimit(30)})</MenuItem>
+                  <MenuItem value={365}>Past year ({getCountForDateLimit(365)})</MenuItem>
+                </TextField>
+              </Grid>
+
+              <Grid item>
+                <TextField
+                  size="small"
+                  onKeyDown={async (e) => {
+                    if (e.key === "Enter") {
+                      await handleGlobalSearch(e.target.value);
+                      e.target.value = '';
+                    }
+                  }}
+                  placeholder="Enter Search Term..."
+                  sx={{ width: "150px" }}
+                  variant="standard"
+                  InputProps={{
+                    endAdornment: isSearchInputLoading && (
+                      <CircularProgress size={16} />
+                    ),
+                  }}
+                />
+              </Grid>
+
+              <Grid item>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={showHiddenLinks}
+                      onChange={(e) => {
+                        setShowHiddenLinks(e.target.checked);
+                        localStorage.setItem(
+                          "showHiddenLinks",
+                          JSON.stringify(e.target.checked)
+                        );
+                      }}
+                    />
                   }
-                }}
-                placeholder="Enter Search Term..."
-                sx={{ width: "150px" }}
-                variant="standard"
-                InputProps={{
-                  endAdornment: isSearchInputLoading && (
-                    <CircularProgress size={16} />
-                  ),
-                }}
-              />
-            </Grid>
+                  label="Hidden"
+                />
+              </Grid>
 
-            <Grid item>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={showHiddenLinks}
-                    onChange={(e) => {
-                      setShowHiddenLinks(e.target.checked);
-                      localStorage.setItem(
-                        "showHiddenLinks",
-                        JSON.stringify(e.target.checked)
-                      );
-                    }}
-                  />
-                }
-                label="Hidden"
-              />
-            </Grid>
+              <Grid item>
+                <Button
+                  variant="outlined"
+                  startIcon={<VisibilityOffIcon />}
+                  onClick={handleHideAll}
+                  size="small"
+                >
+                  Hide All ({filteredBidLinks.length})
+                </Button>
+              </Grid>
 
-            <Grid item>
-              <Button
-                variant="outlined"
-                startIcon={<VisibilityOffIcon />}
-                onClick={handleHideAll}
-                size="small"
-              >
-                Hide All ({filteredBidLinks.length})
-              </Button>
+              <Grid item>{blacklistButton}</Grid>
             </Grid>
-
-            <Grid item>{blacklistButton}</Grid>
           </Grid>
         </Grid>
-      </Grid>
-    </Box>
-  );
+      </Box>
+    );
+  };
 
   return (
     <Box sx={{ display: 'flex', gap: 3 }}>
@@ -984,7 +1033,7 @@ const BidLinks = () => {
                         <Typography variant="body2" color="text.secondary">
                           Company: {link.company || "N/A"} | Posted:{" "}
                           {link.date || "N/A"} | Added:{" "}
-                          {new Date(link.created_at).toLocaleString()}
+                          {getRelativeTimeString(new Date(link.created_at))}
                           {link.created_by && users[link.created_by] && (
                             <> | By: {users[link.created_by]}</>
                           )}
