@@ -191,7 +191,6 @@ const TeamManagement = () => {
     try {
       await axios.delete(`${process.env.REACT_APP_API_URL}/users/delete-user/${user._id}`);
       toast.success('User deleted successfully');
-      fetchTeamMembers(selectedTeam._id);
       fetchTeamlessUsers();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to delete user');
@@ -282,15 +281,28 @@ const TeamManagement = () => {
                 Add Team
               </Button>
             </ListItem>
+            <Divider sx={{ my: 1 }} />
+            <ListItem disablePadding selected={selectedTeam === null}>
+              <ListItemButton
+                onClick={() => setSelectedTeam(null)}
+                sx={{
+                  "&.Mui-selected": {
+                    backgroundColor: "action.selected",
+                  },
+                }}
+              >
+                <ListItemText primary="Teamless" />
+              </ListItemButton>
+            </ListItem>
           </List>
         </Paper>
 
         <Paper sx={{ width: '60%', p: 2 }}>
           <Typography variant="h6" gutterBottom>
-            {selectedTeam ? `${selectedTeam.name} Members` : 'Select a team'}
+            {selectedTeam ? `${selectedTeam.name} Members` : 'Teamless Users'}
           </Typography>
           
-          {selectedTeam && (
+          {selectedTeam ? (
             <List>
               {teamMembers[selectedTeam._id]?.map((member) => (
                 <ListItem key={member._id}>
@@ -323,6 +335,30 @@ const TeamManagement = () => {
                   Add Member
                 </Button>
               </ListItem>
+            </List>
+          ) : (
+            <List>
+              {teamlessUsers.map((user) => (
+                <ListItem key={user._id}>
+                  <ListItemText 
+                    primary={user.name} 
+                    secondary={user.email}
+                  />
+                  <ListItemSecondaryAction>
+                    <IconButton
+                      onClick={() => {
+                        if (window.confirm(`Are you sure you want to delete ${user.name}? This action cannot be undone.`)) {
+                          handleDeleteUser(user);
+                        }
+                      }}
+                      color="error"
+                      size="small"
+                    >
+                      <Delete />
+                    </IconButton>
+                  </ListItemSecondaryAction>
+                </ListItem>
+              ))}
             </List>
           )}
         </Paper>

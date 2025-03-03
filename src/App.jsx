@@ -208,7 +208,10 @@ function App() {
               }
             />
           </Routes>
-          <ToastContainer theme={mode} />
+          <ToastContainer 
+            theme={mode} 
+            position="top-center"
+          />
         </Router>
       </AuthProvider>
     </ThemeProvider>

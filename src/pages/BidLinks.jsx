@@ -56,7 +56,7 @@ const ConfidenceIndicator = React.memo(({ confidence }) => {
   };
 
   return (
-    <Tooltip title={`Confidence: ${score}%`}>
+    <Tooltip title={`Recommended: ${score}%`}>
       <Box
         sx={{
           display: 'inline-flex',
@@ -113,6 +113,7 @@ const BidLinks = () => {
   const [openBlacklistDialog, setOpenBlacklistDialog] = useState(false);
   const [blacklists, setBlacklists] = useState([]);
   const [openSearchDialog, setOpenSearchDialog] = useState(false);
+  const [openHideAllDialog, setOpenHideAllDialog] = useState(false);
   const [globalSearchResults, setGlobalSearchResults] = useState([]);
   const [isReloadingBids, setIsReloadingBids] = useState(false);
   const [isSearchInputLoading, setIsSearchInputLoading] = useState(false);
@@ -352,12 +353,17 @@ const BidLinks = () => {
   }, []);
 
   const handleHideAll = () => {
-    const linksToHide = filteredBidLinks.map((link) => link._id);
+    // Get only the links visible on current page
+    const linksToHide = filteredBidLinks
+      .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+      .map((link) => link._id);
+
     setHiddenLinks((prev) => {
       const newHiddenLinks = [...new Set([...prev, ...linksToHide])];
       localStorage.setItem("hiddenLinks", JSON.stringify(newHiddenLinks));
       return newHiddenLinks;
     });
+    setOpenHideAllDialog(false);
     toast.success(`${linksToHide.length} link(s) hidden`);
   };
 
@@ -575,13 +581,13 @@ const BidLinks = () => {
             </ListItem>
             <ListItem>
               <ListItemText 
-                primary="Found By"
+                primary="Indexed By"
                 secondary={teamMembers[link.created_by] || 'Unknown'}
               />
             </ListItem>
             <ListItem>
               <ListItemText 
-                primary="Found"
+                primary="Indexed"
                 secondary={getRelativeTimeString(new Date(link.created_at))}
               />
             </ListItem>
@@ -629,6 +635,7 @@ const BidLinks = () => {
   const FilteredBidLinks = React.memo(
     ({ filteredBidLinks, hiddenLinks, users, onToggleHide }) => {
       const [selectedLink, setSelectedLink] = useState(null);
+      const [goToPage, setGoToPage] = useState('');
       const emptyRows = page > 0 
         ? Math.max(0, (1 + page) * rowsPerPage - filteredBidLinks.length) 
         : 0;
@@ -643,23 +650,35 @@ const BidLinks = () => {
         );
       }
 
-      const PaginationComponent = () => (
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', p: 2 }}>
-          <TablePagination
-            component="div"
-            count={filteredBidLinks.length}
-            page={page}
-            onPageChange={(event, newPage) => setPage(newPage)}
-            rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={(event) => {
-              const newRowsPerPage = parseInt(event.target.value, 10);
-              setRowsPerPage(newRowsPerPage);
-              localStorage.setItem("rowsPerPage", newRowsPerPage.toString());
-              setPage(0);
-            }}
-          />
-        </Box>
-      );
+      const PaginationComponent = () => {
+        const totalPages = Math.ceil(filteredBidLinks.length / rowsPerPage);
+
+        return (
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'flex-end', 
+            alignItems: 'center',
+            p: 2,
+            gap: 2
+          }}>
+            <TablePagination
+              component="div"
+              count={filteredBidLinks.length}
+              page={page}
+              onPageChange={(event, newPage) => setPage(newPage)}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={(event) => {
+                const newRowsPerPage = parseInt(event.target.value, 10);
+                setRowsPerPage(newRowsPerPage);
+                localStorage.setItem("rowsPerPage", newRowsPerPage.toString());
+                setPage(0);
+              }}
+              showFirstButton
+              showLastButton
+            />
+          </Box>
+        );
+      };
 
       return (
         <Box sx={{ width: '100%' }}>
@@ -735,6 +754,10 @@ const BidLinks = () => {
                                   {link.date && (
                                     <><strong>Posted:</strong> {link.date}</>
                                   )}
+                                  {/* {link.created_at && " | "}
+                                  {link.created_at && (
+                                    <><strong>Indexed:</strong> {getRelativeTimeString(new Date(link.created_at))}</>
+                                  )} */}
                                   <br />
                                 </>
                               )}
@@ -802,14 +825,44 @@ const BidLinks = () => {
   );
 
   const renderSettingsBar = () => {
-    // Calculate counts for each date limit option
+    // Calculate counts for each date limit option, considering the selected category
     const getCountForDateLimit = (limit) => {
-      if (limit === -1) return bidLinks.length; // All links
+      if (limit === -1) {
+        // All links, filtered by category
+        return selectedCategory === 'all' 
+          ? bidLinks.length 
+          : bidLinks.filter(link => link.queryId?.category === selectedCategory).length;
+      }
       
       return bidLinks.filter(link => {
-        if (limit === 0) return link.queryDateLimit == null;
-        return link.queryDateLimit === limit;
+        // First apply date limit filter
+        if (limit === 0) {
+          if (link.queryDateLimit != null) return false;
+        } else if (link.queryDateLimit !== limit) {
+          return false;
+        }
+        
+        // Then apply category filter
+        if (selectedCategory !== 'all' && link.queryId?.category !== selectedCategory) {
+          return false;
+        }
+        
+        return true;
       }).length;
+    };
+
+    const handleOpenAllLinks = () => {
+      // Get only the links visible on current page
+      const visibleLinks = filteredBidLinks
+        .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+        .map(link => link.url);
+
+      // Open each link in a new tab
+      visibleLinks.forEach(url => {
+        window.open(url, '_blank');
+      });
+
+      toast.info(`Opened ${visibleLinks.length} links`);
     };
 
     return (
@@ -830,6 +883,7 @@ const BidLinks = () => {
         }}
       >
         <Grid container spacing={2}>
+          {/* First Row */}
           <Grid item xs={12}>
             <Grid container spacing={2} alignItems="center">
               <Grid item>
@@ -856,7 +910,11 @@ const BidLinks = () => {
                   }}
                   sx={{ width: "200px" }}
                 >
-                  <MenuItem value={-1}>All ({getCountForDateLimit(-1)})</MenuItem>
+                  <MenuItem value={-1}>
+                    {selectedCategory === 'all' 
+                      ? `All (${getCountForDateLimit(-1)})` 
+                      : `All in ${selectedCategory} (${getCountForDateLimit(-1)})`}
+                  </MenuItem>
                   <MenuItem value={0}>Any time ({getCountForDateLimit(0)})</MenuItem>
                   <MenuItem value={1}>Past 24 hours ({getCountForDateLimit(1)})</MenuItem>
                   <MenuItem value={7}>Past week ({getCountForDateLimit(7)})</MenuItem>
@@ -902,15 +960,30 @@ const BidLinks = () => {
                   label="Hidden"
                 />
               </Grid>
+            </Grid>
+          </Grid>
 
+          {/* Second Row */}
+          <Grid item xs={12}>
+            <Grid container spacing={2} alignItems="center">
               <Grid item>
                 <Button
                   variant="outlined"
                   startIcon={<VisibilityOffIcon />}
-                  onClick={handleHideAll}
+                  onClick={() => setOpenHideAllDialog(true)}
                   size="small"
                 >
-                  Hide All ({filteredBidLinks.length})
+                  Hide All ({Math.min(rowsPerPage, filteredBidLinks.length - (page * rowsPerPage))})
+                </Button>
+              </Grid>
+
+              <Grid item>
+                <Button
+                  variant="outlined"
+                  onClick={handleOpenAllLinks}
+                  size="small"
+                >
+                  Open All ({Math.min(rowsPerPage, filteredBidLinks.length - (page * rowsPerPage))})
                 </Button>
               </Grid>
 
@@ -1050,6 +1123,25 @@ const BidLinks = () => {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setOpenSearchDialog(false)}>Close</Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Hide All Confirmation Dialog */}
+        <Dialog
+          open={openHideAllDialog}
+          onClose={() => setOpenHideAllDialog(false)}
+        >
+          <DialogTitle>Confirm Hide All</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Are you sure you want to hide {Math.min(rowsPerPage, filteredBidLinks.length - (page * rowsPerPage))} links on the current page?
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setOpenHideAllDialog(false)}>Cancel</Button>
+            <Button onClick={handleHideAll} color="primary" variant="contained">
+              Hide All
+            </Button>
           </DialogActions>
         </Dialog>
       </Box>

@@ -161,7 +161,10 @@ const BidHistory = () => {
     try {
       const response = await axios.get(
         `${process.env.REACT_APP_API_URL}/applications/search`, {
-          params: { search: titleFilter }
+          params: { 
+            search: titleFilter,
+            userId: selectedUser 
+          }
         }
       );
       setGlobalSearchResults(Array.isArray(response.data) ? response.data : []);
