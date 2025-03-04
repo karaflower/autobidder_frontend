@@ -129,6 +129,10 @@ const BidLinks = () => {
     const stored = localStorage.getItem("queryDateLimit");
     return stored ? parseInt(stored, 10) : -1;
   });
+  const [visitedLinks, setVisitedLinks] = useState(() => {
+    const stored = localStorage.getItem("visitedLinks");
+    return stored ? JSON.parse(stored) : [];
+  });
 
   const getRelativeTimeString = (date) => {
     const now = new Date();
@@ -419,6 +423,14 @@ const BidLinks = () => {
       behavior: 'smooth'
     });
   }, [page]);
+
+  const handleLinkClick = (linkId) => {
+    setVisitedLinks(prev => {
+      const newVisited = [...new Set([...prev, linkId])];
+      localStorage.setItem("visitedLinks", JSON.stringify(newVisited));
+      return newVisited;
+    });
+  };
 
   const renderBlacklistPanel = () => {
     const [isAddingBlacklist, setIsAddingBlacklist] = useState(false);
@@ -718,12 +730,15 @@ const BidLinks = () => {
                               href={link.url}
                               target="_blank"
                               rel="noopener noreferrer"
+                              onClick={() => handleLinkClick(link._id)}
                               sx={{ 
                                 fontSize: "1.1rem",
                                 fontFamily: '"Inter","Roboto","Helvetica","Arial",sans-serif',
                                 fontWeight: 500,
                                 textDecoration: 'none',
-                                color: 'primary.main',
+                                color: visitedLinks.includes(link._id) 
+                                  ? (theme) => theme.palette.mode === 'dark' ? '#e0b0ff' : 'purple'
+                                  : 'primary.main',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 '&:hover': {
