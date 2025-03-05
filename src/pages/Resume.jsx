@@ -25,6 +25,8 @@ import SaveIcon from '@mui/icons-material/Save';
 import CancelIcon from '@mui/icons-material/Cancel';
 import Cookies from 'js-cookie';
 import * as pdfjsLib from 'pdfjs-dist';
+import CloseIcon from '@mui/icons-material/Close';
+import CustomizedResumes from './CustomizedResumes';
 
 // Set the worker source using a local path instead of CDN
 pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
@@ -40,6 +42,7 @@ const Resume = () => {
   const [resumeToDelete, setResumeToDelete] = useState(null);
   const [fileToUpload, setFileToUpload] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [customizedResumesOpen, setCustomizedResumesOpen] = useState(false);
 
   const fetchResumes = async () => {
     try { 
@@ -456,14 +459,23 @@ const Resume = () => {
           <Box display="flex" justifyContent="flex-end" mb={2}>
             {!isEditing ? (
               <>
+                <Button
+                  variant="outlined"
+                  onClick={() => setCustomizedResumesOpen(true)}
+                  sx={{ mr: 1 }}
+                >
+                  Customized Resumes
+                </Button>
                 {selectedResume.path && (
-                  <Button
-                    variant="outlined"
-                    onClick={() => window.open(`${process.env.REACT_APP_API_URL}/resumefiles/${selectedResume.path}`, '_blank')}
-                    sx={{ mr: 1 }}
-                  >
-                    View Resume File
-                  </Button>
+                  <>
+                    <Button
+                      variant="outlined"
+                      onClick={() => window.open(`${process.env.REACT_APP_API_URL}/resumefiles/${selectedResume.path}`, '_blank')}
+                      sx={{ mr: 1 }}
+                    >
+                      View Resume File
+                    </Button>
+                  </>
                 )}
                 <Button
                   startIcon={<EditIcon />}
@@ -831,6 +843,33 @@ const Resume = () => {
               )
             )}
           </Box>
+
+          {/* Add new Dialog for Customized Resumes */}
+          <Dialog
+            open={customizedResumesOpen}
+            onClose={() => setCustomizedResumesOpen(false)}
+            maxWidth="lg"
+            fullWidth
+          >
+            <DialogTitle>
+              <Box display="flex" justifyContent="space-between" alignItems="center">
+                <Typography variant="h6">
+                  Customized Resumes
+                </Typography>
+                <IconButton onClick={() => setCustomizedResumesOpen(false)}>
+                  <CloseIcon />
+                </IconButton>
+              </Box>
+            </DialogTitle>
+            <DialogContent>
+              {customizedResumesOpen && (
+                <CustomizedResumes
+                  baseResumeId={selectedResume._id}
+                  dialogMode={true}
+                />
+              )}
+            </DialogContent>
+          </Dialog>
         </Paper>
       )}
 

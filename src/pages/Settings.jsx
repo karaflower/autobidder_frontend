@@ -334,7 +334,7 @@ const Settings = () => {
               Chrome Extension
             </Typography>
             <Typography variant="body1" sx={{ mb: 2 }}>
-              Download and install our Chrome extension to enhance your browsing experience.
+              Download and install our Chrome extension to enhance your job application experience.
             </Typography>
             <Button
               variant="contained"

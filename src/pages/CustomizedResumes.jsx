@@ -22,8 +22,9 @@ import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import CloseIcon from '@mui/icons-material/Close';
 import 'react-toastify/dist/ReactToastify.css';
 import { ToastContainer } from 'react-toastify';
+import PropTypes from 'prop-types';
 
-const CustomizedResumes = () => {
+const CustomizedResumes = ({ baseResumeId, dialogMode }) => {
   const [resumes, setResumes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -54,6 +55,11 @@ const CustomizedResumes = () => {
           endDate: toGMT.toISOString()
         };
 
+        // Add baseResumeId to params if in dialog mode
+        if (dialogMode && baseResumeId) {
+          params.baseResumeId = baseResumeId;
+        }
+
         const response = await axios.get(
           `${process.env.REACT_APP_API_URL}/resumes/customized/by-date`,
           { params }
@@ -67,7 +73,7 @@ const CustomizedResumes = () => {
     };
 
     fetchData();
-  }, [dateFilter]);
+  }, [dateFilter, baseResumeId, dialogMode]);
 
   const filteredResumes = resumes.filter(resume => {
     const matchesUrl = resume.url.toLowerCase().includes(urlFilter.toLowerCase());
@@ -102,7 +108,7 @@ const CustomizedResumes = () => {
 
   useEffect(() => {
     const handleKeyPress = (e) => {
-      if (e.ctrlKey && e.key === 'Enter' && urlFilter.trim()) {
+      if (e.key === 'Enter' && urlFilter.trim()) {
         handleGlobalSearch();
       }
     };
@@ -150,119 +156,117 @@ const CustomizedResumes = () => {
   return (
     <>
       <ToastContainer />
-      <Box sx={{ pt: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <TableContainer component={Paper} sx={{ padding: '20px' }}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell width="50px">#</TableCell>
-                <TableCell>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    URL
-                    <TextField
-                      size="small"
-                      placeholder="filter..."
-                      value={urlFilter}
-                      variant="standard"
-                      onChange={(e) => setUrlFilter(e.target.value)}
-                      sx={{ ml: 1 }}
-                    />
-                    <Tooltip title={globalSearchResults.length > 0 ? "Clear Search" : "Global Search (Ctrl+Enter)"}>
-                      <Button
-                        variant="outlined"
-                        onClick={globalSearchResults.length > 0 ? handleClearSearch : handleGlobalSearch}
-                        disabled={isSearching}
-                        size="small"
-                      >
-                        {isSearching ? (
-                          <CircularProgress size={20} />
-                        ) : globalSearchResults.length > 0 ? (
-                          <CloseIcon sx={{ color: 'red' }} />
-                        ) : (
-                          <ManageSearchIcon />
-                        )}
-                      </Button>
-                    </Tooltip>
-                  </Box>
-                </TableCell>
-                <TableCell>Name</TableCell>
-                <TableCell sx={{ display: 'flex', placeItems: 'baseline' }}>
-                  Date
+      <Box sx={{ pt: dialogMode ? 0 : 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell width="50px">#</TableCell>
+              <TableCell>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  URL
                   <TextField
-                    type="date"
-                    variant="standard"
                     size="small"
-                    value={dateFilter}
-                    onChange={(e) => setDateFilter(e.target.value)}
-                    sx={{ ml: 1, maxWidth: '120px' }}
+                    placeholder="filter..."
+                    value={urlFilter}
+                    variant="standard"
+                    onChange={(e) => setUrlFilter(e.target.value)}
+                    sx={{ ml: 1 }}
                   />
-                </TableCell>
-                <TableCell></TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {displayedResumes.length > 0 ? (
-                displayedResumes.map((resume, index) => (
-                  <TableRow key={resume._id}>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell>
-                      <Link 
-                        href={resume.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        {resume.url}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      {resume.content?.personal_info?.name || 'N/A'}
-                    </TableCell>
-                    <TableCell>
-                      {new Date(resume.generated_at).toLocaleString(undefined, {
-                        year: 'numeric',
-                        month: 'numeric',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Tooltip title="View PDF">
-                          <Button
-                            onClick={() => window.open(`${process.env.REACT_APP_API_URL}/resumefiles/${resume.path}`, '_blank')}
-                            size="small"
-                          >
-                            <PictureAsPdfIcon sx={{ mr: 0.2 }}/>
-                            View
-                          </Button>
-                        </Tooltip>
-                        <Tooltip title="Delete">
-                          <Button
-                            onClick={() => handleDelete(resume._id)}
-                            size="small"
-                            color="error"
-                            disabled={deletingId === resume._id}
-                          >
-                            {deletingId === resume._id ? <CircularProgress size={20} /> : <CloseIcon />}
-                          </Button>
-                        </Tooltip>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
-                    <Typography variant="body1" color="text.secondary">
-                      No customized resumes found
-                    </Typography>
+                  <Tooltip title={globalSearchResults.length > 0 ? "Clear Search" : "Global Search (Enter)"}>
+                    <Button
+                      variant="outlined"
+                      onClick={globalSearchResults.length > 0 ? handleClearSearch : handleGlobalSearch}
+                      disabled={isSearching}
+                      size="small"
+                    >
+                      {isSearching ? (
+                        <CircularProgress size={20} />
+                      ) : globalSearchResults.length > 0 ? (
+                        <CloseIcon sx={{ color: 'red' }} />
+                      ) : (
+                        <ManageSearchIcon />
+                      )}
+                    </Button>
+                  </Tooltip>
+                </Box>
+              </TableCell>
+              <TableCell>Name</TableCell>
+              <TableCell sx={{ display: 'flex', placeItems: 'baseline' }}>
+                Date
+                <TextField
+                  type="date"
+                  variant="standard"
+                  size="small"
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  sx={{ ml: 1, maxWidth: '120px' }}
+                />
+              </TableCell>
+              <TableCell></TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {displayedResumes.length > 0 ? (
+              displayedResumes.map((resume, index) => (
+                <TableRow key={resume._id}>
+                  <TableCell>{index + 1}</TableCell>
+                  <TableCell>
+                    <Link 
+                      href={resume.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {resume.url}
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    {resume.content?.personal_info?.name || 'N/A'}
+                  </TableCell>
+                  <TableCell>
+                    {new Date(resume.generated_at).toLocaleString(undefined, {
+                      year: 'numeric',
+                      month: 'numeric',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </TableCell>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Tooltip title="View PDF">
+                        <Button
+                          onClick={() => window.open(`${process.env.REACT_APP_API_URL}/resumefiles/${resume.path}`, '_blank')}
+                          size="small"
+                        >
+                          <PictureAsPdfIcon sx={{ mr: 0.2 }}/>
+                          View
+                        </Button>
+                      </Tooltip>
+                      <Tooltip title="Delete">
+                        <Button
+                          onClick={() => handleDelete(resume._id)}
+                          size="small"
+                          color="error"
+                          disabled={deletingId === resume._id}
+                        >
+                          {deletingId === resume._id ? <CircularProgress size={20} /> : <CloseIcon />}
+                        </Button>
+                      </Tooltip>
+                    </Box>
                   </TableCell>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={4} align="center" sx={{ py: 3 }}>
+                  <Typography variant="body1" color="text.secondary">
+                    No customized resumes found
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
         {displayedResumes.length > 0 && (
           <Box sx={{ mt: 2, display: 'flex', flexDirection: 'row-reverse'}}>
             <Typography variant="subtitle1" gutterBottom>
@@ -273,6 +277,11 @@ const CustomizedResumes = () => {
       </Box>
     </>
   );
+};
+
+CustomizedResumes.propTypes = {
+  baseResumeId: PropTypes.string,
+  dialogMode: PropTypes.bool
 };
 
 export default CustomizedResumes; 

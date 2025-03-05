@@ -9,8 +9,6 @@ import Brightness7Icon from '@mui/icons-material/Brightness7';
 import Cookies from 'js-cookie';
 import 'react-toastify/dist/ReactToastify.css';
 import TeamManagement from './pages/TeamManagement';
-import { PeopleIcon } from '@mui/icons-material/People';
-
 import { AuthProvider, useAuth } from './context/AuthContext';
 import BidLinks from './pages/BidLinks';
 import Resume from './pages/Resume';
@@ -20,7 +18,6 @@ import Login from './pages/Login';
 import AiPrompts from './pages/AiPrompts';
 import Settings from './pages/Settings';
 import BidHistory from './pages/BidHistory';
-import CustomizedResumes from './pages/CustomizedResumes';
 import BossDashboard from './pages/BossDashboard';
 const getTheme = (mode) => createTheme({
   palette: {
@@ -190,7 +187,6 @@ function App() {
                         <Route path="/ai-prompts" element={<AiPrompts />} />
                         <Route path="/settings" element={<Settings />} />
                         <Route path="/bid-history" element={<BidHistory />} />
-                        <Route path="/customized-resumes" element={<CustomizedResumes />} />
                         <Route path="/boss-dashboard" element={
                           <ProtectedRoute requiredRole="boss">
                             <BossDashboard />

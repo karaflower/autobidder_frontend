@@ -77,6 +77,7 @@ const BidHistory = () => {
   const [globalSearchResults, setGlobalSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [openDashboard, setOpenDashboard] = useState(false);
+  const [imageLoading, setImageLoading] = useState(true);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -183,7 +184,7 @@ const BidHistory = () => {
 
   useEffect(() => {
     const handleKeyPress = (e) => {
-      if (e.ctrlKey && e.key === 'Enter' && titleFilter.trim()) {
+      if (e.key === 'Enter' && titleFilter.trim()) {
         handleGlobalSearch();
       }
     };
@@ -466,11 +467,17 @@ const BidHistory = () => {
             {selectedBid?.screenshot && (
               <Box>
                 <Typography variant="h6" gutterBottom>Screenshot</Typography>
-                <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+                <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center', position: 'relative', minHeight: '200px' }}>
+                  {imageLoading && (
+                    <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
+                      <CircularProgress />
+                    </Box>
+                  )}
                   <img 
                     src={`${process.env.REACT_APP_API_URL}/resumefiles/${selectedBid.screenshot}`}
                     alt="Application Screenshot" 
-                    style={{ maxWidth: '100%', height: 'auto' }}
+                    style={{ maxWidth: '100%', height: 'auto', display: imageLoading ? 'none' : 'block' }}
+                    onLoad={() => setImageLoading(false)}
                   />
                 </Box>
               </Box>

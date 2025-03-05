@@ -12,8 +12,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  MenuItem,
-  Slider,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -29,12 +27,8 @@ const AiPrompts = () => {
   const [prompts, setPrompts] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [editContent, setEditContent] = useState('');
-  const [editModel, setEditModel] = useState('');
-  const [editTemperature, setEditTemperature] = useState(1);
   const [deletePromptId, setDeletePromptId] = useState(null);
   const [collapsedPrompts, setCollapsedPrompts] = useState({});
-
-  const modelOptions = ['gpt-4o-mini', 'gpt-4o', 'gpt-4'];
 
   const fetchPrompts = async () => {
     try {
@@ -52,9 +46,7 @@ const AiPrompts = () => {
 
   useEffect(() => {
     const initialCollapsedState = prompts.reduce((acc, prompt) => {
-      if (prompt.customized_contents) {
-        acc[prompt._id] = true;
-      }
+      acc[prompt._id] = true;
       return acc;
     }, {});
     setCollapsedPrompts(initialCollapsedState);
@@ -64,12 +56,8 @@ const AiPrompts = () => {
     setEditingId(prompt._id);
     if (prompt.customized_contents) {
       setEditContent(prompt.customized_contents.content);
-      setEditModel(prompt.customized_contents.model);
-      setEditTemperature(prompt.customized_contents.temperature);
     } else {
-      setEditContent(prompt.content);
-      setEditModel(prompt.model);
-      setEditTemperature(prompt.temperature);
+      setEditContent('');
     }
   };
 
@@ -82,19 +70,15 @@ const AiPrompts = () => {
 
       const method = prompts.find(p => p._id === promptId).customized_contents ? 'put' : 'post';
       const url = `${process.env.REACT_APP_API_URL}/ai-prompts${method === 'put' ? `/${promptId}` : ''}`;
-      
+    
       await axios[method](url, {
         _id: promptId,
         content: editContent,
-        model: editModel,
-        temperature: editTemperature
       });
 
       await fetchPrompts();
       setEditingId(null);
       setEditContent('');
-      setEditModel('');
-      setEditTemperature(1);
       toast.success('Prompt updated successfully');
     } catch (err) {
       toast.error('Failed to update prompt');
@@ -141,20 +125,18 @@ const AiPrompts = () => {
               <Box sx={{ mb: 2 }}>
                 <Typography variant="h6" color="primary" sx={{ display: 'flex', alignItems: 'center' }}>
                   Base Prompt
-                  {prompt.customized_contents && (
-                    <IconButton 
-                      size="small" 
-                      onClick={() => toggleCollapse(prompt._id)}
-                      sx={{ ml: 1 }}
-                    >
-                      {collapsedPrompts[prompt._id] ? 
-                        <ExpandMoreIcon /> : 
-                        <ExpandLessIcon />
-                      }
-                    </IconButton>
-                  )}
+                  <IconButton 
+                    size="small" 
+                    onClick={() => toggleCollapse(prompt._id)}
+                    sx={{ ml: 1 }}
+                  >
+                    {collapsedPrompts[prompt._id] ? 
+                      <ExpandMoreIcon /> : 
+                      <ExpandLessIcon />
+                    }
+                  </IconButton>
                 </Typography>
-                {(!prompt.customized_contents || !collapsedPrompts[prompt._id]) && (
+                {!collapsedPrompts[prompt._id] && (
                   <>
                     <Typography variant="body1" sx={{ ml: 2, whiteSpace: 'pre-wrap' }}>
                       {prompt.content}
@@ -168,7 +150,7 @@ const AiPrompts = () => {
 
               <Box>
                 <Typography variant="h6" color="secondary">
-                  Custom Prompt
+                  User Instruction
                   {editingId !== prompt._id && (
                     <>
                         <IconButton 
@@ -202,31 +184,6 @@ const AiPrompts = () => {
                       variant="outlined"
                       sx={{ mb: 2 }}
                     />
-                    <TextField
-                      select
-                      label="Model"
-                      value={editModel}
-                      onChange={(e) => setEditModel(e.target.value)}
-                      sx={{ mb: 2, mr: 2, minWidth: 200 }}
-                    >
-                      {modelOptions.map((option) => (
-                        <MenuItem key={option} value={option}>
-                          {option}
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                    <Box sx={{ width: 300 }}>
-                      <Typography>Temperature: {editTemperature}</Typography>
-                      <Slider
-                        value={editTemperature}
-                        onChange={(e, newValue) => setEditTemperature(newValue)}
-                        min={0}
-                        max={2}
-                        step={0.1}
-                        marks
-                        valueLabelDisplay="auto"
-                      />
-                    </Box>
                     <Box sx={{ mt: 1 }}>
                       <Button
                         startIcon={<SaveIcon />}
@@ -250,14 +207,8 @@ const AiPrompts = () => {
                     <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
                       {prompt.customized_contents 
                         ? prompt.customized_contents.content 
-                        : 'No custom prompt set'}
+                        : 'No user instruction set'}
                     </Typography>
-                    {prompt.customized_contents && (
-                      <Typography variant="body2" color="textSecondary">
-                        Model: {prompt.customized_contents.model} | 
-                        Temperature: {prompt.customized_contents.temperature}
-                      </Typography>
-                    )}
                   </Box>
                 )}
               </Box>

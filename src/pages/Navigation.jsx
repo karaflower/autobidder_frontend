@@ -119,29 +119,6 @@ const Navigation = ({ isNavExpanded, setIsNavExpanded }) => {
           </ListItemButton>
         </Tooltip>
 
-        <Tooltip title="Custom Resumes" placement="right" arrow disableHoverListener={isNavExpanded}>
-          <ListItemButton
-            component={RouterLink}
-            to="/customized-resumes"
-            sx={{
-              "&.Mui-selected": {
-                backgroundColor: "action.selected",
-              },
-              justifyContent: isNavExpanded ? 'initial' : 'center',
-              px: 2.5,
-            }}
-            selected={location.pathname === "/customized-resumes"}
-          >
-            <ListItemIcon sx={{ 
-              minWidth: isNavExpanded ? 56 : 'auto',
-              justifyContent: 'center',
-            }}>
-              <DescriptionIcon sx={{ color: "primary.main" }} />
-            </ListItemIcon>
-            {isNavExpanded && <ListItemText primary="Custom Resumes" />}
-          </ListItemButton>
-        </Tooltip>
-
         <Tooltip title="Resumes" placement="right" arrow disableHoverListener={isNavExpanded}>
           <ListItemButton
             component={RouterLink}
@@ -165,7 +142,7 @@ const Navigation = ({ isNavExpanded, setIsNavExpanded }) => {
           </ListItemButton>
         </Tooltip>
 
-        <Tooltip title="Search Queries" placement="right" arrow disableHoverListener={isNavExpanded}>
+        <Tooltip title="Job Search" placement="right" arrow disableHoverListener={isNavExpanded}>
           <ListItemButton
             component={RouterLink}
             to="/search-queries"
@@ -184,7 +161,7 @@ const Navigation = ({ isNavExpanded, setIsNavExpanded }) => {
             }}>
               <SearchIcon sx={{ color: "primary.main" }} />
             </ListItemIcon>
-            {isNavExpanded && <ListItemText primary="Search Queries" />}
+            {isNavExpanded && <ListItemText primary="Job Search" />}
           </ListItemButton>
         </Tooltip>
 
