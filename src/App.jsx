@@ -113,7 +113,7 @@ const getTheme = (mode) => createTheme({
   },
 });
 
-const ProtectedRoute = ({ children, requiredRole }) => {
+const ProtectedRoute = ({ children, forbiddenRole, requiredRole }) => {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -128,11 +128,15 @@ const ProtectedRoute = ({ children, requiredRole }) => {
     return <Navigate to="/login" />;
   }
 
+  if (forbiddenRole && user.role === forbiddenRole) {
+    return <Navigate to="/" />;
+  }
+
   if (requiredRole && user.role !== requiredRole) {
     return <Navigate to="/" />;
   }
 
-  return children;
+  return typeof children === 'function' ? children({ user }) : children;
 };
 
 function App() {
@@ -181,15 +185,28 @@ function App() {
                       }}
                     >
                       <Routes>
-                        <Route path="/" element={<BidLinks />} />
+                        <Route path="/" element={
+                          <ProtectedRoute>
+                            {({ user }) => 
+                              user.role === 'boss' ? <BossDashboard /> : <BidLinks />
+                            }
+                          </ProtectedRoute>
+                        } />
                         <Route path="/resumes" element={<Resume />} />
-                        <Route path="/search-queries" element={<SearchQueries />} />
-                        <Route path="/ai-prompts" element={<AiPrompts />} />
+                        <Route path="/search-queries" element={
+                          <ProtectedRoute forbiddenRole="bidder">
+                            <SearchQueries />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/ai-prompts" element={
+                          <ProtectedRoute forbiddenRole="bidder">
+                            <AiPrompts />
+                          </ProtectedRoute>
+                        } />
                         <Route path="/settings" element={<Settings />} />
-                        <Route path="/bid-history" element={<BidHistory />} />
-                        <Route path="/boss-dashboard" element={
-                          <ProtectedRoute requiredRole="boss">
-                            <BossDashboard />
+                        <Route path="/bid-history" element={
+                          <ProtectedRoute forbiddenRole="bidder">
+                            <BidHistory />
                           </ProtectedRoute>
                         } />
                         <Route path="/team-management" element={

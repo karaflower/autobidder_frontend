@@ -130,6 +130,18 @@ const Settings = () => {
     }
   };
 
+  const handleChangeRole = async (memberId, newRole) => {
+    try {
+      await axios.put(`${process.env.REACT_APP_API_URL}/users/change-role/${memberId}`, {
+        newRole
+      });
+      fetchTeamData();
+      toast.success("Role updated successfully");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to update role");
+    }
+  };
+
   const handlePasswordChange = async (e) => {
     e.preventDefault();
     if (passwords.newPassword !== passwords.confirmPassword) {
@@ -253,19 +265,67 @@ const Settings = () => {
                   Team Members
                 </Typography>
                 <List>
-                  {teamMembers.map((member) => (
-                    <ListItem key={member._id}>
-                      <ListItemText primary={member.name} />
-                      <ListItemSecondaryAction>
-                        <IconButton
-                          edge="end"
-                          onClick={() => handleRemoveMember(member._id)}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </ListItemSecondaryAction>
-                    </ListItem>
-                  ))}
+                  {teamMembers
+                    .filter(member => member._id !== user._id && member.role === 'member')
+                    .map((member) => (
+                      <ListItem key={member._id}>
+                        <ListItemText 
+                          primary={member.name} 
+                          secondary={`Role: ${member.role}`} 
+                        />
+                        <ListItemSecondaryAction>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => handleChangeRole(member._id, 'bidder')}
+                            sx={{ mr: 1 }}
+                          >
+                            Make Bidder
+                          </Button>
+                          <IconButton
+                            edge="end"
+                            onClick={() => handleRemoveMember(member._id)}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </ListItemSecondaryAction>
+                      </ListItem>
+                    ))}
+                </List>
+
+                <Box sx={{ my: 2 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Bidders
+                  </Typography>
+                </Box>
+
+                <List>
+                  {teamMembers
+                    .filter(member => member._id !== user._id && member.role === 'bidder')
+                    .map((member) => (
+                      <ListItem key={member._id}>
+                        <ListItemText 
+                          primary={member.name} 
+                          secondary={`Role: ${member.role}`} 
+                        />
+                        <ListItemSecondaryAction>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => handleChangeRole(member._id, 'member')}
+                            sx={{ mr: 1 }}
+                          >
+                            Make Member
+                          </Button>
+                          <IconButton
+                            edge="end"
+                            onClick={() => handleRemoveMember(member._id)}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </ListItemSecondaryAction>
+                      </ListItem>
+                    ))}
                 </List>
               </CardContent>
             </Card>

@@ -35,6 +35,7 @@ const TeamManagement = () => {
   const [teamlessUsers, setTeamlessUsers] = useState([]);
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedMember, setSelectedMember] = useState(null);
+  const [roleAnchorEl, setRoleAnchorEl] = useState(null);
 
   useEffect(() => {
     fetchTeams();
@@ -221,6 +222,19 @@ const TeamManagement = () => {
     setSelectedMember(null);
   };
 
+  const handleChangeRole = async (user, newRole) => {
+    try {
+      await axios.put(
+        `${process.env.REACT_APP_API_URL}/users/change-role/${user._id}`,
+        { newRole }
+      );
+      toast.success('Role updated successfully');
+      fetchTeamMembers(selectedTeam._id);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to change role');
+    }
+  };
+
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
       <ToastContainer />
@@ -304,14 +318,18 @@ const TeamManagement = () => {
           
           {selectedTeam ? (
             <List>
-              {teamMembers[selectedTeam._id]?.map((member) => (
+              {/* Display Team Lead and Members */}
+              {teamMembers[selectedTeam._id]
+                ?.filter(member => member.role !== 'bidder')
+                .map((member) => (
                 <ListItem key={member._id}>
                   <ListItemText 
                     primary={member.name} 
                     secondary={
                       <>
                         {member.email}
-                        {member.role === 'lead' && ' (Team Lead)'}
+                        <br />
+                        Role: {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
                       </>
                     } 
                   />
@@ -325,6 +343,39 @@ const TeamManagement = () => {
                   </ListItemSecondaryAction>
                 </ListItem>
               ))}
+
+              {/* Divider and Bidders Section */}
+              {teamMembers[selectedTeam._id]?.some(member => member.role === 'bidder') && (
+                <>
+                  <Divider sx={{ my: 2 }} />
+                  <Typography variant="subtitle1" sx={{ ml: 2, mb: 1 }}>Bidders</Typography>
+                  {teamMembers[selectedTeam._id]
+                    ?.filter(member => member.role === 'bidder')
+                    .map((member) => (
+                    <ListItem key={member._id}>
+                      <ListItemText 
+                        primary={member.name} 
+                        secondary={
+                          <>
+                            {member.email}
+                            <br />
+                            Role: {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
+                          </>
+                        } 
+                      />
+                      <ListItemSecondaryAction>
+                        <Button
+                          size="small"
+                          onClick={(e) => handleMenuOpen(e, member)}
+                        >
+                          <MoreVert />
+                        </Button>
+                      </ListItemSecondaryAction>
+                    </ListItem>
+                  ))}
+                </>
+              )}
+
               <ListItem>
                 <Button
                   variant="contained"
@@ -377,17 +428,17 @@ const TeamManagement = () => {
           horizontal: 'right',
         }}
       >
-        {selectedMember && selectedMember.role !== 'lead' && (
+        {selectedMember && (
           <>
             <MenuItem 
-              onClick={() => {
-                handleSetLead(selectedMember);
-                handleMenuClose();
+              onClick={(event) => {
+                event.stopPropagation();
+                setRoleAnchorEl(event.currentTarget);
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <SupervisorAccount />
-                <Typography>Make Team Lead</Typography>
+                <Typography>Change Role</Typography>
               </Box>
             </MenuItem>
             <MenuItem 
@@ -401,10 +452,6 @@ const TeamManagement = () => {
                 <Typography>Change Team</Typography>
               </Box>
             </MenuItem>
-          </>
-        )}
-        {selectedMember && (
-          <>
             <MenuItem 
               onClick={() => {
                 handleDialog('resetPassword', selectedMember);
@@ -432,6 +479,48 @@ const TeamManagement = () => {
             </MenuItem>
           </>
         )}
+      </Menu>
+
+      <Menu
+        anchorEl={roleAnchorEl}
+        open={Boolean(roleAnchorEl)}
+        onClose={() => setRoleAnchorEl(null)}
+        anchorOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'left',
+        }}
+      >
+        <MenuItem 
+          onClick={() => {
+            handleChangeRole(selectedMember, 'lead');
+            setRoleAnchorEl(null);
+            handleMenuClose();
+          }}
+        >
+          Team Lead
+        </MenuItem>
+        <MenuItem 
+          onClick={() => {
+            handleChangeRole(selectedMember, 'member');
+            setRoleAnchorEl(null);
+            handleMenuClose();
+          }}
+        >
+          Member
+        </MenuItem>
+        <MenuItem 
+          onClick={() => {
+            handleChangeRole(selectedMember, 'bidder');
+            setRoleAnchorEl(null);
+            handleMenuClose();
+          }}
+        >
+          Bidder
+        </MenuItem>
       </Menu>
 
       <Dialog 

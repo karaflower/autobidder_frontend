@@ -211,7 +211,7 @@ const BossDashboard = () => {
       ? Object.values(teamMembers)
           .flat()
           .map(member => ({
-            label: `${member.name} (${teams.find(t => t._id === member.team)?.name || 'Unknown Team'})`,
+            label: `${member.name} (${teams.find(t => t._id === member.team)?.name || 'Unknown Team'} - ${member.role || 'No Role'})`,
             data: bidData[member._id]?.map(item => item.bidCount) || [],
             fill: false,
             borderColor: memberColors[member._id],
