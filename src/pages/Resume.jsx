@@ -23,10 +23,10 @@ import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
 import SaveIcon from '@mui/icons-material/Save';
 import CancelIcon from '@mui/icons-material/Cancel';
-import Cookies from 'js-cookie';
 import * as pdfjsLib from 'pdfjs-dist';
 import CloseIcon from '@mui/icons-material/Close';
 import CustomizedResumes from './CustomizedResumes';
+import { useAuth } from '../context/AuthContext';
 
 // Set the worker source using a local path instead of CDN
 pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
@@ -43,6 +43,7 @@ const Resume = () => {
   const [fileToUpload, setFileToUpload] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [customizedResumesOpen, setCustomizedResumesOpen] = useState(false);
+  const { user } = useAuth();
 
   const fetchResumes = async () => {
     try { 
@@ -234,7 +235,7 @@ const Resume = () => {
   const createNewResume = async () => {
     const emptyResume = {
       _id: `temp-${Date.now()}`, // Temporary ID for local state
-      owner: Cookies.get('userid'),
+      owner: user._id,
       personal_info: {
         name: '',
         title: '',
@@ -417,7 +418,7 @@ const Resume = () => {
     );
   }
 
-  const selectedResume = resumes[selectedResumeIndex];
+  const selectedResume = resumes[selectedResumeIndex] || null;
   const displayedResume = isEditing ? editedResume : selectedResume;
 
   return (
@@ -434,9 +435,9 @@ const Resume = () => {
             <AddIcon />Add
           </Button>
         </Box>
-        {error ? (
-          <Typography color="error" align="center" sx={{ mt: 2 }}>
-            {error}
+        {resumes.length === 0 ? (
+          <Typography align="center" sx={{ mt: 2 }}>
+            No resumes found. Click 'Add' to create one.
           </Typography>
         ) : (
           <List>
@@ -446,7 +447,7 @@ const Resume = () => {
                 selected={index === selectedResumeIndex}
                 onClick={() => setSelectedResumeIndex(index)}
               >
-                <ListItemText primary={resume.personal_info.name} />
+                <ListItemText primary={resume.personal_info?.name || 'Untitled Resume'} />
               </ListItemButton>
             ))}
           </List>
@@ -454,7 +455,7 @@ const Resume = () => {
       </Paper>
 
       {/* Right side with resume details */}
-      {resumes.length > 0 && (
+      {displayedResume && resumes.length > 0 && (
         <Paper sx={{ flex: 1, p: 4 }}>
           <Box display="flex" justifyContent="flex-end" mb={2}>
             {!isEditing ? (
@@ -466,16 +467,14 @@ const Resume = () => {
                 >
                   Customized Resumes
                 </Button>
-                {selectedResume.path && (
-                  <>
-                    <Button
-                      variant="outlined"
-                      onClick={() => window.open(`${process.env.REACT_APP_API_URL}/resumefiles/${selectedResume.path}`, '_blank')}
-                      sx={{ mr: 1 }}
-                    >
-                      View Resume File
-                    </Button>
-                  </>
+                {selectedResume?.path && (
+                  <Button
+                    variant="outlined"
+                    onClick={() => window.open(`${process.env.REACT_APP_API_URL}/resumefiles/${selectedResume.path}`, '_blank')}
+                    sx={{ mr: 1 }}
+                  >
+                    View Resume File
+                  </Button>
                 )}
                 <Button
                   startIcon={<EditIcon />}
@@ -862,7 +861,7 @@ const Resume = () => {
               </Box>
             </DialogTitle>
             <DialogContent>
-              {customizedResumesOpen && (
+              {customizedResumesOpen && selectedResume && (
                 <CustomizedResumes
                   baseResumeId={selectedResume._id}
                   dialogMode={true}

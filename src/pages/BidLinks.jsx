@@ -40,6 +40,8 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import DoNotTouchIcon from "@mui/icons-material/DoNotTouch";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import InfoIcon from '@mui/icons-material/Info';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import SegmentIcon from '@mui/icons-material/Segment';
 
 const ConfidenceIndicator = React.memo(({ confidence }) => {
   // Convert confidence from 0-1 to 0-100
@@ -93,27 +95,18 @@ const ConfidenceIndicator = React.memo(({ confidence }) => {
 const BidLinks = () => {
   const [bidLinks, setBidLinks] = useState([]);
   const [currentUserId, setCurrentUserId] = useState("user123");
-  const [users, setUsers] = useState({}); // Add this state for users lookup
+  const [users, setUsers] = useState({});
   const [selectedDate, setSelectedDate] = useState(() => {
     const today = new Date();
-    return today.toLocaleDateString("en-CA"); // YYYY-MM-DD format in local timezone
-  });
-  const [showHiddenLinks, setShowHiddenLinks] = useState(() => {
-    const stored = localStorage.getItem("showHiddenLinks");
-    return stored ? JSON.parse(stored) : false;
-  });
-  const [hiddenLinks, setHiddenLinks] = useState(() => {
-    const stored = localStorage.getItem("hiddenLinks");
-    return stored ? JSON.parse(stored) : [];
+    return today.toLocaleDateString("en-CA");
   });
   const [showFilter, setShowFilter] = useState(() => {
     const stored = localStorage.getItem("showFilter");
-    return stored ? JSON.parse(stored) : "all"; // 'all', 'mine', 'team'
+    return stored ? JSON.parse(stored) : "all";
   });
   const [openBlacklistDialog, setOpenBlacklistDialog] = useState(false);
   const [blacklists, setBlacklists] = useState([]);
   const [openSearchDialog, setOpenSearchDialog] = useState(false);
-  const [openHideAllDialog, setOpenHideAllDialog] = useState(false);
   const [globalSearchResults, setGlobalSearchResults] = useState([]);
   const [isReloadingBids, setIsReloadingBids] = useState(false);
   const [isSearchInputLoading, setIsSearchInputLoading] = useState(false);
@@ -124,7 +117,7 @@ const BidLinks = () => {
     const stored = localStorage.getItem("rowsPerPage");
     return stored ? parseInt(stored, 10) : 50;
   });
-  const [teamMembers, setTeamMembers] = useState({}); // Add this state for team members lookup
+  const [teamMembers, setTeamMembers] = useState({});
   const [queryDateLimit, setQueryDateLimit] = useState(() => {
     const stored = localStorage.getItem("queryDateLimit");
     return stored ? parseInt(stored, 10) : -1;
@@ -133,6 +126,8 @@ const BidLinks = () => {
     const stored = localStorage.getItem("visitedLinks");
     return stored ? JSON.parse(stored) : [];
   });
+  const [viewMode, setViewMode] = useState('categories');
+  const [selectedQueries, setSelectedQueries] = useState([]);
 
   const getRelativeTimeString = (date) => {
     const now = new Date();
@@ -166,16 +161,39 @@ const BidLinks = () => {
   };
   
 
+  const getQueriesForCategory = (category) => {
+    const queries = bidLinks
+      .filter(link => {
+        // First apply date filter
+        if (queryDateLimit !== -1) {
+          if (queryDateLimit === 0) {
+            if (link.queryDateLimit != null) return false;
+          } else if (link.queryDateLimit !== queryDateLimit) {
+            return false;
+          }
+        }
+        
+        // Then apply category filter
+        return category === 'all' || link.queryId?.category === category;
+      })
+      .reduce((acc, link) => {
+        if (link.queryId?.link) {
+          acc.add(link.queryId.link);
+        }
+        return acc;
+      }, new Set());
+    return Array.from(queries);
+  };
+
   const filteredBidLinks = useMemo(() => {
     const filterLink = (link) => {
-      // Hidden criteria
-      if (!showHiddenLinks && hiddenLinks.includes(link._id)) {
-        return false;
-      }
-
-      // User filter criteria
-      if (showFilter === "mine" && link.created_by !== currentUserId) {
-        return false;
+      // Date limit filter
+      if (queryDateLimit !== -1) {
+        if (queryDateLimit === 0) {
+          if (link.queryDateLimit != null) return false;
+        } else if (link.queryDateLimit !== queryDateLimit) {
+          return false;
+        }
       }
 
       // Category filter
@@ -183,15 +201,13 @@ const BidLinks = () => {
         return false;
       }
 
-      // Date limit filter
-      if (queryDateLimit === -1) {
-        // No filter applied
-        return true;
-      } else if (queryDateLimit === 0) {
-        if (link.queryDateLimit != null) {
-          return false;
-        }
-      } else if(link.queryDateLimit != queryDateLimit) {
+      // Query filter - only apply if specific queries are selected
+      if (selectedQueries.length > 0) {
+        return selectedQueries.includes(link.queryId?.link);
+      }
+
+      // User filter criteria
+      if (showFilter === "mine" && link.created_by !== currentUserId) {
         return false;
       }
 
@@ -201,13 +217,17 @@ const BidLinks = () => {
     return bidLinks.filter(filterLink);
   }, [
     bidLinks,
-    showHiddenLinks,
-    hiddenLinks,
     showFilter,
     currentUserId,
     selectedCategory,
     queryDateLimit,
+    selectedQueries,
   ]);
+
+  // Add these useEffects to reset page when category, viewMode, or queryDateLimit changes
+  useEffect(() => {
+    setPage(0);
+  }, [selectedCategory, viewMode, queryDateLimit]);
 
   const fetchBidLinks = async () => {
     try {
@@ -261,16 +281,6 @@ const BidLinks = () => {
     
     setCategories(uniqueCategories);
   }, [bidLinks]);
-
-  // Add this new useEffect to reset page when category changes
-  useEffect(() => {
-    setPage(0);
-  }, [selectedCategory]);
-
-  // Add this new useEffect to reset page when queryDateLimit changes
-  useEffect(() => {
-    setPage(0);
-  }, [queryDateLimit]);
 
   useEffect(() => {
     fetchBlacklists();
@@ -344,31 +354,6 @@ const BidLinks = () => {
       console.error("Failed to remove from blacklist:", error);
       toast.error("Failed to remove from blacklist");
     }
-  };
-
-  const handleToggleHide = useMemo(() => (linkId) => {
-    setHiddenLinks((prev) => {
-      const newHiddenLinks = prev.includes(linkId)
-        ? prev.filter((id) => id !== linkId)
-        : [...prev, linkId];
-      localStorage.setItem("hiddenLinks", JSON.stringify(newHiddenLinks));
-      return newHiddenLinks;
-    });
-  }, []);
-
-  const handleHideAll = () => {
-    // Get only the links visible on current page
-    const linksToHide = filteredBidLinks
-      .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-      .map((link) => link._id);
-
-    setHiddenLinks((prev) => {
-      const newHiddenLinks = [...new Set([...prev, ...linksToHide])];
-      localStorage.setItem("hiddenLinks", JSON.stringify(newHiddenLinks));
-      return newHiddenLinks;
-    });
-    setOpenHideAllDialog(false);
-    toast.success(`${linksToHide.length} link(s) hidden`);
   };
 
   const handleGlobalSearch = async (searchTerm) => {
@@ -527,25 +512,6 @@ const BidLinks = () => {
     </Button>
   );
 
-  // Add this useEffect for the keyboard shortcut
-  const VisibilityToggleButton = React.memo(({ linkId, isHidden, onToggle }) => {
-    return (
-      <Tooltip title={isHidden ? "Show Link" : "Hide Link"} placement="left">
-        <Button
-          size="small"
-          onClick={() => onToggle(linkId)}
-          sx={{ minWidth: "auto", p: 0.5 }}
-        >
-          {isHidden ? (
-            <VisibilityOffIcon color="action" />
-          ) : (
-            <VisibilityIcon color="action" />
-          )}
-        </Button>
-      </Tooltip>
-    );
-  });
-
   const DetailDialog = React.memo(({ open, onClose, link }) => {
     if (!link) return null;
 
@@ -645,7 +611,7 @@ const BidLinks = () => {
   });
 
   const FilteredBidLinks = React.memo(
-    ({ filteredBidLinks, hiddenLinks, users, onToggleHide }) => {
+    ({ filteredBidLinks, users }) => {
       const [selectedLink, setSelectedLink] = useState(null);
       const [goToPage, setGoToPage] = useState('');
       const emptyRows = page > 0 
@@ -769,10 +735,6 @@ const BidLinks = () => {
                                   {link.date && (
                                     <><strong>Posted:</strong> {link.date}</>
                                   )}
-                                  {/* {link.created_at && " | "}
-                                  {link.created_at && (
-                                    <><strong>Indexed:</strong> {getRelativeTimeString(new Date(link.created_at))}</>
-                                  )} */}
                                   <br />
                                 </>
                               )}
@@ -813,11 +775,6 @@ const BidLinks = () => {
                                   </Button>
                                 </Tooltip>
                               )}
-                              <VisibilityToggleButton 
-                                linkId={link._id}
-                                isHidden={hiddenLinks.includes(link._id)}
-                                onToggle={onToggleHide}
-                              />
                             </Box>
                           </TableCell>
                         </TableRow>
@@ -840,18 +797,13 @@ const BidLinks = () => {
   );
 
   const renderSettingsBar = () => {
-    // Calculate counts for each date limit option, considering the selected category
+    // Update the count calculation to consider selected queries
     const getCountForDateLimit = (limit) => {
-      if (limit === -1) {
-        // All links, filtered by category
-        return selectedCategory === 'all' 
-          ? bidLinks.length 
-          : bidLinks.filter(link => link.queryId?.category === selectedCategory).length;
-      }
-      
       return bidLinks.filter(link => {
-        // First apply date limit filter
-        if (limit === 0) {
+        // First apply date filter
+        if (limit === -1) {
+          // No date filter
+        } else if (limit === 0) {
           if (link.queryDateLimit != null) return false;
         } else if (link.queryDateLimit !== limit) {
           return false;
@@ -861,18 +813,21 @@ const BidLinks = () => {
         if (selectedCategory !== 'all' && link.queryId?.category !== selectedCategory) {
           return false;
         }
+
+        // Finally apply query filter if in query mode with selected queries
+        if (viewMode === 'queries' && selectedQueries.length > 0) {
+          return selectedQueries.includes(link.queryId?.link);
+        }
         
         return true;
       }).length;
     };
 
     const handleOpenAllLinks = () => {
-      // Get only the links visible on current page
       const visibleLinks = filteredBidLinks
         .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
         .map(link => link.url);
 
-      // Open each link in a new tab
       visibleLinks.forEach(url => {
         window.open(url, '_blank');
       });
@@ -926,9 +881,11 @@ const BidLinks = () => {
                   sx={{ width: "200px" }}
                 >
                   <MenuItem value={-1}>
-                    {selectedCategory === 'all' 
-                      ? `All (${getCountForDateLimit(-1)})` 
-                      : `All in ${selectedCategory} (${getCountForDateLimit(-1)})`}
+                    {viewMode === 'queries' && selectedQueries.length > 0
+                      ? `Selected Query (${getCountForDateLimit(-1)})`
+                      : selectedCategory === 'all'
+                        ? `All (${getCountForDateLimit(-1)})`
+                        : `All in ${selectedCategory} (${getCountForDateLimit(-1)})`}
                   </MenuItem>
                   <MenuItem value={0}>Any time ({getCountForDateLimit(0)})</MenuItem>
                   <MenuItem value={1}>Past 24 hours ({getCountForDateLimit(1)})</MenuItem>
@@ -957,41 +914,6 @@ const BidLinks = () => {
                   }}
                 />
               </Grid>
-
-              <Grid item>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={showHiddenLinks}
-                      onChange={(e) => {
-                        setShowHiddenLinks(e.target.checked);
-                        localStorage.setItem(
-                          "showHiddenLinks",
-                          JSON.stringify(e.target.checked)
-                        );
-                      }}
-                    />
-                  }
-                  label="Hidden"
-                />
-              </Grid>
-            </Grid>
-          </Grid>
-
-          {/* Second Row */}
-          <Grid item xs={12}>
-            <Grid container spacing={2} alignItems="center">
-              <Grid item>
-                <Button
-                  variant="outlined"
-                  startIcon={<VisibilityOffIcon />}
-                  onClick={() => setOpenHideAllDialog(true)}
-                  size="small"
-                >
-                  Hide All ({Math.min(rowsPerPage, filteredBidLinks.length - (page * rowsPerPage))})
-                </Button>
-              </Grid>
-
               <Grid item>
                 <Button
                   variant="outlined"
@@ -1010,20 +932,43 @@ const BidLinks = () => {
     );
   };
 
-  return (
-    <Box sx={{ display: 'flex', gap: 3 }}>
-      {/* Left Panel - Categories */}
+  const renderLeftPanel = () => {
+    const queries = getQueriesForCategory(selectedCategory);
+    
+    // Calculate total links for current category with date filter
+    const totalQueryLinks = bidLinks.filter(link => {
+      // First apply date filter
+      if (queryDateLimit !== -1) {
+        if (queryDateLimit === 0) {
+          if (link.queryDateLimit != null) return false;
+        } else if (link.queryDateLimit !== queryDateLimit) {
+          return false;
+        }
+      }
+      
+      // Then apply category filter
+      return selectedCategory === 'all' || link.queryId?.category === selectedCategory;
+    }).length;
+
+    return (
       <Card sx={{ 
         width: 250, 
-        height: 'fit-content',
+        height: 'calc(100vh - 80px)',
         position: 'sticky',
-        top: 20
+        top: 20,
+        display: 'flex',
+        flexDirection: 'column'
       }}>
-        <CardContent>
+        <CardContent sx={{
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          p: 2,
+          '&:last-child': { pb: 2 }
+        }}>
           <Box sx={{ 
             position: 'sticky',
             top: 0,
-            // bgcolor: 'background.paper',
             zIndex: 1,
             pb: 2,
             borderBottom: '1px solid',
@@ -1035,43 +980,143 @@ const BidLinks = () => {
               mb: 2,
               justifyContent: 'space-between'
             }}>
-              <Typography variant="h6">Categories</Typography>
+              <Typography variant="h6">
+                {viewMode === 'categories' ? 'Categories' : 'Queries'}
+              </Typography>
+              {viewMode === 'queries' && (
+                <Button
+                  size="small"
+                  onClick={() => {
+                    setViewMode('categories');
+                    setSelectedQueries([]);
+                  }}
+                  startIcon={<ArrowBackIcon />}
+                >
+                  Back
+                </Button>
+              )}
             </Box>
           </Box>
 
-          <List>
-            <ListItemButton
-              selected={selectedCategory === 'all'}
-              onClick={() => setSelectedCategory('all')}
-            >
-              <ListItemText 
-                primary="All"
-                secondary={`${bidLinks.length} links`}
-              />
-            </ListItemButton>
-            {categories.map((category) => {
-              const categoryCount = bidLinks.filter(link => 
-                link.queryId?.category === category
-              ).length;
-
-              return (
+          <List sx={{ 
+            flexGrow: 1,
+            overflow: 'auto'
+          }}>
+            {viewMode === 'categories' ? (
+              <>
                 <ListItemButton
-                  key={category}
-                  selected={selectedCategory === category}
-                  onClick={() => setSelectedCategory(category)}
+                  selected={selectedCategory === 'all'}
+                  onClick={() => setSelectedCategory('all')}
+                  sx={{ pr: 8 }} // Add padding for the icon button
                 >
                   <ListItemText 
-                    primary={category}
-                    secondary={`${categoryCount} links`}
+                    primary="All"
+                    secondary={`${bidLinks.filter(link => {
+                      if (queryDateLimit !== -1) {
+                        if (queryDateLimit === 0) {
+                          if (link.queryDateLimit != null) return false;
+                        } else if (link.queryDateLimit !== queryDateLimit) {
+                          return false;
+                        }
+                      }
+                      return true;
+                    }).length} links`}
+                  />
+                  <IconButton
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent ListItemButton click
+                      setSelectedCategory('all');
+                      setViewMode('queries');
+                    }}
+                    sx={{ position: 'absolute', right: 8 }}
+                  >
+                    <SegmentIcon fontSize="small" />
+                  </IconButton>
+                </ListItemButton>
+                {categories.map((category) => {
+                  const categoryCount = bidLinks.filter(link => 
+                    link.queryId?.category === category &&
+                    (queryDateLimit === -1 || 
+                      (queryDateLimit === 0 ? link.queryDateLimit == null : 
+                        link.queryDateLimit === queryDateLimit))
+                  ).length;
+
+                  return (
+                    <ListItemButton
+                      key={category}
+                      selected={selectedCategory === category}
+                      onClick={() => setSelectedCategory(category)}
+                      sx={{ pr: 8 }} // Add padding for the icon button
+                    >
+                      <ListItemText 
+                        primary={category}
+                        secondary={`${categoryCount} links`}
+                      />
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent ListItemButton click
+                          setSelectedCategory(category);
+                          setViewMode('queries');
+                        }}
+                        sx={{ position: 'absolute', right: 8 }}
+                      >
+                        <SegmentIcon fontSize="small" />
+                      </IconButton>
+                    </ListItemButton>
+                  );
+                })}
+              </>
+            ) : (
+              <>
+                <ListItemButton
+                  selected={selectedQueries.length === 0}
+                  onClick={() => {
+                    setSelectedQueries([]);
+                    setPage(0);
+                  }}
+                >
+                  <ListItemText 
+                    primary="All Queries"
+                    secondary={`${totalQueryLinks} links`}
                   />
                 </ListItemButton>
-              );
-            })}
+                {queries.map((query) => {
+                  const queryCount = bidLinks.filter(link => 
+                    link.queryId?.link === query &&
+                    (queryDateLimit === -1 || 
+                      (queryDateLimit === 0 ? link.queryDateLimit == null : 
+                        link.queryDateLimit === queryDateLimit))
+                  ).length;
+
+                  return (
+                    <ListItemButton
+                      key={query}
+                      selected={selectedQueries.includes(query)}
+                      onClick={() => {
+                        setSelectedQueries([query]);
+                        setPage(0);
+                      }}
+                    >
+                      <ListItemText 
+                        primary={query}
+                        secondary={`${queryCount} links`}
+                      />
+                    </ListItemButton>
+                  );
+                })}
+              </>
+            )}
           </List>
         </CardContent>
       </Card>
+    );
+  };
 
-      {/* Main Content */}
+  return (
+    <Box sx={{ display: 'flex', gap: 3 }}>
+      {renderLeftPanel()}
       <Box sx={{ flex: 1 }}>
         <Grid container spacing={2}>
           <Grid item xs={12}>
@@ -1083,9 +1128,7 @@ const BidLinks = () => {
             ) : (
               <FilteredBidLinks
                 filteredBidLinks={filteredBidLinks}
-                hiddenLinks={hiddenLinks}
                 users={users}
-                onToggleHide={handleToggleHide}
               />
             )}
           </Grid>
@@ -1138,25 +1181,6 @@ const BidLinks = () => {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setOpenSearchDialog(false)}>Close</Button>
-          </DialogActions>
-        </Dialog>
-
-        {/* Hide All Confirmation Dialog */}
-        <Dialog
-          open={openHideAllDialog}
-          onClose={() => setOpenHideAllDialog(false)}
-        >
-          <DialogTitle>Confirm Hide All</DialogTitle>
-          <DialogContent>
-            <Typography>
-              Are you sure you want to hide {Math.min(rowsPerPage, filteredBidLinks.length - (page * rowsPerPage))} links on the current page?
-            </Typography>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setOpenHideAllDialog(false)}>Cancel</Button>
-            <Button onClick={handleHideAll} color="primary" variant="contained">
-              Hide All
-            </Button>
           </DialogActions>
         </Dialog>
       </Box>

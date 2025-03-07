@@ -66,9 +66,10 @@ const Settings = () => {
         ]);
         setTeamlessUsers(teamlessRes.data);
         setTeamMembers(teamMembersRes.data);
-        setTeamName(teamRes.data.find(team => team._id === user.team).name);
+        setTeamName(teamRes.data.find(team => team._id === user.team).name || "");
       }
     } catch (error) {
+      console.log(error);
       toast.error("Failed to fetch team data");
     }
   };
