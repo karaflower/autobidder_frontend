@@ -6,6 +6,7 @@ import {
   Button,
   Typography,
   Alert,
+  CircularProgress,
 } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -15,12 +16,14 @@ const Login = () => {
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login, register } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
     try {
       if (isLogin) {
@@ -31,6 +34,8 @@ const Login = () => {
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.message || 'An error occurred');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -78,8 +83,13 @@ const Login = () => {
             variant="contained"
             type="submit"
             sx={{ mt: 2 }}
+            disabled={loading}
           >
-            {isLogin ? 'Login' : 'Sign Up'}
+            {loading ? (
+              <CircularProgress size={24} color="inherit" />
+            ) : (
+              isLogin ? 'Login' : 'Sign Up'
+            )}
           </Button>
         </form>
 
