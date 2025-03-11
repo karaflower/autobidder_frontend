@@ -22,7 +22,7 @@ import {
 } from '@mui/material';
 import { Edit, Delete, Lock, PersonRemove, PersonAdd, SupervisorAccount, SwapHoriz, MoreVert } from '@mui/icons-material';
 import axios from 'axios';
-import { toast, ToastContainer } from 'react-toastify';
+import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 const TeamManagement = () => {
@@ -237,8 +237,6 @@ const TeamManagement = () => {
 
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
-      <ToastContainer />
-      
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
         <Typography variant="h4">Team Management</Typography>
       </Box>

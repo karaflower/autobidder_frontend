@@ -30,7 +30,6 @@ import CloseIcon from '@mui/icons-material/Close';
 import GradingIcon from '@mui/icons-material/Grading';
 import DeleteIcon from '@mui/icons-material/Delete';
 import 'react-toastify/dist/ReactToastify.css';
-import { ToastContainer } from 'react-toastify';
 import Dashboard from './Dashboard';
 import { Line, Scatter } from 'react-chartjs-2';
 import {
@@ -295,7 +294,6 @@ const BidHistory = () => {
 
   return (
     <>
-      <ToastContainer />
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <Box sx={{ width: '80%', mb: 4, height: '200px' }}>
           <Paper sx={{ p: 2 }}>

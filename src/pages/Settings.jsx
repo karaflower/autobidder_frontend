@@ -18,7 +18,7 @@ import {
 } from "@mui/material";
 import axios from "axios";
 import DeleteIcon from '@mui/icons-material/Delete';
-import { ToastContainer, toast } from 'react-toastify';
+import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useAuth } from "../context/AuthContext";
 
@@ -170,7 +170,6 @@ const Settings = () => {
 
   return (
     <Grid container justifyContent="center" spacing={2}>
-      <ToastContainer position="top-right" />
       <Grid item xs={12} md={8} lg={6}>
         {user.role === 'lead' && (
           <>

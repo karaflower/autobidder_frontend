@@ -21,7 +21,6 @@ import ManageSearchIcon from '@mui/icons-material/ManageSearch';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import CloseIcon from '@mui/icons-material/Close';
 import 'react-toastify/dist/ReactToastify.css';
-import { ToastContainer } from 'react-toastify';
 import PropTypes from 'prop-types';
 
 const CustomizedResumes = ({ baseResumeId, dialogMode }) => {
@@ -155,7 +154,6 @@ const CustomizedResumes = ({ baseResumeId, dialogMode }) => {
 
   return (
     <>
-      <ToastContainer />
       <Box sx={{ pt: dialogMode ? 0 : 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <Table>
           <TableHead>

@@ -26,7 +26,7 @@ const Navigation = ({ isNavExpanded, setIsNavExpanded }) => {
           <Tooltip title="Bid Histories" placement="right" arrow disableHoverListener={isNavExpanded}>
             <ListItemButton
               component={RouterLink}
-              to="/boss-dashboard"
+              to="/"
               sx={{
                 "&.Mui-selected": {
                   backgroundColor: "action.selected",
@@ -34,7 +34,7 @@ const Navigation = ({ isNavExpanded, setIsNavExpanded }) => {
                 justifyContent: isNavExpanded ? 'initial' : 'center',
                 px: 2.5,
               }}
-              selected={location.pathname === "/boss-dashboard"}
+              selected={location.pathname === "/"}
             >
               <ListItemIcon sx={{ 
                 minWidth: isNavExpanded ? 56 : 'auto',

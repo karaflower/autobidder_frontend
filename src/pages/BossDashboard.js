@@ -37,7 +37,7 @@ import {
   TableCell,
   Link
 } from '@mui/material';
-import { ToastContainer, toast } from 'react-toastify';
+import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 // Register ChartJS components
@@ -294,18 +294,33 @@ const BossDashboard = () => {
   };
 
   const getTimeScatterData = (bids) => {
+    // Get current time in hours (e.g., 14.5 for 2:30 PM)
+    const now = new Date();
+    const currentHour = now.getHours() + (now.getMinutes() / 60);
+    
     return {
-      datasets: [{
-        label: 'Bid Times',
-        data: bids.map(bid => ({
-          x: new Date(bid.timestamp).getHours() + (new Date(bid.timestamp).getMinutes() / 60),
-          y: 1
-        })),
-        backgroundColor: 'rgba(75, 192, 192, 0.6)',
-        type: 'bar',
-        barThickness: 2,
-        barPercentage: 0.1,
-      }]
+      datasets: [
+        {
+          label: 'Bid Times',
+          data: bids.map(bid => ({
+            x: new Date(bid.timestamp).getHours() + (new Date(bid.timestamp).getMinutes() / 60),
+            y: 1
+          })),
+          backgroundColor: 'rgba(75, 192, 192, 0.6)',
+          type: 'bar',
+          barThickness: 2,
+          barPercentage: 0.1,
+        },
+        {
+          label: 'Current Time',
+          data: [{ x: currentHour, y: 0 }, { x: currentHour, y: 1 }],
+          borderColor: 'red',
+          borderWidth: 2,
+          pointRadius: 0,
+          type: 'line',
+          tension: 0
+        }
+      ]
     };
   };
 
@@ -359,9 +374,7 @@ const BossDashboard = () => {
           <CircularProgress />
         </Box>
       ) : (
-        <>          
-          <ToastContainer position="top-right" autoClose={5000} />
-          
+        <>
           <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
             <FormControl sx={{ minWidth: 200 }}>
               <Select
@@ -545,6 +558,11 @@ const BossDashboard = () => {
                       src={`${process.env.REACT_APP_API_URL}/resumefiles/${selectedBid.screenshot}`}
                       alt="Application Screenshot"
                       style={{ maxWidth: '100%', height: 'auto' }}
+                      onError={(e) => {
+                        // If the image fails to load from the primary source, try the fallback server
+                        e.target.onerror = null; // Prevent infinite error loop
+                        e.target.src = `${process.env.REACT_APP_API_URL_PROD}/resumefiles/${selectedBid.screenshot}`;
+                      }}
                     />
                   </Box>
                 </>

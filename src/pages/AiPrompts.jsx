@@ -20,7 +20,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import axios from 'axios';
-import { ToastContainer, toast } from 'react-toastify';
+import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 const AiPrompts = () => {
@@ -111,7 +111,6 @@ const AiPrompts = () => {
 
   return (
     <Grid container spacing={2}>
-      <ToastContainer />
       <Grid item xs={12}>
         {prompts.map((prompt) => (
           <Card key={prompt._id} sx={{ mb: 2 }}>
