@@ -615,6 +615,7 @@ const SearchQueries = () => {
       setNewCategory('');
       fetchCategories();
       toast.success('Category added successfully');
+      setOpenCategoryDialog(false);
     } catch (error) {
       toast.error('Failed to add category');
     }
@@ -635,15 +636,14 @@ const SearchQueries = () => {
     setCategoryToDelete(null);
   };
 
-  const handleAddQuery = async () => {
+  const handleAddQuery = async (newQuery) => {
     if (!newQuery.trim()) return;
     try {
       await axios.post(`${process.env.REACT_APP_API_URL}/search-queries`, {
         link: newQuery,
         category: selectedCategory
       });
-      setNewQuery('');
-      fetchQueries();
+      await fetchQueries();
       toast.success('Query added successfully');
     } catch (error) {
       toast.error('Failed to add query');
@@ -974,6 +974,18 @@ const SearchQueries = () => {
     setTimelineDialogOpen(false);
   }, []);
 
+  // Add new state for query search
+  const [querySearch, setQuerySearch] = useState('');
+
+  // Add handler for query search enter key
+  const handleQuerySearchKeyPress = (event) => {
+    if (event.key === 'Enter') {
+      // Reset display count when searching
+      setDisplayCount(25);
+      window.scrollTo(0, 0);
+    }
+  };
+
   if (loading) return <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
     <CircularProgress size={25} />
   </Box>;
@@ -1024,10 +1036,11 @@ const SearchQueries = () => {
             <TextField
               size="small"
               fullWidth
-              placeholder="Search categories..."
+              placeholder="Search queries..."
               variant="outlined"
-              value={categorySearch}
-              onChange={(e) => setCategorySearch(e.target.value)}
+              value={querySearch}
+              onChange={(e) => setQuerySearch(e.target.value)}
+              onKeyPress={handleQuerySearchKeyPress}
               sx={{ mb: 1 }}
             />
           </Box>
@@ -1051,9 +1064,6 @@ const SearchQueries = () => {
             },
           }}>
             {filteredCategories
-              .filter(category => 
-                category.toLowerCase().includes(categorySearch.toLowerCase())
-              )
               .map((category) => (
                 <CategoryListItem
                   key={category}
@@ -1162,7 +1172,14 @@ const SearchQueries = () => {
 
         <Grid container spacing={3}>
           {queries
-            .filter(query => selectedCategory === 'all' || query.category === selectedCategory)
+            .filter(query => {
+              // Filter by category
+              const categoryMatch = selectedCategory === 'all' || query.category === selectedCategory;
+              // Filter by search term
+              const searchMatch = !querySearch || 
+                query.link.toLowerCase().includes(querySearch.toLowerCase());
+              return categoryMatch && searchMatch;
+            })
             .sort((a, b) => b._id.localeCompare(a._id))
             .slice(0, displayCount)
             .map((query) => (
@@ -1401,6 +1418,35 @@ const SearchQueries = () => {
               variant="outlined"
               value={newCategory}
               onChange={(e) => setNewCategory(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (editingCategory) {
+                    (async () => {
+                      try {
+                        await axios.put(`${process.env.REACT_APP_API_URL}/categories/${editingCategory}`, {
+                          newCategory: newCategory.trim()
+                        });
+                        toast.success('Category updated successfully');
+                        await fetchCategories();
+                        await fetchQueries();
+                      } catch (error) {
+                        toast.error('Failed to update category');
+                      }
+                      setOpenCategoryDialog(false);
+                      setNewCategory('');
+                      setEditingCategory(null);
+                    })();
+                  } else {
+                    (async () => {
+                      await handleAddCategory();
+                      await fetchQueries();
+                      setOpenCategoryDialog(false);
+                      setNewCategory('');
+                    })();
+                  }
+                }
+              }}
             />
           </DialogContent>
           <DialogActions>
@@ -1670,7 +1716,7 @@ const QueryCard = React.memo(({
   setEditQuery, 
   setSelectedCategory, 
   setEditDialogOpen, 
-  handleDeleteQuery, 
+  handleDeleteQuery,
   deleteLoading
 }) => {
   const [anchorEl, setAnchorEl] = useState(null);

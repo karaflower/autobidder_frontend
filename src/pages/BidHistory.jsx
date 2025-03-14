@@ -27,11 +27,17 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import ManageSearchIcon from '@mui/icons-material/ManageSearch';
 import CloseIcon from '@mui/icons-material/Close';
-import GradingIcon from '@mui/icons-material/Grading';
+import ViewHeadlineIcon from '@mui/icons-material/ViewHeadline';
 import DeleteIcon from '@mui/icons-material/Delete';
+import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore';
+import NavigateNextIcon from '@mui/icons-material/NavigateNext';
+import GridViewIcon from '@mui/icons-material/GridView';
+import ImageList from '@mui/material/ImageList';
+import ImageListItem from '@mui/material/ImageListItem';
+import ImageListItemBar from '@mui/material/ImageListItemBar';
 import 'react-toastify/dist/ReactToastify.css';
 import Dashboard from './Dashboard';
-import { Line, Scatter } from 'react-chartjs-2';
+import { Scatter } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -77,6 +83,9 @@ const BidHistory = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [openDashboard, setOpenDashboard] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
+  const [selectedBidIndex, setSelectedBidIndex] = useState(null);
+  const [currentUserId, setCurrentUserId] = useState('');
+  const [gridViewOpen, setGridViewOpen] = useState(false);
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -100,6 +109,19 @@ const BidHistory = () => {
     };
 
     fetchUsers();
+  }, []);
+
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const userResponse = await axios.get(`${process.env.REACT_APP_API_URL}/auth/user`);
+        setCurrentUserId(userResponse.data._id);
+      } catch (err) {
+        console.error('Failed to fetch current user:', err);
+      }
+    };
+
+    fetchCurrentUser();
   }, []);
 
   useEffect(() => {
@@ -142,14 +164,51 @@ const BidHistory = () => {
   });
 
   const handleOpenDetails = (bid) => {
+    const index = filteredBids.findIndex(item => item._id === bid._id);
     setSelectedBid(bid);
+    setSelectedBidIndex(index);
     setDialogOpen(true);
   };
 
   const handleCloseDetails = () => {
     setDialogOpen(false);
     setSelectedBid(null);
+    setSelectedBidIndex(null);
+    setImageLoading(true);
   };
+
+  const handlePreviousBid = () => {
+    if (selectedBidIndex > 0) {
+      const newIndex = selectedBidIndex - 1;
+      setSelectedBidIndex(newIndex);
+      setSelectedBid(filteredBids[newIndex]);
+      setImageLoading(true);
+    }
+  };
+
+  const handleNextBid = () => {
+    if (selectedBidIndex < filteredBids.length - 1) {
+      const newIndex = selectedBidIndex + 1;
+      setSelectedBidIndex(newIndex);
+      setSelectedBid(filteredBids[newIndex]);
+      setImageLoading(true);
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!dialogOpen) return;
+      
+      if (e.key === 'ArrowLeft') {
+        handlePreviousBid();
+      } else if (e.key === 'ArrowRight') {
+        handleNextBid();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [dialogOpen, selectedBidIndex, filteredBids]);
 
   const handleGlobalSearch = async () => {
     if (!titleFilter.trim()) {
@@ -276,6 +335,22 @@ const BidHistory = () => {
     }
   };
 
+  const handleOpenGridView = () => {
+    setGridViewOpen(true);
+  };
+
+  const handleCloseGridView = () => {
+    setGridViewOpen(false);
+  };
+
+  const handleGridItemClick = (bid) => {
+    setGridViewOpen(false);
+    const index = filteredBids.findIndex(item => item._id === bid._id);
+    setSelectedBid(bid);
+    setSelectedBidIndex(index);
+    setDialogOpen(true);
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
@@ -324,13 +399,23 @@ const BidHistory = () => {
           <Typography variant="subtitle1">
             {globalSearchResults.length > 0 ? 'Search Results' : 'Total'}: {displayedBids.length}
           </Typography>
-          <Button
-            variant="contained" 
-            color="primary" 
-            onClick={handleOpenDashboard}
-          >
-            View Chart
-          </Button>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button
+              variant="contained" 
+              color="primary" 
+              onClick={handleOpenDashboard}
+            >
+              View Chart
+            </Button>
+            <Button
+              variant="contained" 
+              color="secondary" 
+              onClick={handleOpenGridView}
+              startIcon={<GridViewIcon />}
+            >
+              View All
+            </Button>
+          </Box>
         </Box>
         <TableContainer component={Paper} sx={{ maxWidth: '80%', padding: '20px' }}>
           <Table>
@@ -417,18 +502,20 @@ const BidHistory = () => {
                         sx={{ cursor: 'pointer' }}
                       >
                         <Tooltip title="Details">
-                          <GradingIcon />
+                          <ViewHeadlineIcon />
                         </Tooltip>
                       </Link>
-                      <Link
-                        component="button"
-                        onClick={() => handleDelete(bid._id)}
-                        sx={{ cursor: 'pointer', color: 'error.main' }}
-                      >
-                        <Tooltip title="Delete">
-                          <DeleteIcon />
-                        </Tooltip>
-                      </Link>
+                      {selectedUser === currentUserId && (
+                        <Link
+                          component="button"
+                          onClick={() => handleDelete(bid._id)}
+                          sx={{ cursor: 'pointer', color: 'error.main' }}
+                        >
+                          <Tooltip title="Delete">
+                            <DeleteIcon />
+                          </Tooltip>
+                        </Link>
+                      )}
                     </Box>
                   </TableCell>
                 </TableRow>
@@ -443,7 +530,46 @@ const BidHistory = () => {
         maxWidth="lg"
         fullWidth
       >
-        <DialogTitle>Application Details</DialogTitle>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6">Application Details</Typography>
+            <Box>
+              <Tooltip title="View All Screenshots">
+                <Button 
+                  onClick={() => {
+                    handleCloseDetails();
+                    handleOpenGridView();
+                  }}
+                  sx={{ minWidth: '40px' }}
+                >
+                  <GridViewIcon />
+                </Button>
+              </Tooltip>
+              <Tooltip title="Previous (Left Arrow)">
+                <span>
+                  <Button 
+                    onClick={handlePreviousBid} 
+                    disabled={selectedBidIndex <= 0}
+                    sx={{ minWidth: '40px' }}
+                  >
+                    <NavigateBeforeIcon />
+                  </Button>
+                </span>
+              </Tooltip>
+              <Tooltip title="Next (Right Arrow)">
+                <span>
+                  <Button 
+                    onClick={handleNextBid} 
+                    disabled={selectedBidIndex >= displayedBids.length - 1}
+                    sx={{ minWidth: '40px' }}
+                  >
+                    <NavigateNextIcon />
+                  </Button>
+                </span>
+              </Tooltip>
+            </Box>
+          </Box>
+        </DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', gap: 3, flexDirection: 'column', my: 2 }}>
             <Box>
@@ -498,7 +624,59 @@ const BidHistory = () => {
           </Box>
         </DialogContent>
         <DialogActions>
+          <Typography variant="body2" sx={{ mr: 'auto', color: 'text.secondary' }}>
+            {selectedBidIndex !== null ? `${selectedBidIndex + 1} of ${displayedBids.length}` : ''}
+          </Typography>
           <Button onClick={handleCloseDetails}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={gridViewOpen}
+        onClose={handleCloseGridView}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6">All Applications</Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <ImageList cols={3} gap={16}>
+            {displayedBids.filter(bid => bid.screenshot).map((bid) => (
+              <ImageListItem 
+                key={bid._id} 
+                onClick={() => handleGridItemClick(bid)}
+                sx={{ cursor: 'pointer', '&:hover': { opacity: 0.8 } }}
+              >
+                <img
+                  src={`${process.env.REACT_APP_API_URL}/resumefiles/${bid.screenshot}`}
+                  alt="Application Screenshot"
+                  loading="lazy"
+                  style={{ height: '200px', objectFit: 'cover' }}
+                />
+                <ImageListItemBar
+                  title={bid.url.length > 40 ? bid.url.substring(0, 40) + '...' : bid.url}
+                  subtitle={new Date(bid.timestamp).toLocaleString(undefined, {
+                    year: 'numeric',
+                    month: 'numeric',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                />
+              </ImageListItem>
+            ))}
+          </ImageList>
+          {displayedBids.filter(bid => bid.screenshot).length === 0 && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
+              <Typography variant="h6">No screenshots available</Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseGridView}>Close</Button>
         </DialogActions>
       </Dialog>
 

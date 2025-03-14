@@ -227,7 +227,7 @@ const BidLinks = () => {
   // Add these useEffects to reset page when category, viewMode, or queryDateLimit changes
   useEffect(() => {
     setPage(0);
-  }, [selectedCategory, viewMode, queryDateLimit]);
+  }, [selectedCategory, viewMode, queryDateLimit, selectedDate]);
 
   const fetchBidLinks = async () => {
     try {

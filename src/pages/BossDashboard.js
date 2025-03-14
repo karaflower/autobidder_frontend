@@ -199,31 +199,34 @@ const BossDashboard = () => {
     const letters = '0123456789ABCDEF';
     let color = '#';
     for (let i = 0; i < 6; i++) {
-      color += letters[Math.floor(Math.random() * 16)];
+      color += letters[Math.floor(Math.random() * 10)];
     }
     return color;
   };
 
   // Prepare chart data
   const chartData = {
-    labels: Object.values(bidData)[0]?.map(item => item.date) || [],
-    datasets: selectedMember === 'all'
-      ? Object.values(teamMembers)
-          .flat()
-          .map(member => ({
-            label: `${member.name} (${teams.find(t => t._id === member.team)?.name || 'Unknown Team'} - ${member.role || 'No Role'})`,
-            data: bidData[member._id]?.map(item => item.bidCount) || [],
-            fill: false,
-            borderColor: memberColors[member._id],
-            tension: 0.1
-          }))
-      : [{
-          label: 'Number of Bids',
-          data: bidData[selectedMember]?.map(item => item.bidCount) || [],
-          fill: false,
-          borderColor: 'rgb(75, 192, 192)',
-          tension: 0.1
-        }]
+    labels: Object.values(bidData)[0]?.map(item => {
+      // Convert date string to shortened weekday name
+      const date = new Date(item.date);
+      return date.toLocaleDateString('en-US', { weekday: 'short' }) + ' ' + 
+             date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }) || [],
+    datasets: Object.values(teamMembers)
+      .flat()
+      .filter(member => selectedMember === 'all' || member._id === selectedMember)
+      .map(member => ({
+        label: `${member.name} (${teams.find(t => t._id === member.team)?.name || 'Unknown Team'} - ${member.role || 'No Role'})`,
+        data: bidData[member._id]?.map(item => item.bidCount) || [],
+        fill: false,
+        borderColor: memberColors[member._id],
+        borderWidth: member._id === selectedMember ? 4 : 2,
+        pointRadius: member._id === selectedMember ? 6 : 4,
+        tension: 0.1,
+        // Highlight the selected member with higher z-index and opacity
+        order: member._id === selectedMember ? 0 : 1,
+        opacity: member._id === selectedMember ? 1 : (selectedMember === 'all' ? 1 : 0.3)
+      }))
   };
 
   const chartOptions = {
@@ -231,6 +234,16 @@ const BossDashboard = () => {
     plugins: {
       legend: {
         position: 'top',
+        onClick: (e, legendItem, legend) => {
+          // Get the clicked dataset index
+          const index = legendItem.datasetIndex;
+          const clickedMemberId = Object.values(teamMembers)
+            .flat()
+            .filter(member => selectedMember === 'all' || member._id === selectedMember)[index]._id;
+          
+          // Set the selected member to the clicked one
+          setSelectedMember(clickedMemberId);
+        }
       },
       title: {
         display: true,
@@ -256,15 +269,23 @@ const BossDashboard = () => {
       if (elements.length > 0) {
         const datasetIndex = elements[0].datasetIndex;
         const index = elements[0].index;
-        const date = chartData.labels[index];
+        const dateLabel = chartData.labels[index];
+        
+        // Parse the date correctly from the chart label
+        const dateParts = dateLabel.split(' ');
+        const monthDay = dateParts[1] + ' ' + dateParts[2];
+        const currentYear = new Date().getFullYear();
+        const fullDateStr = `${monthDay}, ${currentYear}`;
+        const date = new Date(fullDateStr);
+        
         const selectedUser = selectedMember === 'all' 
-          ? Object.values(teamMembers).flat()[datasetIndex]
+          ? Object.values(teamMembers).flat().filter(member => bidData[member._id])[datasetIndex]
           : Object.values(teamMembers).flat().find(member => member._id === selectedMember);
         const userId = selectedUser._id;
 
         try {
           setIsBidDetailsLoading(true);
-          // Create start and end of day timestamps
+          // Create start and end of day timestamps with correct year
           const fromDate = new Date(date);
           fromDate.setHours(0, 0, 0, 0);
           const toDate = new Date(date);
@@ -281,7 +302,7 @@ const BossDashboard = () => {
             }
           );
           setDetailedBidData(response.data);
-          setSelectedDate(date);
+          setSelectedDate(dateLabel);
           setSelectedBid({ ...response.data[0], userName: selectedUser.name });
           setDetailDialog(true);
         } catch (error) {
@@ -367,6 +388,27 @@ const BossDashboard = () => {
     }
   };
 
+  // Calculate total and average bids for selected member
+  const calculateBidStats = () => {
+    if (selectedMember === 'all' || !bidData[selectedMember]) {
+      return { total: 0, average: 0 };
+    }
+
+    const bids = bidData[selectedMember];
+    const totalBids = bids.reduce((sum, item) => {
+      return sum + item.bidCount;
+    }, 0);
+
+    // Calculate average across all days (including weekends)
+    const averageBids = bids.length > 0 
+      ? (totalBids / bids.length).toFixed(2)
+      : 0;
+
+    return { total: totalBids, average: averageBids };
+  };
+
+  const bidStats = calculateBidStats();
+
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
       {initialLoading ? (
@@ -431,6 +473,25 @@ const BossDashboard = () => {
               </Select>
             </FormControl>
           </Box>
+
+          {/* Display bid stats when a single member is selected */}
+          {selectedMember !== 'all' && (
+            <Paper sx={{ p: 2, mb: 3, bgcolor: '#f5f5f5' }}>
+              <Typography variant="h6" gutterBottom>
+                Bid Statistics for {teamMembers[selectedTeam]?.find(m => m._id === selectedMember)?.name || 'Selected Member'}
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 4 }}>
+                <Box>
+                  <Typography variant="subtitle2" color="text.secondary">Total Bids</Typography>
+                  <Typography variant="h4">{bidStats.total}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="subtitle2" color="text.secondary">Average Bids Per Day</Typography>
+                  <Typography variant="h4">{bidStats.average}</Typography>
+                </Box>
+              </Box>
+            </Paper>
+          )}
 
           <Paper sx={{ p: 3, mb: 3, position: 'relative' }}>
             {(isLoading || isBidDetailsLoading) ? (

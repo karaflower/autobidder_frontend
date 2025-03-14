@@ -137,9 +137,19 @@ const TeamManagement = () => {
       try {
         await axios.delete(`${process.env.REACT_APP_API_URL}/teams/delete-team/${teamId}`);
         toast.success('Team deleted successfully');
-        fetchTeams();
+        
+        // Fetch updated teams list
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/teams/all`);
+        const sortedTeams = response.data.sort((a, b) => a.name.localeCompare(b.name));
+        setTeams(sortedTeams);
+        
+        // If the deleted team was selected, select another team if available
         if (selectedTeam?._id === teamId) {
-          setSelectedTeam(null);
+          if (sortedTeams.length > 0) {
+            setSelectedTeam(sortedTeams[0]);
+          } else {
+            setSelectedTeam(null);
+          }
         }
       } catch (error) {
         toast.error('Error deleting team');
@@ -193,6 +203,9 @@ const TeamManagement = () => {
       await axios.delete(`${process.env.REACT_APP_API_URL}/users/delete-user/${user._id}`);
       toast.success('User deleted successfully');
       fetchTeamlessUsers();
+      if (selectedTeam) {
+        fetchTeamMembers(selectedTeam._id);
+      }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to delete user');
     }
