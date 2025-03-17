@@ -42,6 +42,8 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import InfoIcon from '@mui/icons-material/Info';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SegmentIcon from '@mui/icons-material/Segment';
+import BarChartIcon from '@mui/icons-material/BarChart';
+import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 const ConfidenceIndicator = React.memo(({ confidence }) => {
   // Convert confidence from 0-1 to 0-100
@@ -128,6 +130,8 @@ const BidLinks = () => {
   });
   const [viewMode, setViewMode] = useState('categories');
   const [selectedQueries, setSelectedQueries] = useState([]);
+  const [openChartDialog, setOpenChartDialog] = useState(false);
+  const [chartData, setChartData] = useState([]);
 
   const getRelativeTimeString = (date) => {
     const now = new Date();
@@ -282,14 +286,13 @@ const BidLinks = () => {
     setCategories(uniqueCategories);
   }, [bidLinks]);
 
-  useEffect(() => {
-    fetchBlacklists();
-  }, []);
-
-  const fetchBlacklists = async () => {
+  const fetchBlacklists = async (isTeam = false) => {
     try {
       const response = await axios.get(
-        `${process.env.REACT_APP_API_URL}/bid-links/blacklist`
+        `${process.env.REACT_APP_API_URL}/bid-links/blacklist`,
+        {
+          params: { isTeam: isTeam }
+        }
       );
       setBlacklists(response.data.blacklists || []);
     } catch (error) {
@@ -298,7 +301,7 @@ const BidLinks = () => {
     }
   };
 
-  const handleAddBlacklist = async (newBlackWords) => {
+  const handleAddBlacklist = async (newBlackWords, isTeam = false) => {
     if (!newBlackWords.trim()) return;
     try {
       // Split by comma and trim each entry
@@ -309,10 +312,11 @@ const BidLinks = () => {
 
       await axios.post(`${process.env.REACT_APP_API_URL}/bid-links/blacklist`, {
         blacklists: blacklistArray,
+        isTeam: isTeam
       });
-      await fetchBlacklists();
+      await fetchBlacklists(isTeam);
       await fetchBidLinks();
-      toast.success(`${blacklistArray.length} item(s) added to blacklist`);
+      toast.success(`${blacklistArray.length} item(s) added to ${isTeam ? 'team' : 'personal'} blacklist`);
     } catch (error) {
       console.error("Failed to add to blacklist:", error);
       toast.error("Failed to add to blacklist");
@@ -329,8 +333,9 @@ const BidLinks = () => {
     try {
       await axios.post(`${process.env.REACT_APP_API_URL}/bid-links/blacklist`, {
         blacklists: [company.trim()],
+        isTeam: true // Default to adding to team blacklist
       });
-      await fetchBlacklists(); // Still fetch blacklists to update the count
+      await fetchBlacklists(true); // Fetch team blacklists to update the count
     } catch (error) {
       console.error("Failed to add company to blacklist:", error);
       toast.error("Failed to add company to blacklist");
@@ -339,17 +344,20 @@ const BidLinks = () => {
     }
   };
 
-  const handleDeleteBlacklist = async (urlToDelete) => {
+  const handleDeleteBlacklist = async (urlToDelete, isTeam = false) => {
     try {
       await axios.delete(
         `${process.env.REACT_APP_API_URL}/bid-links/blacklist`,
         {
-          data: { blacklists: [urlToDelete] },
+          data: { 
+            blacklists: [urlToDelete],
+            isTeam: isTeam
+          },
         }
       );
-      await fetchBlacklists();
+      await fetchBlacklists(isTeam);
       await fetchBidLinks();
-      toast.success("URL removed from blacklist");
+      toast.success(`URL removed from ${isTeam ? 'team' : 'personal'} blacklist`);
     } catch (error) {
       console.error("Failed to remove from blacklist:", error);
       toast.error("Failed to remove from blacklist");
@@ -417,14 +425,23 @@ const BidLinks = () => {
     });
   };
 
+  const generateChartData = () => {
+    // Set the dialog to open first
+    setOpenChartDialog(true);
+    
+    // We'll let the ChartDialog component handle data fetching
+    // No need to set chart data here anymore
+  };
+
   const renderBlacklistPanel = () => {
     const [isAddingBlacklist, setIsAddingBlacklist] = useState(false);
+    const [blacklistType, setBlacklistType] = useState('team'); // Default to team blacklist
 
     const handleBlacklistSubmit = async (value) => {
       if (!value.trim()) return;
       setIsAddingBlacklist(true);
       try {
-        await handleAddBlacklist(value);
+        await handleAddBlacklist(value, blacklistType === 'team');
         // Clear the input value after successful addition
         return true; // Return true to indicate success
       } finally {
@@ -448,6 +465,33 @@ const BidLinks = () => {
           <Typography variant="h6" gutterBottom>
             Manage Blacklisted Words
           </Typography>
+          
+          {/* Add tabs for My/Team selection */}
+          <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+            <Box sx={{ display: 'flex' }}>
+              <Button 
+                variant={blacklistType === 'personal' ? 'contained' : 'text'}
+                onClick={() => {
+                  setBlacklistType('personal');
+                  fetchBlacklists(false);
+                }}
+                sx={{ flex: 1, borderRadius: '4px 0 0 4px' }}
+              >
+                My Blacklist
+              </Button>
+              <Button 
+                variant={blacklistType === 'team' ? 'contained' : 'text'}
+                onClick={() => {
+                  setBlacklistType('team');
+                  fetchBlacklists(true);
+                }}
+                sx={{ flex: 1, borderRadius: '0 4px 4px 0' }}
+              >
+                Team Blacklist
+              </Button>
+            </Box>
+          </Box>
+          
           <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
             <TextField
               fullWidth
@@ -480,7 +524,7 @@ const BidLinks = () => {
                   <IconButton
                     edge="end"
                     aria-label="delete"
-                    onClick={() => handleDeleteBlacklist(url)}
+                    onClick={() => handleDeleteBlacklist(url, blacklistType === 'team')}
                   >
                     <DeleteIcon />
                   </IconButton>
@@ -508,7 +552,7 @@ const BidLinks = () => {
       onClick={() => setOpenBlacklistDialog(true)}
       size="small"
     >
-      Blacklists ({blacklists.length})
+      Blacklists
     </Button>
   );
 
@@ -796,6 +840,147 @@ const BidLinks = () => {
     }
   );
 
+  const ChartDialog = () => {
+    const [dateRange, setDateRange] = useState(7); // Default to 7 days
+    const [isLoading, setIsLoading] = useState(true); // Start with loading state
+    const [localChartData, setLocalChartData] = useState([]); // Local chart data state
+    const [error, setError] = useState(null);
+
+    // Fetch data when date range changes or dialog opens
+    const fetchChartData = async (range) => {
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        const toDate = new Date();
+        const fromDate = new Date();
+        
+        // If range is 0 (all time), use a far past date
+        if (range === 0) {
+          fromDate.setFullYear(fromDate.getFullYear() - 5); // Go back 5 years
+        } else {
+          fromDate.setDate(fromDate.getDate() - range);
+        }
+
+        // Get the current user's team ID from the backend
+        // We don't need to pass teamId as the backend will get it from the user's session
+        const params = new URLSearchParams({
+          from: fromDate.toISOString(),
+          to: toDate.toISOString(),
+        });
+
+        const response = await axios.get(
+          `${process.env.REACT_APP_API_URL}/bid-links/daily-count?${params.toString()}`
+        );
+
+        // Transform the data to match the chart format
+        const transformedData = response.data.dailyCounts.map(item => ({
+          date: new Date(item._id).toLocaleDateString(),
+          count: item.count
+        })).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        setLocalChartData(transformedData);
+      } catch (error) {
+        console.error('Failed to fetch chart data:', error);
+        setError('Failed to fetch chart data. Please try again.');
+        toast.error('Failed to load chart data: ' + (error.response?.data?.message || error.message));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // Fetch data when dialog opens or date range changes
+    useEffect(() => {
+      if (openChartDialog) {
+        fetchChartData(dateRange);
+      }
+    }, [dateRange, openChartDialog]);
+
+    // Custom tooltip component for the chart
+    const CustomTooltip = ({ active, payload, label }) => {
+      if (active && payload && payload.length) {
+        return (
+          <Paper elevation={3} sx={{ p: 1.5, backgroundColor: 'rgba(255, 255, 255, 0.9)' }}>
+            <Typography variant="body2"><strong>Date:</strong> {label}</Typography>
+            <Typography variant="body2"><strong>Count:</strong> {payload[0].value}</Typography>
+          </Paper>
+        );
+      }
+      return null;
+    };
+
+    return (
+      <Dialog
+        open={openChartDialog}
+        onClose={() => setOpenChartDialog(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <span>Bid Links Distribution</span>
+            <TextField
+              select
+              variant="standard"
+              size="small"
+              value={dateRange}
+              onChange={(e) => setDateRange(Number(e.target.value))}
+              sx={{ minWidth: 150 }}
+              disabled={isLoading}
+            >
+              <MenuItem value={7}>Last 7 days</MenuItem>
+              <MenuItem value={14}>Last 2 weeks</MenuItem>
+              <MenuItem value={30}>Last month</MenuItem>
+              <MenuItem value={90}>Last 3 months</MenuItem>
+              <MenuItem value={0}>All time</MenuItem>
+            </TextField>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ height: 400, pt: 2 }}>
+            {isLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <CircularProgress />
+              </Box>
+            ) : error ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', flexDirection: 'column', gap: 2 }}>
+                <Typography color="error">{error}</Typography>
+                <Button variant="outlined" onClick={() => fetchChartData(dateRange)}>
+                  Retry
+                </Button>
+              </Box>
+            ) : localChartData.length === 0 ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                <Typography>No data available for the selected time range</Typography>
+              </Box>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={localChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Line 
+                    type="monotone" 
+                    dataKey="count" 
+                    stroke="#8884d8" 
+                    strokeWidth={2}
+                    dot={{ r: 4, strokeWidth: 2 }}
+                    activeDot={{ r: 6, strokeWidth: 2 }}
+                    connectNulls
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenChartDialog(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+    );
+  };
+
   const renderSettingsBar = () => {
     // Update the count calculation to consider selected queries
     const getCountForDateLimit = (limit) => {
@@ -921,6 +1106,17 @@ const BidLinks = () => {
                   size="small"
                 >
                   Open All ({Math.min(rowsPerPage, filteredBidLinks.length - (page * rowsPerPage))})
+                </Button>
+              </Grid>
+
+              <Grid item>
+                <Button
+                  variant="outlined"
+                  onClick={generateChartData}
+                  startIcon={<BarChartIcon />}
+                  size="small"
+                >
+                  View Chart
                 </Button>
               </Grid>
 
@@ -1135,6 +1331,7 @@ const BidLinks = () => {
         </Grid>
 
         {renderBlacklistPanel()}
+        <ChartDialog />
 
         <Dialog
           open={openSearchDialog}
