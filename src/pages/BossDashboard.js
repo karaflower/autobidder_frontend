@@ -71,6 +71,8 @@ const BossDashboard = () => {
   const [bidDetailsDialog, setBidDetailsDialog] = useState(false);
   const [selectedBid, setSelectedBid] = useState(null);
   const [isBidDetailsLoading, setIsBidDetailsLoading] = useState(false);
+  const [galleryView, setGalleryView] = useState(false);
+  const [currentBidIndex, setCurrentBidIndex] = useState(0);
 
   // Fetch all teams
   useEffect(() => {
@@ -409,6 +411,41 @@ const BossDashboard = () => {
 
   const bidStats = calculateBidStats();
 
+  // Add a keyboard event listener for gallery navigation
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (!galleryView) return;
+      
+      if (e.key === 'ArrowLeft') {
+        // Navigate to previous bid
+        setCurrentBidIndex((prev) => 
+          prev > 0 ? prev - 1 : detailedBidData.length - 1
+        );
+      } else if (e.key === 'ArrowRight') {
+        // Navigate to next bid
+        setCurrentBidIndex((prev) => 
+          prev < detailedBidData.length - 1 ? prev + 1 : 0
+        );
+      } else if (e.key === 'Escape') {
+        // Close gallery view
+        setGalleryView(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [galleryView, detailedBidData.length]);
+
+  // Update selected bid when current index changes in gallery view
+  useEffect(() => {
+    if (galleryView && detailedBidData.length > 0) {
+      setSelectedBid({
+        ...detailedBidData[currentBidIndex],
+        userName: teamMembers[selectedTeam]?.find(m => m._id === selectedMember)?.name || 'Selected Member'
+      });
+    }
+  }, [currentBidIndex, galleryView]);
+
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
       {initialLoading ? (
@@ -526,7 +563,20 @@ const BossDashboard = () => {
         fullWidth
       >
         <DialogTitle>
-          Bid Details for {selectedBid?.userName} on {selectedDate}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Bid Details for {selectedBid?.userName} on {selectedDate}</span>
+            <Button 
+              variant="contained" 
+              color="primary"
+              onClick={() => {
+                setGalleryView(true);
+                setCurrentBidIndex(0);
+              }}
+              disabled={detailedBidData.length === 0}
+            >
+              Gallery View
+            </Button>
+          </Box>
         </DialogTitle>
         <DialogContent>
           {detailedBidData.length > 0 ? (
@@ -643,6 +693,181 @@ const BossDashboard = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setBidDetailsDialog(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Gallery View Dialog */}
+      <Dialog 
+        open={galleryView} 
+        onClose={() => setGalleryView(false)}
+        maxWidth="xl"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6">
+              {`Bid ${currentBidIndex + 1} of ${detailedBidData.length} - ${selectedDate}`}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Use arrow keys or buttons to navigate
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {detailedBidData.length > 0 ? (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {/* Main Content */}
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                {/* Bid Details */}
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="h6" gutterBottom>URL</Typography>
+                  <Link 
+                    href={selectedBid?.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    display="block"
+                    mb={3}
+                  >
+                    {selectedBid?.url}
+                  </Link>
+
+                  <Typography variant="h6" gutterBottom>Time</Typography>
+                  <Typography variant="body1" gutterBottom>
+                    {selectedBid?.timestamp && new Date(selectedBid.timestamp).toLocaleTimeString()}
+                  </Typography>
+
+                  <Typography variant="h6" gutterBottom>Filled Fields</Typography>
+                  <Typography>
+                    {selectedBid?.filledFields ? selectedBid.filledFields.map((field, index) => (
+                      <React.Fragment key={index}>
+                        {field}
+                        <br />
+                      </React.Fragment>
+                    )) : 'No fields data available'}
+                  </Typography>
+                </Box>
+
+                {/* Screenshot Display */}
+                <Box sx={{ flex: 1.5, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                  {selectedBid?.screenshot ? (
+                    <img 
+                      src={`${process.env.REACT_APP_API_URL}/resumefiles/${selectedBid.screenshot}`}
+                      alt="Application Screenshot"
+                      style={{ maxWidth: '100%', maxHeight: '60vh', objectFit: 'contain' }}
+                      onError={(e) => {
+                        // If the image fails to load from the primary source, try the fallback server
+                        e.target.onerror = null; // Prevent infinite error loop
+                        e.target.src = `${process.env.REACT_APP_API_URL_PROD}/resumefiles/${selectedBid.screenshot}`;
+                      }}
+                    />
+                  ) : (
+                    <Typography variant="body1" color="text.secondary" sx={{ textAlign: 'center' }}>
+                      No screenshot available
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
+
+              {/* Thumbnail Navigation */}
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="h6" gutterBottom>All Bids ({detailedBidData.length})</Typography>
+                <Box sx={{ 
+                  display: 'flex', 
+                  gap: 1, 
+                  overflowX: 'auto', 
+                  pb: 2,
+                  '&::-webkit-scrollbar': {
+                    height: '8px',
+                  },
+                  '&::-webkit-scrollbar-track': {
+                    backgroundColor: '#f1f1f1',
+                  },
+                  '&::-webkit-scrollbar-thumb': {
+                    backgroundColor: '#888',
+                    borderRadius: '4px',
+                  },
+                }}>
+                  {detailedBidData.map((bid, index) => (
+                    <Paper
+                      key={index}
+                      elevation={currentBidIndex === index ? 8 : 1}
+                      sx={{
+                        cursor: 'pointer',
+                        p: 1,
+                        borderRadius: 1,
+                        border: currentBidIndex === index ? '2px solid' : 'none',
+                        borderColor: 'primary.main',
+                        minWidth: '120px',
+                        maxWidth: '120px',
+                        backgroundColor: currentBidIndex === index ? 'rgba(63, 81, 181, 0.08)' : 'background.paper',
+                      }}
+                      onClick={() => setCurrentBidIndex(index)}
+                    >
+                      <Typography variant="body2" gutterBottom noWrap sx={{ textAlign: 'center' }}>
+                        #{index + 1} - {new Date(bid.timestamp).toLocaleTimeString()}
+                      </Typography>
+                      {bid.screenshot ? (
+                        <Box sx={{ 
+                          height: '80px', 
+                          width: '100%',
+                          display: 'flex', 
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          overflow: 'hidden'
+                        }}>
+                          <img
+                            src={`${process.env.REACT_APP_API_URL}/resumefiles/${bid.screenshot}`}
+                            alt={`Bid ${index + 1} thumbnail`}
+                            style={{ 
+                              width: '100%',
+                              height: '100%', 
+                              objectFit: 'cover'
+                            }}
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = `${process.env.REACT_APP_API_URL_PROD}/resumefiles/${bid.screenshot}`;
+                            }}
+                          />
+                        </Box>
+                      ) : (
+                        <Box sx={{ 
+                          height: '80px', 
+                          width: '120px', 
+                          display: 'flex', 
+                          justifyContent: 'center', 
+                          alignItems: 'center',
+                          backgroundColor: 'rgba(0, 0, 0, 0.05)'
+                        }}>
+                          <Typography variant="body2" color="text.secondary">No image</Typography>
+                        </Box>
+                      )}
+                    </Paper>
+                  ))}
+                </Box>
+              </Box>
+            </Box>
+          ) : (
+            <Typography>No detailed bid data available.</Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => {
+              setCurrentBidIndex((prev) => prev > 0 ? prev - 1 : detailedBidData.length - 1);
+            }}
+            disabled={detailedBidData.length <= 1}
+          >
+            Previous
+          </Button>
+          <Button 
+            onClick={() => {
+              setCurrentBidIndex((prev) => prev < detailedBidData.length - 1 ? prev + 1 : 0);
+            }}
+            disabled={detailedBidData.length <= 1}
+          >
+            Next
+          </Button>
+          <Button onClick={() => setGalleryView(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </Container>
