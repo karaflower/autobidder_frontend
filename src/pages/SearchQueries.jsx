@@ -44,6 +44,7 @@ import { toast } from 'react-toastify';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
+import { Line } from 'react-chartjs-2';
 
 const TIME_OPTIONS = [
   { value: 'd', label: 'Past 24 Hours' },
@@ -156,87 +157,238 @@ const TimeSelectionDialog = ({
 );
 
 const SearchTimeline = React.memo(({ queries, users, selectedCategories }) => {
-  const [dateRange, setDateRange] = useState(2);
+  const [dateRange, setDateRange] = useState(7); // Default to 7 days
   const containerRef = useRef(null);
+  const [selectedQueries, setSelectedQueries] = useState([]);
+  const [queriesColors, setQueriesColors] = useState({});
+  const [viewMode, setViewMode] = useState('category'); // 'overall', 'category', or 'query'
 
-  // Memoize the chart data calculation
-  const { data, uniqueQueries } = useMemo(() => {
+  // Function to generate random color for queries/categories
+  const getRandomColor = () => {
+    const letters = '0123456789ABCDEF';
+    let color = '#';
+    for (let i = 0; i < 6; i++) {
+      color += letters[Math.floor(Math.random() * 10)];
+    }
+    return color;
+  };
+
+  // Initialize colors for queries
+  useEffect(() => {
+    const colors = {};
+    queries.forEach(query => {
+      colors[query._id] = getRandomColor();
+    });
+    
+    // Also generate colors for categories
+    const categoryColors = {};
+    const uniqueCategories = [...new Set(queries.map(q => q.category))];
+    uniqueCategories.forEach(category => {
+      categoryColors[category] = getRandomColor();
+    });
+    
+    setQueriesColors({ ...colors, ...categoryColors });
+  }, [queries]);
+
+  // Prepare data for the line chart
+  const prepareChartData = useMemo(() => {
+    // Create a map of dates to use as labels
     const now = new Date();
-    const cutoffDate = new Date(now.getTime() - (dateRange * 24 * 60 * 60 * 1000));
+    const dateLabels = [];
+    for (let i = dateRange - 1; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      dateLabels.push(date);
+    }
 
-    const formattedData = queries
-      .filter(query => 
-        query.last_search_info?.[0]?.date && 
-        (selectedCategories.length === 0 || selectedCategories.includes(query.category))
-      )
-      .map((query, queryIndex) => {
-        const searchHistory = query.last_search_info
-          .filter(info => new Date(info.date) >= cutoffDate)
-          .map(info => ({
-            query: query.link,
-            shortQuery: query.link.length > 20 ? query.link.substring(0, 20) + '...' : query.link,
-            date: new Date(info.date).getTime(),
-            formattedDate: new Date(info.date).toLocaleString(),
-            relativeTime: getRelativeTimeString(new Date(info.date)),
-            searchedBy: users[info.searchedBy] || 'Unknown User',
-            dayRange: info.dayRange,
-            jobsFound: info.count || 0,
-            yAxis: queryIndex + 1,
-            category: query.category
-          }));
-        return searchHistory;
-      })
-      .flat()
-      .sort((a, b) => a.date - b.date);
+    // Format dates for chart labels
+    const formattedLabels = dateLabels.map(date => 
+      date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+    );
+
+    let datasets = [];
+
+    if (viewMode === 'overall') {
+      // Sum all job counts across all categories and queries
+      const overallData = dateLabels.map(label => {
+        let totalForDay = 0;
+        
+        // Filter queries by selected categories
+        const filteredQueries = queries.filter(query => 
+          selectedCategories.length === 0 || selectedCategories.includes(query.category)
+        );
+        
+        // Sum up counts for each query on this day
+        filteredQueries.forEach(query => {
+          const searchForDate = query.last_search_info?.find(info => {
+            const infoDate = new Date(info.date);
+            return infoDate.toDateString() === label.toDateString();
+          });
+          
+          if (searchForDate) {
+            totalForDay += searchForDate.count || 0;
+          }
+        });
+        
+        return totalForDay;
+      });
+
+      datasets = [{
+        label: 'All Search Results',
+        data: overallData,
+        fill: false,
+        borderColor: '#3f51b5',
+        borderWidth: 3,
+        pointRadius: 5,
+        tension: 0.1
+      }];
+    } 
+    else if (viewMode === 'category') {
+      // Group by category
+      const categories = selectedCategories.length > 0 ? 
+        selectedCategories : 
+        [...new Set(queries.map(q => q.category))];
+      
+      datasets = categories.map(category => {
+        // Get all queries in this category
+        const queriesInCategory = queries.filter(q => q.category === category);
+        
+        // Sum data by date for this category
+        const categoryData = dateLabels.map(label => {
+          let totalForCategory = 0;
+          
+          queriesInCategory.forEach(query => {
+            const searchForDate = query.last_search_info?.find(info => {
+              const infoDate = new Date(info.date);
+              return infoDate.toDateString() === label.toDateString();
+            });
+            
+            if (searchForDate) {
+              totalForCategory += searchForDate.count || 0;
+            }
+          });
+          
+          return totalForCategory;
+        });
+
+        return {
+          label: `${category}`,
+          data: categoryData,
+          fill: false,
+          borderColor: queriesColors[category] || getRandomColor(),
+          borderWidth: 3,
+          pointRadius: 4,
+          tension: 0.1
+        };
+      });
+    } 
+    else if (viewMode === 'query') {
+      // Show selected queries or all queries if none selected
+      const filteredQueries = queries.filter(query => 
+        (selectedCategories.length === 0 || selectedCategories.includes(query.category)) &&
+        (selectedQueries.length === 0 || selectedQueries.includes(query._id))
+      );
+      
+      datasets = filteredQueries.map(query => {
+        // Build daily counts for each query
+        const data = dateLabels.map(label => {
+          const searchForDate = query.last_search_info?.find(info => {
+            const infoDate = new Date(info.date);
+            return infoDate.toDateString() === label.toDateString();
+          });
+          return searchForDate ? searchForDate.count || 0 : 0;
+        });
+
+        const shortenedQuery = query.link.length > 20 ? 
+          query.link.substring(0, 20) + '...' : query.link;
+
+        return {
+          label: `${shortenedQuery} (${query.category})`,
+          data: data,
+          fill: false,
+          borderColor: queriesColors[query._id],
+          borderWidth: selectedQueries.includes(query._id) ? 4 : 2,
+          pointRadius: selectedQueries.includes(query._id) ? 6 : 4,
+          tension: 0.1,
+          order: selectedQueries.includes(query._id) ? 0 : 1,
+          opacity: selectedQueries.includes(query._id) ? 1 : (selectedQueries.length === 0 ? 1 : 0.3)
+        };
+      });
+    }
 
     return {
-      data: formattedData,
-      uniqueQueries: [...new Set(formattedData.map(d => d.query))]
+      labels: formattedLabels,
+      datasets
     };
-  }, [queries, users, selectedCategories, dateRange]);
+  }, [queries, selectedCategories, dateRange, selectedQueries, queriesColors, viewMode]);
 
-  // Memoize the tooltip content component
-  const CustomTooltip = useMemo(() => {
-    return ({ active, payload }) => {
-      if (active && payload && payload.length) {
-        const data = payload[0].payload;
-        return (
-          <Box sx={{ bgcolor: 'background.paper', p: 1, border: '1px solid grey' }}>
-            <Typography variant="body2">Query: {data.query}</Typography>
-            <Typography variant="body2">Category: {data.category}</Typography>
-            <Typography variant="body2">Last Search: {data.relativeTime}</Typography>
-            <Typography variant="body2">Jobs Found: {data.jobsFound}</Typography>
-            {data.searchedBy && data.searchedBy !== 'Unknown User' && (
-              <Typography variant="body2">Searched By: {data.searchedBy}</Typography>
-            )}
-            {data.dayRange && (
-              <Typography variant="body2">Day Range: {data.dayRange}</Typography>
-            )}
-          </Box>
-        );
+  // Chart options
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top',
+        onClick: (e, legendItem, legend) => {
+          if (viewMode === 'query') {
+            // Find the query ID based on the clicked legend
+            const clickedQueryLabel = legendItem.text.split(' (')[0];
+            const clickedQuery = queries.find(q => {
+              const shortenedQuery = q.link.length > 20 ? 
+                q.link.substring(0, 20) + '...' : q.link;
+              return shortenedQuery === clickedQueryLabel;
+            });
+            
+            if (clickedQuery) {
+              if (selectedQueries.includes(clickedQuery._id)) {
+                setSelectedQueries(prev => prev.filter(id => id !== clickedQuery._id));
+              } else {
+                setSelectedQueries(prev => [...prev, clickedQuery._id]);
+              }
+            }
+          }
+        }
+      },
+      title: {
+        display: true,
+        text: 'Daily Search Results'
+      },
+      tooltip: {
+        callbacks: {
+          title: (tooltipItems) => {
+            return tooltipItems[0].label;
+          },
+          label: (context) => {
+            let label = context.dataset.label || '';
+            if (label) {
+              label += ': ';
+            }
+            if (context.parsed.y !== null) {
+              label += context.parsed.y + ' jobs';
+            }
+            return label;
+          }
+        }
       }
-      return null;
-    };
-  }, []);
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        title: {
+          display: true,
+          text: 'Number of Jobs Found'
+        }
+      },
+      x: {
+        title: {
+          display: true,
+          text: 'Date'
+        }
+      }
+    }
+  };
 
-  // Memoize the scatter shape component
-  const CustomShape = useMemo(() => {
-    return (props) => {
-      const { cx, cy, payload } = props;
-      const radius = Math.max(4, Math.min(12, 4 + (payload.jobsFound / 5)));
-      return (
-        <circle 
-          cx={cx} 
-          cy={cy} 
-          r={radius} 
-          fill="#8884d8"
-          opacity={0.8}
-        />
-      );
-    };
-  }, []);
-
-  // Memoize the scroll handler
+  // Handle scroll to change date range
   const handleScroll = useCallback((e) => {
     if (e.shiftKey) {
       e.preventDefault();
@@ -245,7 +397,7 @@ const SearchTimeline = React.memo(({ queries, users, selectedCategories }) => {
       const delta = Math.sign(e.deltaY);
       setDateRange(prev => {
         const newRange = prev + (delta * 1);
-        return Math.max(1, Math.min(10, newRange));
+        return Math.max(3, Math.min(30, newRange));
       });
       
       return false;
@@ -265,64 +417,124 @@ const SearchTimeline = React.memo(({ queries, users, selectedCategories }) => {
     }
   }, [handleScroll]);
 
+  // Get all queries for the selected categories
+  const availableQueries = useMemo(() => {
+    return queries.filter(query => 
+      selectedCategories.length === 0 || selectedCategories.includes(query.category)
+    );
+  }, [queries, selectedCategories]);
+
   return (
-    <Card sx={{ mb: 3 }}>
-      <CardContent>
+    <Card sx={{ mb: 3, width: '100%' }}>
+      <CardContent sx={{ width: '100%' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
           <Typography variant="h6">
-            Search Timeline (Last {dateRange} {dateRange === 1 ? 'day' : 'days'})
+            Search Results Timeline (Last {dateRange} {dateRange === 1 ? 'day' : 'days'})
           </Typography>
-          {selectedCategories.length > 0 && (
-            <Typography variant="body2" color="text.secondary">
-              Filtered by categories: {selectedCategories.join(', ')}
-            </Typography>
-          )}
+          
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button 
+              size="small"
+              variant="outlined"
+              onClick={() => setDateRange(prev => Math.max(3, prev - 3))}
+            >
+              Fewer Days
+            </Button>
+            <Button 
+              size="small"
+              variant="outlined"
+              onClick={() => setDateRange(prev => Math.min(30, prev + 3))}
+            >
+              More Days
+            </Button>
+          </Box>
         </Box>
+
+        {/* View mode selection */}
+        <Box sx={{ mb: 2 }}>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant={viewMode === 'overall' ? 'contained' : 'outlined'}
+              size="small"
+              onClick={() => setViewMode('overall')}
+            >
+              Overall
+            </Button>
+            <Button
+              variant={viewMode === 'category' ? 'contained' : 'outlined'}
+              size="small"
+              onClick={() => setViewMode('category')}
+            >
+              By Category
+            </Button>
+            <Button
+              variant={viewMode === 'query' ? 'contained' : 'outlined'}
+              size="small"
+              onClick={() => setViewMode('query')}
+            >
+              By Query
+            </Button>
+          </Box>
+        </Box>
+
+        {/* Query selection area - only show when in query mode */}
+        {viewMode === 'query' && (
+          <Box sx={{ mb: 2, mt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              Select queries to highlight (Total: {availableQueries.length})
+            </Typography>
+            <Box sx={{ 
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 1,
+              mt: 1,
+              maxHeight: '100px',
+              overflowY: 'auto'
+            }}>
+              {availableQueries.map(query => {
+                const shortenedQuery = query.link.length > 20 ? 
+                  query.link.substring(0, 20) + '...' : query.link;
+                
+                return (
+                  <Chip
+                    key={query._id}
+                    label={shortenedQuery}
+                    size="small"
+                    onClick={() => {
+                      if (selectedQueries.includes(query._id)) {
+                        setSelectedQueries(prev => prev.filter(id => id !== query._id));
+                      } else {
+                        setSelectedQueries(prev => [...prev, query._id]);
+                      }
+                    }}
+                    color={selectedQueries.includes(query._id) ? "primary" : "default"}
+                    variant={selectedQueries.includes(query._id) ? "filled" : "outlined"}
+                    sx={{ 
+                      borderColor: queriesColors[query._id],
+                      "& .MuiChip-label": { 
+                        maxWidth: '200px', 
+                        whiteSpace: 'nowrap', 
+                        overflow: 'hidden', 
+                        textOverflow: 'ellipsis'
+                      }
+                    }}
+                  />
+                );
+              })}
+            </Box>
+          </Box>
+        )}
+
         <Box 
-          sx={{ height: Math.max(300, uniqueQueries.length * 30), mt: 2 }}
+          sx={{ height: 500, width: '100%', mt: 2, position: 'relative' }}
           ref={containerRef}
         >
-          <ResponsiveContainer width="100%" height="100%">
-            <ScatterChart
-              margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="date"
-                type="number"
-                domain={['dataMin', 'dataMax']}
-                tickFormatter={(unixTime) => getRelativeTimeString(new Date(unixTime))}
-                name="Time"
-              />
-              <YAxis
-                dataKey="yAxis"
-                type="number"
-                domain={[0, uniqueQueries.length + 1]}
-                ticks={[...Array(uniqueQueries.length)].map((_, i) => i + 1)}
-                tickFormatter={(value) => {
-                  const dataPoint = data.find(d => d.yAxis === value);
-                  if (!dataPoint) return '';
-                  return dataPoint.query.length > 40 ? dataPoint.query.substring(0, 37) + '...' : dataPoint.query;
-                }}
-                width={350}
-                tick={{ 
-                  textAnchor: 'end',
-                  width: 340,
-                  fontSize: 12,
-                  fill: '#666',
-                  dx: -10
-                }}
-              />
-              <RechartsTooltip content={CustomTooltip} />
-              <Scatter
-                data={data}
-                fill="#8884d8"
-                isAnimationActive={false}
-                shape={CustomShape}
-              />
-            </ScatterChart>
-          </ResponsiveContainer>
+          <Line data={prepareChartData} options={chartOptions} style={{ width: '100%', height: '100%' }} />
         </Box>
+
+        <Typography variant="body2" color="text.secondary" mt={2}>
+          Shift + Scroll to zoom in/out or use the buttons above
+        </Typography>
       </CardContent>
     </Card>
   );
@@ -1669,16 +1881,24 @@ const TimelineDialog = React.memo(({
     <Dialog
       open={open}
       onClose={handleClose}
-      maxWidth="lg"
+      maxWidth="xl"
       fullWidth
       TransitionProps={{
         onExited: () => {
           setSelectedTimelineCategories([]);
         }
       }}
+      PaperProps={{
+        sx: {
+          height: 'calc(90vh)',
+          maxHeight: 'calc(90vh)',
+          display: 'flex',
+          flexDirection: 'column'
+        }
+      }}
     >
       <DialogTitle>Activity Timeline</DialogTitle>
-      <DialogContent>
+      <DialogContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <Box sx={{ mb: 2 }}>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
             {categories.map((category) => (
@@ -1694,11 +1914,13 @@ const TimelineDialog = React.memo(({
             ))}
           </Box>
         </Box>
-        <MemoizedSearchTimeline 
-          queries={queries} 
-          users={users} 
-          selectedCategories={selectedTimelineCategories}
-        />
+        <Box sx={{ flex: 1, overflow: 'auto', width: '100%' }}>
+          <MemoizedSearchTimeline 
+            queries={queries} 
+            users={users} 
+            selectedCategories={selectedTimelineCategories}
+          />
+        </Box>
       </DialogContent>
       <DialogActions>
         <Button onClick={handleClose}>Close</Button>

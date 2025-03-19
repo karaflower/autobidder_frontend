@@ -132,6 +132,7 @@ const BidLinks = () => {
   const [selectedQueries, setSelectedQueries] = useState([]);
   const [openChartDialog, setOpenChartDialog] = useState(false);
   const [chartData, setChartData] = useState([]);
+  const [selectedLink, setSelectedLink] = useState(null);
 
   const getRelativeTimeString = (date) => {
     const now = new Date();
@@ -333,9 +334,10 @@ const BidLinks = () => {
     try {
       await axios.post(`${process.env.REACT_APP_API_URL}/bid-links/blacklist`, {
         blacklists: [company.trim()],
-        isTeam: true // Default to adding to team blacklist
+        isTeam: true // Always add to team blacklist
       });
       await fetchBlacklists(true); // Fetch team blacklists to update the count
+      toast.success(`Added ${company} to team blacklist`);
     } catch (error) {
       console.error("Failed to add company to blacklist:", error);
       toast.error("Failed to add company to blacklist");
@@ -436,6 +438,13 @@ const BidLinks = () => {
   const renderBlacklistPanel = () => {
     const [isAddingBlacklist, setIsAddingBlacklist] = useState(false);
     const [blacklistType, setBlacklistType] = useState('team'); // Default to team blacklist
+
+    // Add this useEffect to fetch the blacklists when the panel opens
+    useEffect(() => {
+      if (openBlacklistDialog) {
+        fetchBlacklists(blacklistType === 'team');
+      }
+    }, [openBlacklistDialog]);
 
     const handleBlacklistSubmit = async (value) => {
       if (!value.trim()) return;
@@ -558,6 +567,19 @@ const BidLinks = () => {
 
   const DetailDialog = React.memo(({ open, onClose, link }) => {
     if (!link) return null;
+    
+    // Helper function to format queryDateLimit
+    const formatQueryDateLimit = (days) => {
+      if (days === null || days === undefined) return 'Any time';
+      
+      switch(days) {
+        case 1: return 'Past 24 hours';
+        case 7: return 'Past week';
+        case 30: return 'Past month';
+        case 365: return 'Past year';
+        default: return `${days} days`;
+      }
+    };
 
     return (
       <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -623,6 +645,12 @@ const BidLinks = () => {
                 </ListItem>
                 <ListItem>
                   <ListItemText 
+                    primary="Query Date Limit"
+                    secondary={formatQueryDateLimit(link.queryDateLimit)}
+                  />
+                </ListItem>
+                <ListItem>
+                  <ListItemText 
                     primary="Category"
                     secondary={link.queryId.category || 'N/A'}
                   />
@@ -656,7 +684,6 @@ const BidLinks = () => {
 
   const FilteredBidLinks = React.memo(
     ({ filteredBidLinks, users }) => {
-      const [selectedLink, setSelectedLink] = useState(null);
       const [goToPage, setGoToPage] = useState('');
       const emptyRows = page > 0 
         ? Math.max(0, (1 + page) * rowsPerPage - filteredBidLinks.length) 
@@ -829,12 +856,6 @@ const BidLinks = () => {
             </TableContainer>
             <PaginationComponent />
           </Paper>
-          
-          <DetailDialog 
-            open={Boolean(selectedLink)}
-            onClose={() => setSelectedLink(null)}
-            link={selectedLink}
-          />
         </Box>
       );
     }
@@ -1333,6 +1354,12 @@ const BidLinks = () => {
         {renderBlacklistPanel()}
         <ChartDialog />
 
+        <DetailDialog 
+          open={Boolean(selectedLink)}
+          onClose={() => setSelectedLink(null)}
+          link={selectedLink}
+        />
+
         <Dialog
           open={openSearchDialog}
           onClose={() => setOpenSearchDialog(false)}
@@ -1372,6 +1399,19 @@ const BidLinks = () => {
                       </>
                     }
                   />
+                  <Tooltip title="Show Details" placement="left">
+                    <Button
+                      size="small"
+                      onClick={() => setSelectedLink(link)}
+                      sx={{ 
+                        minWidth: "40px",
+                        height: "40px",
+                        borderRadius: 1
+                      }}
+                    >
+                      <InfoIcon color="action" />
+                    </Button>
+                  </Tooltip>
                 </ListItem>
               ))}
             </List>

@@ -602,6 +602,12 @@ const BidHistory = () => {
                     alt="Application Screenshot" 
                     style={{ maxWidth: '100%', height: 'auto', display: imageLoading ? 'none' : 'block' }}
                     onLoad={() => setImageLoading(false)}
+                    onError={(e) => {
+                      // If the image fails to load from the primary source, try the fallback server
+                      e.target.onerror = null; // Prevent infinite error loop
+                      e.target.src = `${process.env.REACT_APP_API_URL_PROD}/resumefiles/${selectedBid.screenshot}`;
+                      setImageLoading(false);
+                    }}
                   />
                 </Box>
               </Box>
@@ -655,6 +661,11 @@ const BidHistory = () => {
                   alt="Application Screenshot"
                   loading="lazy"
                   style={{ height: '200px', objectFit: 'cover' }}
+                  onError={(e) => {
+                    // If the image fails to load from the primary source, try the fallback server
+                    e.target.onerror = null; // Prevent infinite error loop
+                    e.target.src = `${process.env.REACT_APP_API_URL_PROD}/resumefiles/${bid.screenshot}`;
+                  }}
                 />
                 <ImageListItemBar
                   title={bid.url.length > 40 ? bid.url.substring(0, 40) + '...' : bid.url}
