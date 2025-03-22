@@ -14,18 +14,18 @@
 }
 
 .App-header {
-  background-color: #282c34;
+  background-color: #1e1e1e;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   font-size: calc(10px + 2vmin);
-  color: white;
+  color: #cccccc;
 }
 
 .App-link {
-  color: #61dafb;
+  color: #569cd6;
 }
 
 @keyframes App-logo-spin {
@@ -35,4 +35,41 @@
   to {
     transform: rotate(360deg);
   }
+}
+.query-item {
+  cursor: grab;
+  transition: background-color 0.2s;
+}
+
+.query-item:active {
+  cursor: grabbing;
+}
+
+.query-item.dragging {
+  background-color: rgba(255, 255, 255, 0.05);
+  opacity: 0.8;
+}
+
+.queries-list {
+  min-height: 50px; /* Ensures empty categories are still droppable */
+  padding: 8px;
+} 
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.MuiPaper-root {
+  border: 1px solid #3e3e42 !important;
+}
+
+code {
+  font-family: 'Consolas', 'Courier New', monospace;
+  background-color: #2d2d30;
+  padding: 2px 4px;
+  border-radius: 3px;
 }

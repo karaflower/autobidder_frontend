@@ -49,14 +49,16 @@ const ConfidenceIndicator = React.memo(({ confidence }) => {
   // Convert confidence from 0-1 to 0-100
   const score = Math.round((confidence || 0) * 100);
   
-  // Color gradient: red (0-40), yellow (40-80), green (80-100)
-  const getColor = (score) => {
+  // Color gradient with theme-aware colors
+  const getColor = (score, theme) => {
+    const isDarkMode = theme?.palette?.mode === 'dark';
+    
     if (score < 40) {
-      return 'hsl(0, 100%, 50%)'; // Red
+      return isDarkMode ? '#ff5252' : 'hsl(0, 100%, 50%)'; // Red - brighter in dark mode
     } else if (score < 80) {
-      return 'hsl(60, 100.00%, 30.90%)'; // Yellow
+      return isDarkMode ? '#ffab2e' : 'hsl(60, 100.00%, 30.90%)'; // Yellow - brighter in dark mode
     }
-    return 'hsl(120, 100%, 40%)'; // Green
+    return isDarkMode ? '#2cdb92' : 'hsl(120, 100%, 40%)'; // Green - brighter in dark mode
   };
 
   return (
@@ -76,7 +78,7 @@ const ConfidenceIndicator = React.memo(({ confidence }) => {
           value={100}
           sx={{
             position: 'absolute',
-            color: (theme) => theme.palette.grey[200]
+            color: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.2)' : theme.palette.grey[200]
           }}
           size={16}
         />
@@ -84,7 +86,7 @@ const ConfidenceIndicator = React.memo(({ confidence }) => {
           variant="determinate"
           value={score}
           sx={{
-            color: getColor(score),
+            color: (theme) => getColor(score, theme),
             position: 'absolute'
           }}
           size={16}
@@ -519,7 +521,7 @@ const BidLinks = () => {
               }}
               InputProps={{
                 endAdornment: isAddingBlacklist && (
-                  <CircularProgress size={20} sx={{ mr: 1 }} />
+                  <CircularProgress/>
                 ),
               }}
             />
@@ -731,10 +733,7 @@ const BidLinks = () => {
 
       return (
         <Box sx={{ width: '100%' }}>
-          <Paper sx={{ 
-            ml: 2,
-            mb: 2,
-            mt: 2,
+          <Paper sx={{
             borderRadius: 2,
             overflow: 'hidden',
           }}>
@@ -800,11 +799,11 @@ const BidLinks = () => {
                               {(link.company || link.date) && (
                                 <>
                                   {link.company && (
-                                    <><strong>Company:</strong> {link.company}</>
+                                    <>Company: {link.company}</>
                                   )}
                                   {link.company && link.date && " | "}
                                   {link.date && (
-                                    <><strong>Posted:</strong> {link.date}</>
+                                    <>Posted: {link.date}</>
                                   )}
                                   <br />
                                 </>
@@ -1045,14 +1044,12 @@ const BidLinks = () => {
       <Box
         sx={{
           mb: 2,
+          borderRadius: 2,
           position: "sticky",
           top: 20,
           zIndex: 1000,
           backgroundColor: 'background.paper',
           padding: "16px",
-          paddingTop: "10px",
-          paddingLeft: "16px",
-          paddingBottom: "16px",
           boxShadow: (theme) => theme.palette.mode === 'light' 
             ? ["0 4px 6px -1px rgba(0, 0, 0, 0.1)", "0 2px 4px -1px rgba(0, 0, 0, 0.1)"]
             : ["0 4px 6px -1px rgba(0, 0, 0, 0.5)", "0 2px 4px -1px rgba(0, 0, 0, 0.5)"],
@@ -1115,7 +1112,7 @@ const BidLinks = () => {
                   variant="standard"
                   InputProps={{
                     endAdornment: isSearchInputLoading && (
-                      <CircularProgress size={16} />
+                      <CircularProgress/>
                     ),
                   }}
                 />
@@ -1137,7 +1134,7 @@ const BidLinks = () => {
                   startIcon={<BarChartIcon />}
                   size="small"
                 >
-                  View Chart
+                  Links Stats
                 </Button>
               </Grid>
 
@@ -1197,7 +1194,7 @@ const BidLinks = () => {
               mb: 2,
               justifyContent: 'space-between'
             }}>
-              <Typography variant="h6">
+              <Typography variant="h6" style={{ fontWeight: 'normal' }}>
                 {viewMode === 'categories' ? 'Categories' : 'Queries'}
               </Typography>
               {viewMode === 'queries' && (

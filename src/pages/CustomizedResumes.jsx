@@ -178,7 +178,7 @@ const CustomizedResumes = ({ baseResumeId, dialogMode }) => {
                       size="small"
                     >
                       {isSearching ? (
-                        <CircularProgress size={20} />
+                        <CircularProgress />
                       ) : globalSearchResults.length > 0 ? (
                         <CloseIcon sx={{ color: 'red' }} />
                       ) : (

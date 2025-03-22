@@ -218,9 +218,12 @@ const Navigation = ({ isNavExpanded, setIsNavExpanded }) => {
           justifyContent: 'space-between' 
         }}>
           {isNavExpanded && (
-            <Typography variant="h6" sx={{ color: "primary.main" }}>
-              Bid Manager
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <img src="logo.png" alt="Bid AI Logo" style={{ height: '24px', width: 'auto' }} />
+              <Typography variant="h6" sx={{ color: "primary.main" }}>
+                Bid AI
+              </Typography>
+            </Box>
           )}
           <IconButton onClick={() => setIsNavExpanded(!isNavExpanded)}>
             {isNavExpanded ? <ChevronLeftIcon /> : <MenuIcon />}

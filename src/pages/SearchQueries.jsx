@@ -1147,7 +1147,7 @@ const SearchQueries = () => {
               disabled={searchLoading === query._id}
             >
               {searchLoading === query._id ? (
-                <CircularProgress size={24} color="inherit" />
+                <CircularProgress color="inherit" />
               ) : (
                 'SEARCH'
               )}
@@ -1171,7 +1171,7 @@ const SearchQueries = () => {
               disabled={deleteLoading === query._id}
             >
               {deleteLoading === query._id ? (
-                <CircularProgress size={24} color="inherit" />
+                <CircularProgress  color="inherit" />
               ) : (
                 'DELETE'
               )}
@@ -1199,7 +1199,7 @@ const SearchQueries = () => {
   };
 
   if (loading) return <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-    <CircularProgress size={25} />
+    <CircularProgress />
   </Box>;
 
   if (error) return <Typography color="error" align="center">{error}</Typography>;
