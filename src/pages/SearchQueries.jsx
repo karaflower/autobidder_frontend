@@ -542,8 +542,10 @@ const SearchTimeline = React.memo(({ queries, users, selectedCategories }) => {
 
 const useSearchQueries = () => {
   const [queries, setQueries] = useState([]);
+  const [queriesWithHistory, setQueriesWithHistory] = useState([]);
   const [users, setUsers] = useState({});
   const [loading, setLoading] = useState(true);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [error, setError] = useState('');
   const [snackbar, setSnackbar] = useState({
     open: false,
@@ -565,6 +567,20 @@ const useSearchQueries = () => {
     } catch (err) {
       setError('Failed to fetch search queries');
       setLoading(false);
+    }
+  };
+
+  const fetchQueriesWithHistory = async () => {
+    try {
+      setHistoryLoading(true);
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/search-queries/history`);
+      setQueriesWithHistory(response.data);
+      setHistoryLoading(false);
+      return response.data;
+    } catch (err) {
+      setError('Failed to fetch search history');
+      setHistoryLoading(false);
+      throw err;
     }
   };
 
@@ -612,15 +628,16 @@ const useSearchQueries = () => {
   };
 
   const addQuery = async (newQuery) => {
+    if (!newQuery.trim()) return;
     try {
       await axios.post(`${process.env.REACT_APP_API_URL}/search-queries`, {
-        link: newQuery
+        link: newQuery,
+        category: selectedCategory
       });
+      toast.success('Query added successfully');
       await fetchQueries();
-      return true;
-    } catch (err) {
-      setError('Failed to add search query');
-      return false;
+    } catch (error) {
+      toast.error('Failed to add query');
     }
   };
 
@@ -707,13 +724,10 @@ const useSearchQueries = () => {
     return () => stopPolling();
   }, []);
 
-  useEffect(() => {
-    fetchQueries();
-    fetchUsers();
-  }, []);
-
   return {
     queries,
+    queriesWithHistory,
+    historyLoading,
     users,
     loading,
     error,
@@ -724,6 +738,7 @@ const useSearchQueries = () => {
     executeSearch,
     executeAutoSearch,
     fetchQueries,
+    fetchQueriesWithHistory,
     autoSearchInProgress,
     lastAutoSearch,
     jobScrapingInProgress,
@@ -732,10 +747,10 @@ const useSearchQueries = () => {
 };
 
 const SearchQueries = () => {
-  const { user } = useAuth();
-
   const {
     queries,
+    queriesWithHistory,
+    historyLoading,
     users,
     loading,
     error,
@@ -746,6 +761,7 @@ const SearchQueries = () => {
     executeSearch,
     executeAutoSearch,
     fetchQueries,
+    fetchQueriesWithHistory,
     autoSearchInProgress,
     lastAutoSearch,
     jobScrapingInProgress,
@@ -782,6 +798,7 @@ const SearchQueries = () => {
   const [deleteCategoryDialogOpen, setDeleteCategoryDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(null);
+  const [timelineLoading, setTimelineLoading] = useState(false);
 
   // Add these new states for pagination
   const [displayCount, setDisplayCount] = useState(25);
@@ -804,6 +821,7 @@ const SearchQueries = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // This will handle both the initial fetch and subsequent fetches
   useEffect(() => {
     fetchCategories();
     fetchQueries();
@@ -1008,9 +1026,18 @@ const SearchQueries = () => {
     setSelectedCategory('all');
   }, []);
 
-  // Add this function to handle opening the timeline dialog
-  const handleTimelineOpen = () => {
-    setTimelineDialogOpen(true);
+  // Modify the handleTimelineOpen function to show loading state
+  const handleTimelineOpen = async () => {
+    try {
+      setTimelineLoading(true);
+      // Fetch history data when the dialog is opened
+      await fetchQueriesWithHistory();
+      setTimelineDialogOpen(true);
+    } catch (error) {
+      toast.error('Failed to load search history');
+    } finally {
+      setTimelineLoading(false);
+    }
   };
 
   // Modify the handleAddBulkQueries function
@@ -1031,11 +1058,11 @@ const SearchQueries = () => {
       
       setOpenDialog(false);
       bulkQueriesInput.value = ''; // Clear the input
-      fetchQueries();
       
       toast.success(
         `Successfully added ${response.data.totalCreated} queries.`
       );
+      await fetchQueries(); // Make sure this is awaited to refresh queries
     } catch (error) {
       toast.error('Failed to add bulk queries');
     }
@@ -1369,8 +1396,16 @@ const SearchQueries = () => {
             <Button
               variant="outlined"
               onClick={handleTimelineOpen}
+              disabled={timelineLoading}
             >
-              Activity Timeline
+              {timelineLoading ? (
+                <>
+                  <CircularProgress size={20} sx={{ mr: 1 }} />
+                  Loading...
+                </>
+              ) : (
+                'Activity Timeline'
+              )}
             </Button>
           </Box>
           <Button
@@ -1588,7 +1623,8 @@ const SearchQueries = () => {
         <TimelineDialog
           open={timelineDialogOpen}
           onClose={handleTimelineClose}
-          queries={queries}
+          queries={queriesWithHistory}
+          loading={historyLoading}
           users={users}
           initialCategory={selectedCategory}
           selectedTimelineCategories={selectedTimelineCategories}
@@ -1847,6 +1883,7 @@ const TimelineDialog = React.memo(({
   open, 
   onClose, 
   queries, 
+  loading,
   users, 
   initialCategory,
   selectedTimelineCategories,
@@ -1915,11 +1952,18 @@ const TimelineDialog = React.memo(({
           </Box>
         </Box>
         <Box sx={{ flex: 1, overflow: 'auto', width: '100%' }}>
-          <MemoizedSearchTimeline 
-            queries={queries} 
-            users={users} 
-            selectedCategories={selectedTimelineCategories}
-          />
+          {loading ? (
+            <Box display="flex" justifyContent="center" alignItems="center" height="100%">
+              <CircularProgress />
+              <Typography sx={{ ml: 2 }}>Loading search history...</Typography>
+            </Box>
+          ) : (
+            <MemoizedSearchTimeline 
+              queries={queries} 
+              users={users} 
+              selectedCategories={selectedTimelineCategories}
+            />
+          )}
         </Box>
       </DialogContent>
       <DialogActions>

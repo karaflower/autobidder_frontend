@@ -521,7 +521,7 @@ const BidLinks = () => {
               }}
               InputProps={{
                 endAdornment: isAddingBlacklist && (
-                  <CircularProgress/>
+                  <CircularProgress size={20}/>
                 ),
               }}
             />
@@ -1112,7 +1112,7 @@ const BidLinks = () => {
                   variant="standard"
                   InputProps={{
                     endAdornment: isSearchInputLoading && (
-                      <CircularProgress/>
+                      <CircularProgress size={20}/>
                     ),
                   }}
                 />
