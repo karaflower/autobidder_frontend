@@ -629,6 +629,10 @@ const useSearchQueries = () => {
 
   const addQuery = async (newQuery) => {
     if (!newQuery.trim()) return;
+    if (selectedCategory === 'all') {
+      toast.error('Please select a category');
+      return;
+    }
     try {
       await axios.post(`${process.env.REACT_APP_API_URL}/search-queries`, {
         link: newQuery,
@@ -1049,7 +1053,10 @@ const SearchQueries = () => {
       .filter(q => q); // Filter out empty lines
 
     if (queries.length === 0) return;
-
+    if (selectedCategory === 'all') {
+      toast.error('Please select a category');
+      return;
+    }
     try {
       const response = await axios.post(`${process.env.REACT_APP_API_URL}/search-queries/bulk`, {
         links: queries,
@@ -1244,7 +1251,6 @@ const SearchQueries = () => {
           <Box sx={{ 
             position: 'sticky',
             top: 0,
-            bgcolor: 'background.paper',
             zIndex: 1,
             pb: 2,
             borderBottom: '1px solid',

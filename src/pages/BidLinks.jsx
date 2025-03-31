@@ -126,10 +126,6 @@ const BidLinks = () => {
     const stored = localStorage.getItem("queryDateLimit");
     return stored ? parseInt(stored, 10) : -1;
   });
-  const [visitedLinks, setVisitedLinks] = useState(() => {
-    const stored = localStorage.getItem("visitedLinks");
-    return stored ? JSON.parse(stored) : [];
-  });
   const [viewMode, setViewMode] = useState('categories');
   const [selectedQueries, setSelectedQueries] = useState([]);
   const [openChartDialog, setOpenChartDialog] = useState(false);
@@ -420,14 +416,6 @@ const BidLinks = () => {
       behavior: 'smooth'
     });
   }, [page]);
-
-  const handleLinkClick = (linkId) => {
-    setVisitedLinks(prev => {
-      const newVisited = [...new Set([...prev, linkId])];
-      localStorage.setItem("visitedLinks", JSON.stringify(newVisited));
-      return newVisited;
-    });
-  };
 
   const generateChartData = () => {
     // Set the dialog to open first
@@ -765,24 +753,22 @@ const BidLinks = () => {
                             <Link
                               href={link.url}
                               target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={() => handleLinkClick(link._id)}
                               sx={{ 
                                 fontSize: "1.1rem",
                                 fontFamily: '"Inter","Roboto","Helvetica","Arial",sans-serif',
                                 fontWeight: 500,
                                 textDecoration: 'none',
-                                color: visitedLinks.includes(link._id) 
-                                  ? (theme) => theme.palette.mode === 'dark' ? '#e0b0ff' : 'purple'
-                                  : 'primary.main',
+                                color: 'primary.main',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 '&:hover': {
                                   textDecoration: 'underline'
                                 },
-                                "&:visited": (theme) => ({
-                                  color: theme.palette.mode === 'dark' ? '#e0b0ff' : 'purple'
-                                })
+                                '&:visited': {
+                                  color: (theme) => theme.palette.mode === 'dark' 
+                                    ? '#e0b0ff'  // Light purple for dark mode
+                                    : '#551A8B'  // Standard visited purple for light mode
+                                }
                               }}
                             >
                               {link.title}
@@ -1376,6 +1362,18 @@ const BidLinks = () => {
                         href={link.url}
                         target="_blank"
                         rel="noopener noreferrer"
+                        sx={{
+                          color: 'primary.main',
+                          textDecoration: 'none',
+                          '&:hover': {
+                            textDecoration: 'underline'
+                          },
+                          '&:visited': {
+                            color: (theme) => theme.palette.mode === 'dark' 
+                              ? '#e0b0ff'  // Light purple for dark mode
+                              : '#551A8B'  // Standard visited purple for light mode
+                          }
+                        }}
                       >
                         {link.title}
                       </Link>
