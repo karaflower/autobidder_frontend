@@ -31,6 +31,7 @@ import {
   TableRow,
   TablePagination,
   MenuItem,
+  Menu,
 } from "@mui/material";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -44,6 +45,10 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SegmentIcon from '@mui/icons-material/Segment';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, CartesianGrid } from 'recharts';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import Slider from '@mui/material/Slider';
 
 const ConfidenceIndicator = React.memo(({ confidence }) => {
   // Convert confidence from 0-1 to 0-100
@@ -131,6 +136,15 @@ const BidLinks = () => {
   const [openChartDialog, setOpenChartDialog] = useState(false);
   const [chartData, setChartData] = useState([]);
   const [selectedLink, setSelectedLink] = useState(null);
+  const [confidenceFilter, setConfidenceFilter] = useState(-1); // -1 means no filter
+  const [sortBy, setSortBy] = useState('confidence'); // 'date' or 'confidence'
+  const [sortOrder, setSortOrder] = useState('desc'); // 'asc' or 'desc'
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [confidenceRange, setConfidenceRange] = useState([0, 1]); // Range from 0 to 1
+  const [hiddenCategories, setHiddenCategories] = useState(() => {
+    const stored = localStorage.getItem("hiddenCategories");
+    return stored ? JSON.parse(stored) : [];
+  });
 
   const getRelativeTimeString = (date) => {
     const now = new Date();
@@ -190,6 +204,11 @@ const BidLinks = () => {
 
   const filteredBidLinks = useMemo(() => {
     const filterLink = (link) => {
+      // Add hidden category filter
+      if (hiddenCategories.includes(link.queryId?.category)) {
+        return false;
+      }
+
       // Date limit filter
       if (queryDateLimit !== -1) {
         if (queryDateLimit === 0) {
@@ -206,7 +225,13 @@ const BidLinks = () => {
 
       // Query filter - only apply if specific queries are selected
       if (selectedQueries.length > 0) {
-        return selectedQueries.includes(link.queryId?.link);
+        if (!selectedQueries.includes(link.queryId?.link)) return false;
+      }
+
+      // Confidence range filter
+      const confidence = link.confidence || 0;
+      if (confidence < confidenceRange[0] || confidence > confidenceRange[1]) {
+        return false;
       }
 
       // User filter criteria
@@ -217,7 +242,23 @@ const BidLinks = () => {
       return true;
     };
 
-    return bidLinks.filter(filterLink);
+    let filtered = bidLinks.filter(filterLink);
+
+    // Sort the filtered results
+    filtered.sort((a, b) => {
+      if (sortBy === 'confidence') {
+        const confA = a.confidence || 0;
+        const confB = b.confidence || 0;
+        return sortOrder === 'desc' ? confB - confA : confA - confB;
+      } else {
+        // Default date sorting
+        return sortOrder === 'desc' 
+          ? new Date(b.created_at) - new Date(a.created_at)
+          : new Date(a.created_at) - new Date(b.created_at);
+      }
+    });
+
+    return filtered;
   }, [
     bidLinks,
     showFilter,
@@ -225,6 +266,10 @@ const BidLinks = () => {
     selectedCategory,
     queryDateLimit,
     selectedQueries,
+    confidenceRange,
+    sortBy,
+    sortOrder,
+    hiddenCategories,
   ]);
 
   // Add these useEffects to reset page when category, viewMode, or queryDateLimit changes
@@ -423,6 +468,14 @@ const BidLinks = () => {
     
     // We'll let the ChartDialog component handle data fetching
     // No need to set chart data here anymore
+  };
+
+  const handleMenuOpen = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
   };
 
   const renderBlacklistPanel = () => {
@@ -1026,6 +1079,77 @@ const BidLinks = () => {
       toast.info(`Opened ${visibleLinks.length} links`);
     };
 
+    const renderSettingsMenu = () => (
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+        PaperProps={{
+          sx: {
+            width: 300,
+            p: 2,
+          }
+        }}
+      >
+        <Typography variant="subtitle2" gutterBottom>
+          Confidence Range
+        </Typography>
+        <Box sx={{ px: 2, pb: 2 }}>
+          <Slider
+            value={confidenceRange}
+            onChange={(event, newValue) => {
+              setConfidenceRange(newValue);
+              setPage(0);
+            }}
+            valueLabelDisplay="auto"
+            valueLabelFormat={(value) => `${Math.round(value * 100)}%`}
+            min={0}
+            max={1}
+            step={0.1}
+            marks={[
+              { value: 0, label: '0%' },
+              { value: 0.3, label: '30%' },
+              { value: 1, label: '100%' }
+            ]}
+          />
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 2 }}>
+          <TextField
+            select
+            variant="standard"
+            size="small"
+            value={sortBy}
+            onChange={(e) => {
+              setSortBy(e.target.value);
+              setPage(0);
+            }}
+            label="Sort by"
+            fullWidth
+          >
+            <MenuItem value="confidence">Confidence</MenuItem>
+            <MenuItem value="date">Date</MenuItem>
+          </TextField>
+          <IconButton
+            onClick={() => {
+              setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+              setPage(0);
+            }}
+            size="small"
+          >
+            {sortOrder === 'desc' ? (
+              <Tooltip title="Sort Descending">
+                <ArrowDownwardIcon />
+              </Tooltip>
+            ) : (
+              <Tooltip title="Sort Ascending">
+                <ArrowUpwardIcon />
+              </Tooltip>
+            )}
+          </IconButton>
+        </Box>
+      </Menu>
+    );
+
     return (
       <Box
         sx={{
@@ -1042,7 +1166,6 @@ const BidLinks = () => {
         }}
       >
         <Grid container spacing={2}>
-          {/* First Row */}
           <Grid item xs={12}>
             <Grid container spacing={2} alignItems="center">
               <Grid item>
@@ -1125,11 +1248,36 @@ const BidLinks = () => {
               </Grid>
 
               <Grid item>{blacklistButton}</Grid>
+
+              <Grid item>
+                <Tooltip title="Additional Settings">
+                  <IconButton onClick={handleMenuOpen} size="small">
+                    <MoreVertIcon />
+                  </IconButton>
+                </Tooltip>
+              </Grid>
             </Grid>
           </Grid>
         </Grid>
+
+        {renderSettingsMenu()}
       </Box>
     );
+  };
+
+  const handleToggleCategoryVisibility = (category, event) => {
+    event.stopPropagation(); // Prevent ListItemButton click
+    const newHiddenCategories = hiddenCategories.includes(category)
+      ? hiddenCategories.filter(c => c !== category)
+      : [...hiddenCategories, category];
+    
+    setHiddenCategories(newHiddenCategories);
+    localStorage.setItem("hiddenCategories", JSON.stringify(newHiddenCategories));
+    
+    // If we're hiding the currently selected category, switch to 'all'
+    if (newHiddenCategories.includes(selectedCategory)) {
+      setSelectedCategory('all');
+    }
   };
 
   const renderLeftPanel = () => {
@@ -1207,7 +1355,7 @@ const BidLinks = () => {
                 <ListItemButton
                   selected={selectedCategory === 'all'}
                   onClick={() => setSelectedCategory('all')}
-                  sx={{ pr: 8 }} // Add padding for the icon button
+                  sx={{ pr: 8 }} // Reduced padding since we only need space for one icon
                 >
                   <ListItemText 
                     primary="All"
@@ -1219,54 +1367,102 @@ const BidLinks = () => {
                           return false;
                         }
                       }
-                      return true;
+                      return !hiddenCategories.includes(link.queryId?.category);
                     }).length} links`}
                   />
                   <IconButton
                     size="small"
                     onClick={(e) => {
-                      e.stopPropagation(); // Prevent ListItemButton click
+                      e.stopPropagation();
                       setSelectedCategory('all');
                       setViewMode('queries');
                     }}
-                    sx={{ position: 'absolute', right: 8 }}
+                    sx={{ position: 'absolute', right: 8 }} // Moved to right: 8
                   >
                     <SegmentIcon fontSize="small" />
                   </IconButton>
                 </ListItemButton>
-                {categories.map((category) => {
-                  const categoryCount = bidLinks.filter(link => 
-                    link.queryId?.category === category &&
-                    (queryDateLimit === -1 || 
-                      (queryDateLimit === 0 ? link.queryDateLimit == null : 
-                        link.queryDateLimit === queryDateLimit))
-                  ).length;
+                {categories
+                  .filter(category => !hiddenCategories.includes(category))
+                  .map((category) => {
+                    const categoryCount = bidLinks.filter(link => 
+                      link.queryId?.category === category &&
+                      (queryDateLimit === -1 || 
+                        (queryDateLimit === 0 ? link.queryDateLimit == null : 
+                          link.queryDateLimit === queryDateLimit))
+                    ).length;
 
-                  return (
-                    <ListItemButton
-                      key={category}
-                      selected={selectedCategory === category}
-                      onClick={() => setSelectedCategory(category)}
-                      sx={{ pr: 8 }} // Add padding for the icon button
-                    >
-                      <ListItemText 
-                        primary={category}
-                        secondary={`${categoryCount} links`}
-                      />
-                      <IconButton
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation(); // Prevent ListItemButton click
-                          setSelectedCategory(category);
-                          setViewMode('queries');
-                        }}
-                        sx={{ position: 'absolute', right: 8 }}
+                    return (
+                      <ListItemButton
+                        key={category}
+                        selected={selectedCategory === category}
+                        onClick={() => setSelectedCategory(category)}
+                        sx={{ pr: 16 }} // Increased padding for two icons
                       >
-                        <SegmentIcon fontSize="small" />
-                      </IconButton>
-                    </ListItemButton>
-                  );
-                })}
+                        <ListItemText 
+                          primary={category}
+                          secondary={`${categoryCount} links`}
+                        />
+                        <IconButton
+                          size="small"
+                          onClick={(e) => handleToggleCategoryVisibility(category, e)}
+                          sx={{ position: 'absolute', right: 48 }}
+                        >
+                          <VisibilityIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCategory(category);
+                            setViewMode('queries');
+                          }}
+                          sx={{ position: 'absolute', right: 8 }}
+                        >
+                          <SegmentIcon fontSize="small" />
+                        </IconButton>
+                      </ListItemButton>
+                    );
+                  })}
+                {/* For hidden categories section, update the visibility icon position */}
+                {hiddenCategories.length > 0 && (
+                  <>
+                    <ListItemText
+                      primary="Hidden Categories"
+                      sx={{ px: 2, pt: 2, pb: 1, color: 'text.secondary' }}
+                    />
+                    {categories
+                      .filter(category => hiddenCategories.includes(category))
+                      .map((category) => (
+                        <ListItemButton
+                          key={category}
+                          sx={{ pr: 16, opacity: 0.6 }}
+                        >
+                          <ListItemText 
+                            primary={category}
+                          />
+                          <IconButton
+                            size="small"
+                            onClick={(e) => handleToggleCategoryVisibility(category, e)}
+                            sx={{ position: 'absolute', right: 48 }}
+                          >
+                            <VisibilityOffIcon fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedCategory(category);
+                              setViewMode('queries');
+                            }}
+                            sx={{ position: 'absolute', right: 8 }}
+                          >
+                            <SegmentIcon fontSize="small" />
+                          </IconButton>
+                        </ListItemButton>
+                      ))}
+                  </>
+                )}
               </>
             ) : (
               <>
