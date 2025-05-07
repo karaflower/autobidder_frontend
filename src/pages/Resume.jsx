@@ -112,6 +112,7 @@ const Resume = () => {
         profile: editedResume.profile,
         education: editedResume.education,
         experience: editedResume.experience,
+        summarized_experience: editedResume.summarized_experience,
         skillset: editedResume.skillset,
         additional_info: editedResume.additional_info
       }));
@@ -242,6 +243,7 @@ const Resume = () => {
         email: '',
         phone_number: '',
         location: '',
+        linkedin: ''
       },
       profile: '',
       education: [{
@@ -251,6 +253,7 @@ const Resume = () => {
         year: ''
       }],
       experience: [],
+      summarized_experience: [],
       skillset: [],
       additional_info: ''
     };
@@ -377,9 +380,17 @@ const Resume = () => {
               email: analyzedResume.personal_info.email || prev.personal_info.email,
               phone_number: analyzedResume.personal_info.phone_number || prev.personal_info.phone_number,
               location: analyzedResume.personal_info.location || prev.personal_info.location,
+              linkedin: analyzedResume.personal_info.linkedin || prev.personal_info.linkedin,
             },
             profile: analyzedResume.profile || prev.profile,
             experience: analyzedResume.experience.map((exp, index) => ({
+              id: index + 1,
+              company: exp.company,
+              position: exp.position,
+              duration: exp.duration,
+              description: exp.description
+            })),
+            summarized_experience: analyzedResume.summarized_experience.map((exp, index) => ({
               id: index + 1,
               company: exp.company,
               position: exp.position,
@@ -568,6 +579,14 @@ const Resume = () => {
                   label="Location"
                   value={displayedResume.personal_info.location}
                   onChange={(e) => handleFieldChange('personal_info', 'location', e.target.value)}
+                  sx={{ mb: 2 }}
+                />
+                <TextField
+                  fullWidth
+                  label="LinkedIn"
+                  value={displayedResume.personal_info.linkedin}
+                  onChange={(e) => handleFieldChange('personal_info', 'linkedin', e.target.value)}
+                  sx={{ mb: 2 }}
                 />
               </>
             ) : (
@@ -581,6 +600,7 @@ const Resume = () => {
                 <Typography variant="body1">{displayedResume.personal_info.email}</Typography>
                 <Typography variant="body1">{displayedResume.personal_info.phone_number}</Typography>
                 <Typography variant="body1">{displayedResume.personal_info.location}</Typography>
+                <Typography variant="body1">{displayedResume.personal_info.linkedin}</Typography>
               </>
             )}
           </Box>
