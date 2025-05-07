@@ -35,6 +35,7 @@ import GridViewIcon from '@mui/icons-material/GridView';
 import ImageList from '@mui/material/ImageList';
 import ImageListItem from '@mui/material/ImageListItem';
 import ImageListItemBar from '@mui/material/ImageListItemBar';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import 'react-toastify/dist/ReactToastify.css';
 import Dashboard from './Dashboard';
 import { Scatter } from 'react-chartjs-2';
@@ -351,6 +352,17 @@ const BidHistory = () => {
     setDialogOpen(true);
   };
 
+  const handleCopyAllLinks = () => {
+    if (displayedBids.length === 0) {
+      toast.error('No links to copy');
+      return;
+    }
+    const allLinks = displayedBids.map(bid => bid.url).join('\n');
+    navigator.clipboard.writeText(allLinks)
+      .then(() => toast.success('All links copied!'))
+      .catch(() => toast.error('Failed to copy links'));
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
@@ -400,6 +412,14 @@ const BidHistory = () => {
             {globalSearchResults.length > 0 ? 'Search Results' : 'Total'}: {displayedBids.length}
           </Typography>
           <Box sx={{ display: 'flex', gap: 2 }}>
+            <Button
+              variant="outlined"
+              color="info"
+              onClick={handleCopyAllLinks}
+              startIcon={<ContentCopyIcon />}
+            >
+              Copy All Links
+            </Button>
             <Button
               variant="contained" 
               color="primary" 
