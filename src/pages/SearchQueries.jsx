@@ -45,6 +45,9 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import { Line } from 'react-chartjs-2';
+import ScheduledSearchDialog from '../components/ScheduledSearchDialog';
+import ScheduledSearchesList from '../components/ScheduledSearchesList';
+import AccessTimeIcon from '@mui/icons-material/AccessTime';
 
 const TIME_OPTIONS = [
   { value: 'd', label: 'Past 24 Hours' },
@@ -554,9 +557,11 @@ const useSearchQueries = () => {
   });
   const [autoSearchInProgress, setAutoSearchInProgress] = useState(false);
   const [lastAutoSearch, setLastAutoSearch] = useState(null);
+  const [scheduledSearches, setScheduledSearches] = useState([]);
   const { user } = useAuth();
 
   const pollingInterval = useRef(null);
+  const scheduledSearchesPollingInterval = useRef(null);
 
   const fetchQueries = async () => {
     try {
@@ -607,6 +612,29 @@ const useSearchQueries = () => {
     }
   };
 
+  const fetchScheduledSearches = async () => {
+    try {
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/scheduled-searches`);
+      setScheduledSearches(response.data);
+    } catch (err) {
+      console.error('Failed to fetch scheduled searches:', err);
+    }
+  };
+
+  const startScheduledSearchesPolling = () => {
+    if (scheduledSearchesPollingInterval.current) return;
+    scheduledSearchesPollingInterval.current = setInterval(async () => {
+      await fetchScheduledSearches();
+    }, 60000); // Poll every minute
+  };
+
+  const stopScheduledSearchesPolling = () => {
+    if (scheduledSearchesPollingInterval.current) {
+      clearInterval(scheduledSearchesPollingInterval.current);
+      scheduledSearchesPollingInterval.current = null;
+    }
+  };
+
   // Modified polling functions
   const startPolling = () => {
     if (pollingInterval.current) return;
@@ -617,7 +645,7 @@ const useSearchQueries = () => {
       } catch (err) {
         console.error('Polling failed:', err);
       }
-    }, 15000);
+    }, 60000);
   };
 
   const stopPolling = () => {
@@ -626,6 +654,18 @@ const useSearchQueries = () => {
       pollingInterval.current = null;
     }
   };
+
+  // Add useEffect for initial fetch and polling setup
+  useEffect(() => {
+    fetchQueries();
+    fetchScheduledSearches(); // Initial fetch of scheduled searches
+    startScheduledSearchesPolling(); // Start polling for scheduled searches
+
+    return () => {
+      stopPolling();
+      stopScheduledSearchesPolling();
+    };
+  }, []);
 
   const addQuery = async (newQuery) => {
     if (!newQuery.trim()) return;
@@ -723,11 +763,6 @@ const useSearchQueries = () => {
     }
   };
 
-  // Clean up interval on unmount
-  useEffect(() => {
-    return () => stopPolling();
-  }, []);
-
   return {
     queries,
     queriesWithHistory,
@@ -747,6 +782,8 @@ const useSearchQueries = () => {
     lastAutoSearch,
     jobScrapingInProgress,
     executeJobScraping,
+    scheduledSearches,
+    fetchScheduledSearches,
   };
 };
 
@@ -770,6 +807,8 @@ const SearchQueries = () => {
     lastAutoSearch,
     jobScrapingInProgress,
     executeJobScraping,
+    scheduledSearches,
+    fetchScheduledSearches,
   } = useSearchQueries();
 
   const [openDialog, setOpenDialog] = useState(false);
@@ -803,6 +842,10 @@ const SearchQueries = () => {
   const [categoryToDelete, setCategoryToDelete] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(null);
   const [timelineLoading, setTimelineLoading] = useState(false);
+  const [scheduledSearchDialogOpen, setScheduledSearchDialogOpen] = useState(false);
+  const [selectedQueryForSchedule, setSelectedQueryForSchedule] = useState(null);
+  const [selectedScheduledSearch, setSelectedScheduledSearch] = useState(null);
+  const [activeTab, setActiveTab] = useState(0);
 
   // Add these new states for pagination
   const [displayCount, setDisplayCount] = useState(25);
@@ -1232,6 +1275,44 @@ const SearchQueries = () => {
     }
   };
 
+  const handleScheduleSearch = (query) => {
+    setSelectedQueryForSchedule(query);
+    setSelectedScheduledSearch(null);
+    setScheduledSearchDialogOpen(true);
+  };
+
+  const handleEditScheduledSearch = (scheduledSearch) => {
+    setSelectedScheduledSearch(scheduledSearch);
+    setSelectedQueryForSchedule(scheduledSearch.searchQueryId);
+    setScheduledSearchDialogOpen(true);
+  };
+
+  const handleDeleteScheduledSearch = async (scheduledSearchId) => {
+    try {
+      await axios.delete(`${process.env.REACT_APP_API_URL}/scheduled-searches/${scheduledSearchId}`);
+      toast.success('Scheduled search deleted');
+      fetchScheduledSearches();
+    } catch (error) {
+      toast.error('Failed to delete scheduled search');
+    }
+  };
+
+  const handleSaveScheduledSearch = async (data) => {
+    try {
+      if (selectedScheduledSearch) {
+        await axios.put(`${process.env.REACT_APP_API_URL}/scheduled-searches/${selectedScheduledSearch._id}`, data);
+        toast.success('Scheduled search updated');
+      } else {
+        await axios.post(`${process.env.REACT_APP_API_URL}/scheduled-searches`, data);
+        toast.success('Search scheduled successfully');
+      }
+      setScheduledSearchDialogOpen(false);
+      fetchScheduledSearches();
+    } catch (error) {
+      toast.error('Failed to save scheduled search');
+    }
+  };
+
   if (loading) return <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
     <CircularProgress />
   </Box>;
@@ -1423,46 +1504,65 @@ const SearchQueries = () => {
           </Button>
         </Box>
 
-        <Grid container spacing={3}>
-          {queries
-            .filter(query => {
-              // Filter by category
-              const categoryMatch = selectedCategory === 'all' || query.category === selectedCategory;
-              // Filter by search term
-              const searchMatch = !querySearch || 
-                query.link.toLowerCase().includes(querySearch.toLowerCase());
-              return categoryMatch && searchMatch;
-            })
-            .sort((a, b) => b._id.localeCompare(a._id))
-            .slice(0, displayCount)
-            .map((query) => (
-              <Grid item xs={12} key={query._id}>
-                <QueryCard
-                  query={query}
-                  users={users}
-                  searchLoading={searchLoading}
-                  handleSearchClick={handleSearchClick}
-                  setQueryToEdit={setQueryToEdit}
-                  setEditQuery={setEditQuery}
-                  setSelectedCategory={setSelectedCategory}
-                  setEditDialogOpen={setEditDialogOpen}
-                  handleDeleteQuery={handleDeleteQuery}
-                  deleteLoading={deleteLoading}
-                />
-              </Grid>
-            ))}
-        </Grid>
+        <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)} sx={{ mb: 3 }}>
+          <Tab label="Search Queries" />
+          <Tab label="Scheduled Searches" />
+        </Tabs>
 
-        {/* Show message when all items are loaded */}
-        {displayCount >= queries.length && queries.length > 0 && (
-          <Typography 
-            variant="body2" 
-            color="text.secondary" 
-            align="center" 
-            sx={{ my: 3 }}
-          >
-            All queries loaded
-          </Typography>
+        {activeTab === 0 && (
+          <Grid container spacing={3}>
+            {queries
+              .filter(query => {
+                // Filter by category
+                const categoryMatch = selectedCategory === 'all' || query.category === selectedCategory;
+                // Filter by search term
+                const searchMatch = !querySearch || 
+                  query.link.toLowerCase().includes(querySearch.toLowerCase());
+                return categoryMatch && searchMatch;
+              })
+              .sort((a, b) => b._id.localeCompare(a._id))
+              .slice(0, displayCount)
+              .map((query) => (
+                <Grid item xs={12} key={query._id}>
+                  <QueryCard
+                    query={query}
+                    users={users}
+                    searchLoading={searchLoading}
+                    handleSearchClick={handleSearchClick}
+                    setQueryToEdit={setQueryToEdit}
+                    setEditQuery={setEditQuery}
+                    setSelectedCategory={setSelectedCategory}
+                    setEditDialogOpen={setEditDialogOpen}
+                    handleDeleteQuery={handleDeleteQuery}
+                    deleteLoading={deleteLoading}
+                  />
+                </Grid>
+              ))}
+          </Grid>
+        )}
+
+        {activeTab === 1 && (
+          <Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+              <Typography variant="h6">Scheduled Searches</Typography>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={() => {
+                  setSelectedQueryForSchedule(null);
+                  setSelectedScheduledSearch(null);
+                  setScheduledSearchDialogOpen(true);
+                }}
+              >
+                Add Scheduled Search
+              </Button>
+            </Box>
+            <ScheduledSearchesList
+              scheduledSearches={scheduledSearches}
+              onEdit={handleEditScheduledSearch}
+              onDelete={handleDeleteScheduledSearch}
+            />
+          </Box>
         )}
 
         <Dialog 
@@ -1754,6 +1854,10 @@ const SearchQueries = () => {
           }}>
             <DeleteIcon sx={{ mr: 1 }} /> Delete Query
           </MenuItem>
+          <MenuItem onClick={() => handleScheduleSearch(selectedQuery)}>
+            <AccessTimeIcon sx={{ mr: 1 }} />
+            Schedule Search
+          </MenuItem>
         </Menu>
 
         {/* Delete Category Dialog */}
@@ -1788,6 +1892,19 @@ const SearchQueries = () => {
             </Button>
           </DialogActions>
         </Dialog>
+
+        <ScheduledSearchDialog
+          open={scheduledSearchDialogOpen}
+          onClose={() => {
+            setScheduledSearchDialogOpen(false);
+            setSelectedQueryForSchedule(null);
+            setSelectedScheduledSearch(null);
+          }}
+          onSave={handleSaveScheduledSearch}
+          searchQuery={selectedQueryForSchedule}
+          initialData={selectedScheduledSearch}
+          categories={categories}
+        />
       </Box>
     </Box>
   );
