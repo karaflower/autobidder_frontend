@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Line, Scatter } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -73,6 +73,7 @@ const BossDashboard = () => {
   const [isBidDetailsLoading, setIsBidDetailsLoading] = useState(false);
   const [galleryView, setGalleryView] = useState(false);
   const [currentBidIndex, setCurrentBidIndex] = useState(0);
+  const thumbnailContainerRef = useRef(null);
 
   // Fetch all teams
   useEffect(() => {
@@ -446,6 +447,21 @@ const BossDashboard = () => {
     }
   }, [currentBidIndex, galleryView]);
 
+  // Add this useEffect to handle scrolling
+  useEffect(() => {
+    if (galleryView && thumbnailContainerRef.current) {
+      const container = thumbnailContainerRef.current;
+      const thumbnailWidth = 120; // Width of each thumbnail
+      const gap = 8; // Gap between thumbnails
+      const scrollPosition = currentBidIndex * (thumbnailWidth + gap) - (container.clientWidth / 2) + (thumbnailWidth / 2);
+      
+      container.scrollTo({
+        left: Math.max(0, scrollPosition),
+        behavior: 'smooth'
+      });
+    }
+  }, [currentBidIndex, galleryView]);
+
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
       {initialLoading ? (
@@ -786,7 +802,9 @@ const BossDashboard = () => {
                     backgroundColor: '#888',
                     borderRadius: '4px',
                   },
-                }}>
+                }}
+                ref={thumbnailContainerRef}
+                >
                   {detailedBidData.map((bid, index) => (
                     <Paper
                       key={index}
