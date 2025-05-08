@@ -62,7 +62,8 @@ const ScheduledSearchDialog = ({
   const [settings, setSettings] = useState({
     timeUnit: initialData?.settings?.timeUnit || 'a',
     filterClosed: initialData?.settings?.filterClosed ?? true,
-    categories: initialData?.settings?.categories || ["all"]
+    categories: initialData?.settings?.categories || ["all"],
+    categoryType: "all"
   });
 
   const handleSave = () => {
@@ -100,10 +101,10 @@ const ScheduledSearchDialog = ({
               <LocalizationProvider dateAdapter={AdapterDateFns}>
                 <TimePicker
                   size="small"
-                  label="Time"
-                  value={schedule.time ? new Date(`2025-01-01T${schedule.time}`) : new Date()}
+                  label="Time (UTC)"
+                  value={schedule.time ? new Date(`2025-01-01T${schedule.time}:00Z`) : new Date()}
                   onChange={(newValue) => {
-                    const timeString = newValue?.toTimeString().slice(0, 5);
+                    const timeString = newValue?.toISOString().slice(11, 16);
                     setSchedule({ ...schedule, time: timeString });
                   }}
                   renderInput={(params) => <TextField {...params} fullWidth />}

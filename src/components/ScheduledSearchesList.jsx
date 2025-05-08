@@ -14,13 +14,17 @@ import {
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
 
 const formatTime = (time) => {
   const [hours, minutes] = time.split(':');
-  const date = new Date();
-  date.setHours(parseInt(hours), parseInt(minutes));
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  // Create a UTC date object
+  const date = new Date(Date.UTC(2025, 0, 1, parseInt(hours), parseInt(minutes)));
+  // Format in UTC/GMT
+  return date.toLocaleTimeString([], { 
+    hour: '2-digit', 
+    minute: '2-digit',
+    timeZone: 'UTC'
+  });
 };
 
 const formatFrequency = (schedule) => {
@@ -83,7 +87,14 @@ const ScheduledSearchesList = ({
                   {formatFrequency(scheduled.schedule)} at {formatTime(scheduled.schedule.time)}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Next run: {new Date(scheduled.nextRun).toLocaleString()}
+                  Next run: {new Date(scheduled.nextRun).toLocaleString([], {
+                    timeZone: 'UTC',
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })} UTC
                 </Typography>
                 {scheduled.state === 'running' && scheduled.progress && (
                   <Box sx={{ mt: 1 }}>
