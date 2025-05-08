@@ -40,7 +40,7 @@ const DAYS_OF_WEEK = [
 const generateTimeFromTeamName = (teamName) => {
   const sum = teamName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const hours = sum % 24;
-  return `${hours.toString().padStart(2, '0')}:00:00`;  // Add seconds to the time string
+  return `${hours.toString().padStart(2, '0')}:00`;  // Add seconds to the time string
 };
 
 const ScheduledSearchDialog = ({
@@ -101,7 +101,7 @@ const ScheduledSearchDialog = ({
                 <TimePicker
                   size="small"
                   label="Time"
-                  value={new Date()}
+                  value={schedule.time ? new Date(`2025-01-01T${schedule.time}`) : new Date()}
                   onChange={(newValue) => {
                     const timeString = newValue?.toTimeString().slice(0, 5);
                     setSchedule({ ...schedule, time: timeString });
