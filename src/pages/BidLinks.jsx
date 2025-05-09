@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -145,6 +145,13 @@ const BidLinks = () => {
     const stored = localStorage.getItem("hiddenCategories");
     return stored ? JSON.parse(stored) : [];
   });
+  const [notifiedJobs, setNotifiedJobs] = useState(new Set());
+  const [notificationsEnabled, setNotificationsEnabled] = useState(() => {
+    const stored = localStorage.getItem('notificationsEnabled');
+    return stored ? JSON.parse(stored) : false;
+  });
+  const lastFetchTime = useRef(null);
+  const lastNotificationCheck = useRef(new Date());
 
   const getRelativeTimeString = (date) => {
     const now = new Date();
@@ -277,12 +284,88 @@ const BidLinks = () => {
     setPage(0);
   }, [selectedCategory, viewMode, queryDateLimit, selectedDate]);
 
+  // Function to handle notification toggle
+  const handleNotificationToggle = async (event) => {
+    const enabled = event.target.checked;
+    setNotificationsEnabled(enabled);
+    localStorage.setItem('notificationsEnabled', JSON.stringify(enabled));
+    
+    if (enabled) {
+      const permissionGranted = await requestNotificationPermission();
+      if (!permissionGranted) {
+        setNotificationsEnabled(false);
+        localStorage.setItem('notificationsEnabled', JSON.stringify(false));
+        toast.error('Please enable notifications in your browser settings');
+      }
+    }
+  };
+
+  // Function to request notification permission
+  const requestNotificationPermission = async () => {
+    if (!("Notification" in window)) {
+      console.log("This browser does not support notifications");
+      return false;
+    }
+
+    if (Notification.permission === "granted") {
+      return true;
+    }
+
+    const permission = await Notification.requestPermission();
+    return permission === "granted";
+  };
+
+  // Function to show notification
+  const showNotification = (job) => {
+    if (!notificationsEnabled) return;
+    
+    if (Notification.permission === "granted") {
+      const notification = new Notification("New High-Confidence Job Found", {
+        body: `${job.title || 'Untitled'} - ${job.company || 'Unknown Company'}`,
+        icon: "/favicon.ico",
+        tag: job._id,
+        requireInteraction: true,
+        data: { url: job.url }
+      });
+
+      notification.onclick = function() {
+        window.focus();
+        window.open(job.url, '_blank');
+        notification.close();
+      };
+    }
+  };
+
+  // Function to check for new high-confidence jobs
+  const checkNewHighConfidenceJobs = (newBidLinks) => {
+    if (!notificationsEnabled) return;
+    
+    const highConfidenceThreshold = 0.7;
+    const currentTime = new Date();
+    
+    // Filter jobs that were indexed after the last notification check
+    const newJobs = newBidLinks.filter(job => {
+      const jobCreatedAt = new Date(job.created_at);
+      return jobCreatedAt > lastNotificationCheck.current;
+    });
+    
+    // Check each new job for high confidence
+    newJobs.forEach(job => {
+      if (job.confidence >= highConfidenceThreshold && !notifiedJobs.has(job._id)) {
+        showNotification(job);
+        setNotifiedJobs(prev => new Set([...prev, job._id]));
+      }
+    });
+
+    // Update the last notification check time
+    lastNotificationCheck.current = currentTime;
+  };
+
+  // Modified fetchBidLinks function
   const fetchBidLinks = async () => {
     try {
       setIsReloadingBids(true);
-      // Clear existing links before fetching new ones
-      setBidLinks([]);
-
+      
       // Convert selectedDate to local timezone's 00:00:00 to 23:59:59
       const fromDate = new Date(selectedDate);
       fromDate.setHours(0, 0, 0, 0);
@@ -308,6 +391,12 @@ const BidLinks = () => {
         (a, b) => new Date(b.created_at) - new Date(a.created_at)
       );
 
+      // Check for new high-confidence jobs
+      if (lastFetchTime.current) {
+        checkNewHighConfidenceJobs(sortedLinks);
+      }
+      
+      lastFetchTime.current = new Date();
       setBidLinks(sortedLinks);
     } catch (err) {
       console.error("Failed to fetch bid links:", err);
@@ -316,9 +405,21 @@ const BidLinks = () => {
     }
   };
 
+  // Request notification permission on component mount
   useEffect(() => {
-    fetchBidLinks();
-  }, [selectedDate]);
+    requestNotificationPermission();
+  }, []);
+
+  // Set up auto-refresh every 30 minutes
+  useEffect(() => {
+    fetchBidLinks(); // Initial fetch
+    
+    const intervalId = setInterval(() => {
+      fetchBidLinks();
+    }, 30 * 60 * 1000); // 30 minutes in milliseconds
+
+    return () => clearInterval(intervalId);
+  }, [selectedDate]); // Re-run when selectedDate changes
 
   useEffect(() => {
     // Extract unique categories from bidLinks
@@ -1255,6 +1356,19 @@ const BidLinks = () => {
                     <MoreVertIcon />
                   </IconButton>
                 </Tooltip>
+              </Grid>
+
+              <Grid item>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={notificationsEnabled}
+                      onChange={handleNotificationToggle}
+                      color="primary"
+                    />
+                  }
+                  label="Enable Notifications"
+                />
               </Grid>
             </Grid>
           </Grid>
