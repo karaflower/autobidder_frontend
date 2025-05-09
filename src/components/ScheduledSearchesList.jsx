@@ -29,6 +29,8 @@ const formatTime = (time) => {
 
 const formatFrequency = (schedule) => {
   switch (schedule.frequency) {
+    case 'hourly':
+      return `Every ${schedule.hourInterval} hour${schedule.hourInterval > 1 ? 's' : ''}`;
     case 'daily':
       return 'Daily';
     case 'weekly':

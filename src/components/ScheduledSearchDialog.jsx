@@ -22,6 +22,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 
 const FREQUENCY_OPTIONS = [
+  { value: 'hourly', label: 'Hourly' },
   { value: 'daily', label: 'Daily' },
   { value: 'weekly', label: 'Weekly' },
   { value: 'monthly', label: 'Monthly' },
@@ -35,6 +36,16 @@ const DAYS_OF_WEEK = [
   { value: 4, label: 'Thursday' },
   { value: 5, label: 'Friday' },
   { value: 6, label: 'Saturday' },
+];
+
+const HOUR_INTERVALS = [
+  { value: 1, label: 'Every 1 hour' },
+  { value: 2, label: 'Every 2 hours' },
+  { value: 3, label: 'Every 3 hours' },
+  { value: 4, label: 'Every 4 hours' },
+  { value: 6, label: 'Every 6 hours' },
+  { value: 8, label: 'Every 8 hours' },
+  { value: 12, label: 'Every 12 hours' },
 ];
 
 const generateTimeFromTeamName = (teamName) => {
@@ -57,6 +68,7 @@ const ScheduledSearchDialog = ({
     time: initialData?.schedule?.time || generateTimeFromTeamName(teamName),
     daysOfWeek: initialData?.schedule?.daysOfWeek || [0, 1, 2, 3, 4, 5, 6],
     dayOfMonth: initialData?.schedule?.dayOfMonth || 1,
+    hourInterval: initialData?.schedule?.hourInterval || 1,
   });
 
   const [settings, setSettings] = useState({
@@ -97,20 +109,40 @@ const ScheduledSearchDialog = ({
               </FormControl>
             </Grid>
 
-            <Grid item xs={12}>
-              <LocalizationProvider dateAdapter={AdapterDateFns}>
-                <TimePicker
-                  size="small"
-                  label="Time (UTC)"
-                  value={schedule.time ? new Date(`2025-01-01T${schedule.time}:00Z`) : new Date()}
-                  onChange={(newValue) => {
-                    const timeString = newValue?.toISOString().slice(11, 16);
-                    setSchedule({ ...schedule, time: timeString });
-                  }}
-                  renderInput={(params) => <TextField {...params} fullWidth />}
-                />
-              </LocalizationProvider>
-            </Grid>
+            {schedule.frequency === 'hourly' && (
+              <Grid item xs={12}>
+                <FormControl fullWidth>
+                  <InputLabel>Interval</InputLabel>
+                  <Select
+                    value={schedule.hourInterval}
+                    onChange={(e) => setSchedule({ ...schedule, hourInterval: e.target.value })}
+                  >
+                    {HOUR_INTERVALS.map((option) => (
+                      <MenuItem key={option.value} value={option.value}>
+                        {option.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+            )}
+
+            {schedule.frequency !== 'hourly' && (
+              <Grid item xs={12}>
+                <LocalizationProvider dateAdapter={AdapterDateFns}>
+                  <TimePicker
+                    size="small"
+                    label="Time (UTC)"
+                    value={schedule.time ? new Date(`2025-01-01T${schedule.time}:00Z`) : new Date()}
+                    onChange={(newValue) => {
+                      const timeString = newValue?.toISOString().slice(11, 16);
+                      setSchedule({ ...schedule, time: timeString });
+                    }}
+                    renderInput={(params) => <TextField {...params} fullWidth />}
+                  />
+                </LocalizationProvider>
+              </Grid>
+            )}
 
             {schedule.frequency === 'weekly' && (
               <Grid item xs={12}>
