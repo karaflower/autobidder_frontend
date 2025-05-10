@@ -129,7 +129,15 @@ const BidLinks = () => {
   const [teamMembers, setTeamMembers] = useState({});
   const [queryDateLimit, setQueryDateLimit] = useState(() => {
     const stored = localStorage.getItem("queryDateLimit");
-    return stored ? parseInt(stored, 10) : -1;
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        return Array.isArray(parsed) ? parsed : [parsed];
+      } catch {
+        return [-1];
+      }
+    }
+    return [-1];
   });
   const [viewMode, setViewMode] = useState('categories');
   const [selectedQueries, setSelectedQueries] = useState([]);
@@ -186,15 +194,17 @@ const BidLinks = () => {
   
 
   const getQueriesForCategory = (category) => {
+    const dateLimits = Array.isArray(queryDateLimit) ? queryDateLimit : [queryDateLimit];
     const queries = bidLinks
       .filter(link => {
         // First apply date filter
-        if (queryDateLimit !== -1) {
-          if (queryDateLimit === 0) {
-            if (link.queryDateLimit != null) return false;
-          } else if (link.queryDateLimit !== queryDateLimit) {
-            return false;
-          }
+        if (dateLimits.length > 0) {
+          const matchesDateLimit = dateLimits.some(limit => {
+            if (limit === -1) return true;
+            if (limit === 0) return link.queryDateLimit == null;
+            return link.queryDateLimit === limit;
+          });
+          if (!matchesDateLimit) return false;
         }
         
         // Then apply category filter
@@ -217,12 +227,14 @@ const BidLinks = () => {
       }
 
       // Date limit filter
-      if (queryDateLimit !== -1) {
-        if (queryDateLimit === 0) {
-          if (link.queryDateLimit != null) return false;
-        } else if (link.queryDateLimit !== queryDateLimit) {
-          return false;
-        }
+      const dateLimits = Array.isArray(queryDateLimit) ? queryDateLimit : [queryDateLimit];
+      if (dateLimits.length > 0) {
+        const matchesDateLimit = dateLimits.some(limit => {
+          if (limit === -1) return true;
+          if (limit === 0) return link.queryDateLimit == null;
+          return link.queryDateLimit === limit;
+        });
+        if (!matchesDateLimit) return false;
       }
 
       // Category filter
@@ -1283,14 +1295,31 @@ const BidLinks = () => {
               <Grid item>
                 <TextField
                   select
+                  SelectProps={{
+                    multiple: true,
+                    value: Array.isArray(queryDateLimit) ? queryDateLimit : [queryDateLimit],
+                    onChange: (e) => {
+                      const values = e.target.value;
+                      setQueryDateLimit(values);
+                      localStorage.setItem("queryDateLimit", JSON.stringify(values));
+                    },
+                    renderValue: (selected) => {
+                      if (!selected || selected.length === 0) return "Select time ranges";
+                      return selected.map(value => {
+                        switch(value) {
+                          case -1: return "All";
+                          case 0: return "Any time";
+                          case 1: return "Past 24 hours";
+                          case 7: return "Past week";
+                          case 30: return "Past month";
+                          case 365: return "Past year";
+                          default: return `${value} days`;
+                        }
+                      }).join(", ");
+                    }
+                  }}
                   variant="standard"
                   size="small"
-                  value={queryDateLimit}
-                  onChange={(e) => {
-                    const value = parseInt(e.target.value, 10);
-                    setQueryDateLimit(value);
-                    localStorage.setItem("queryDateLimit", value.toString());
-                  }}
                   sx={{ width: "200px" }}
                 >
                   <MenuItem value={-1}>
@@ -1400,12 +1429,13 @@ const BidLinks = () => {
     // Calculate total links for current category with date filter
     const totalQueryLinks = bidLinks.filter(link => {
       // First apply date filter
-      if (queryDateLimit !== -1) {
-        if (queryDateLimit === 0) {
-          if (link.queryDateLimit != null) return false;
-        } else if (link.queryDateLimit !== queryDateLimit) {
-          return false;
-        }
+      if (queryDateLimit.length > 0) {
+        const matchesDateLimit = queryDateLimit.some(limit => {
+          if (limit === -1) return true;
+          if (limit === 0) return link.queryDateLimit == null;
+          return link.queryDateLimit === limit;
+        });
+        if (!matchesDateLimit) return false;
       }
       
       // Then apply category filter
@@ -1474,12 +1504,13 @@ const BidLinks = () => {
                   <ListItemText 
                     primary="All"
                     secondary={`${bidLinks.filter(link => {
-                      if (queryDateLimit !== -1) {
-                        if (queryDateLimit === 0) {
-                          if (link.queryDateLimit != null) return false;
-                        } else if (link.queryDateLimit !== queryDateLimit) {
-                          return false;
-                        }
+                      if (queryDateLimit.length > 0) {
+                        const matchesDateLimit = queryDateLimit.some(limit => {
+                          if (limit === -1) return true;
+                          if (limit === 0) return link.queryDateLimit == null;
+                          return link.queryDateLimit === limit;
+                        });
+                        if (!matchesDateLimit) return false;
                       }
                       return !hiddenCategories.includes(link.queryId?.category);
                     }).length} links`}
@@ -1501,9 +1532,12 @@ const BidLinks = () => {
                   .map((category) => {
                     const categoryCount = bidLinks.filter(link => 
                       link.queryId?.category === category &&
-                      (queryDateLimit === -1 || 
-                        (queryDateLimit === 0 ? link.queryDateLimit == null : 
-                          link.queryDateLimit === queryDateLimit))
+                      (queryDateLimit.length === 0 || 
+                        queryDateLimit.some(limit => {
+                          if (limit === -1) return true;
+                          if (limit === 0) return link.queryDateLimit == null;
+                          return link.queryDateLimit === limit;
+                        }))
                     ).length;
 
                     return (
@@ -1595,9 +1629,12 @@ const BidLinks = () => {
                 {queries.map((query) => {
                   const queryCount = bidLinks.filter(link => 
                     link.queryId?.link === query &&
-                    (queryDateLimit === -1 || 
-                      (queryDateLimit === 0 ? link.queryDateLimit == null : 
-                        link.queryDateLimit === queryDateLimit))
+                    (queryDateLimit.length === 0 || 
+                      queryDateLimit.some(limit => {
+                        if (limit === -1) return true;
+                        if (limit === 0) return link.queryDateLimit == null;
+                        return link.queryDateLimit === limit;
+                      }))
                   ).length;
 
                   return (
