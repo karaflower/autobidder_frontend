@@ -32,6 +32,7 @@ import {
   TablePagination,
   MenuItem,
   Menu,
+  Chip,
 } from "@mui/material";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -49,6 +50,59 @@ import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import Slider from '@mui/material/Slider';
+
+const OPENED_LINKS_STORAGE_KEY = 'openedBidLinks';
+const MAX_STORED_LINKS = 10000;
+const LINK_EXPIRY_DAYS = 30;
+
+const getOpenedLinks = () => {
+  try {
+    const stored = localStorage.getItem(OPENED_LINKS_STORAGE_KEY);
+    if (!stored) return [];
+    
+    const links = JSON.parse(stored);
+    const now = new Date().getTime();
+    
+    // Filter out expired links
+    const validLinks = links.filter(link => {
+      const expiryDate = new Date(link.timestamp).getTime() + (LINK_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+      return now < expiryDate;
+    });
+    
+    // If we filtered out any expired links, update storage
+    if (validLinks.length !== links.length) {
+      localStorage.setItem(OPENED_LINKS_STORAGE_KEY, JSON.stringify(validLinks));
+    }
+    
+    return validLinks;
+  } catch (error) {
+    console.error('Error reading opened links:', error);
+    return [];
+  }
+};
+
+const addOpenedLinks = (newLinks) => {
+  try {
+    const currentLinks = getOpenedLinks();
+    const now = new Date().getTime();
+    
+    // Add new links with timestamp
+    const linksToAdd = newLinks.map(url => ({
+      url,
+      timestamp: now
+    }));
+    
+    // Combine with existing links and limit to MAX_STORED_LINKS
+    const updatedLinks = [...linksToAdd, ...currentLinks]
+      .slice(0, MAX_STORED_LINKS);
+    
+    localStorage.setItem(OPENED_LINKS_STORAGE_KEY, JSON.stringify(updatedLinks));
+    return updatedLinks;
+  } catch (error) {
+    console.error('Error saving opened links:', error);
+    return currentLinks;
+  }
+};
 
 const ConfidenceIndicator = React.memo(({ confidence }) => {
   // Convert confidence from 0-1 to 0-100
@@ -98,6 +152,131 @@ const ConfidenceIndicator = React.memo(({ confidence }) => {
         />
       </Box>
     </Tooltip>
+  );
+});
+
+// Move NotificationConfigDialog outside of BidLinks component
+const NotificationConfigDialog = React.memo(({ 
+  open, 
+  onClose, 
+  notificationConfig, 
+  onConfigChange,
+  categories 
+}) => {
+  // Add local state to track temporary changes
+  const [tempConfig, setTempConfig] = useState(notificationConfig);
+
+  // Update tempConfig when notificationConfig prop changes
+  useEffect(() => {
+    setTempConfig(notificationConfig);
+  }, [notificationConfig]);
+
+  const handleSaveConfig = () => {
+    onConfigChange(tempConfig);
+    onClose();
+    toast.success('Notification settings saved');
+  };
+
+  const handleCancel = () => {
+    setTempConfig(notificationConfig); // Reset to original config
+    onClose();
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onClose={handleCancel}
+      maxWidth="sm"
+      fullWidth
+    >
+      <DialogTitle>Notification Settings</DialogTitle>
+      <DialogContent>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, pt: 3, pr: 3, pl: 3 }}>
+          <Box>
+            <Typography variant="subtitle1" gutterBottom>
+              Categories to Notify
+            </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              {categories.map((category) => (
+                <Chip
+                  key={category}
+                  label={category}
+                  onClick={() => {
+                    setTempConfig({
+                      ...tempConfig,
+                      categories: tempConfig.categories.includes(category)
+                        ? tempConfig.categories.filter(c => c !== category)
+                        : [...tempConfig.categories, category]
+                    });
+                  }}
+                  color={tempConfig.categories.includes(category) ? "primary" : "default"}
+                  variant={tempConfig.categories.includes(category) ? "filled" : "outlined"}
+                />
+              ))}
+            </Box>
+          </Box>
+
+          <Box>
+            <Typography variant="subtitle1" gutterBottom>
+              Confidence Threshold
+            </Typography>
+            <TextField
+              select
+              fullWidth
+              value={tempConfig.confidenceThreshold}
+              onChange={(e) => {
+                setTempConfig({
+                  ...tempConfig,
+                  confidenceThreshold: parseFloat(e.target.value)
+                });
+              }}
+              variant="outlined"
+              size="small"
+            >
+              {[1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0].map((value) => (
+                <MenuItem key={value} value={value}>
+                  {Math.round(value * 100)}%
+                </MenuItem>
+              ))}
+            </TextField>
+          </Box>
+
+          <Box>
+            <Typography variant="subtitle1" gutterBottom>
+              Date Limits
+            </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              {[
+                { value: 0, label: 'Any time' },
+                { value: 1, label: 'Past 24 hours' },
+                { value: 7, label: 'Past week' },
+                { value: 30, label: 'Past month' },
+                { value: 365, label: 'Past year' }
+              ].map(({ value, label }) => (
+                <Chip
+                  key={value}
+                  label={label}
+                  onClick={() => {
+                    setTempConfig({
+                      ...tempConfig,
+                      dateLimits: tempConfig.dateLimits.includes(value)
+                        ? tempConfig.dateLimits.filter(d => d !== value)
+                        : [...tempConfig.dateLimits, value]
+                    });
+                  }}
+                  color={tempConfig.dateLimits.includes(value) ? "primary" : "default"}
+                  variant={tempConfig.dateLimits.includes(value) ? "filled" : "outlined"}
+                />
+              ))}
+            </Box>
+          </Box>
+        </Box>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleCancel}>Cancel</Button>
+        <Button onClick={handleSaveConfig} variant="contained">Save</Button>
+      </DialogActions>
+    </Dialog>
   );
 });
 
@@ -160,6 +339,16 @@ const BidLinks = () => {
   });
   const lastFetchTime = useRef(null);
   const lastNotificationCheck = useRef(new Date());
+  const [openedLinks, setOpenedLinks] = useState(() => getOpenedLinks());
+  const [notificationConfig, setNotificationConfig] = useState(() => {
+    const stored = localStorage.getItem('notificationConfig');
+    return stored ? JSON.parse(stored) : {
+      categories: [],
+      confidenceThreshold: 0.7,
+      dateLimits: []
+    };
+  });
+  const [openNotificationConfig, setOpenNotificationConfig] = useState(false);
 
   const getRelativeTimeString = (date) => {
     const now = new Date();
@@ -352,7 +541,6 @@ const BidLinks = () => {
   const checkNewHighConfidenceJobs = (newBidLinks) => {
     if (!notificationsEnabled) return;
     
-    const highConfidenceThreshold = 0.7;
     const currentTime = new Date();
     
     // Filter jobs that were indexed after the last notification check
@@ -361,9 +549,35 @@ const BidLinks = () => {
       return jobCreatedAt > lastNotificationCheck.current;
     });
     
-    // Check each new job for high confidence
+    // Check each new job against notification config
     newJobs.forEach(job => {
-      if (job.confidence >= highConfidenceThreshold && !notifiedJobs.has(job._id)) {
+      // Check category
+      if (notificationConfig.categories.length > 0 && 
+          !notificationConfig.categories.includes(job.queryId?.category)) {
+        return;
+      }
+
+      // Check confidence
+      if (job.confidence < notificationConfig.confidenceThreshold) {
+        return;
+      }
+
+      // Check date limits
+      if (notificationConfig.dateLimits.length > 0) {
+        const jobDate = new Date(job.date);
+        const now = new Date();
+        const daysDiff = Math.floor((now - jobDate) / (1000 * 60 * 60 * 24));
+        
+        const matchesDateLimit = notificationConfig.dateLimits.some(limit => {
+          if (limit === 0) return true;
+          return daysDiff <= limit;
+        });
+
+        if (!matchesDateLimit) return;
+      }
+
+      // If we get here, the job matches all criteria
+      if (!notifiedJobs.has(job._id)) {
         showNotification(job);
         setNotifiedJobs(prev => new Set([...prev, job._id]));
       }
@@ -934,7 +1148,12 @@ const BidLinks = () => {
                                   color: (theme) => theme.palette.mode === 'dark' 
                                     ? '#e0b0ff'  // Light purple for dark mode
                                     : '#551A8B'  // Standard visited purple for light mode
-                                }
+                                },
+                                ...(openedLinks.some(openedLink => openedLink.url === link.url) && {
+                                  color: (theme) => theme.palette.mode === 'dark' 
+                                    ? '#e0b0ff'  // Light purple for dark mode
+                                    : '#551A8B'  // Standard visited purple for light mode
+                                })
                               }}
                             >
                               {link.title}
@@ -1153,6 +1372,11 @@ const BidLinks = () => {
     );
   };
 
+  const handleNotificationConfigChange = (newConfig) => {
+    setNotificationConfig(newConfig);
+    localStorage.setItem('notificationConfig', JSON.stringify(newConfig));
+  };
+
   const renderSettingsBar = () => {
     // Update the count calculation to consider selected queries
     const getCountForDateLimit = (limit) => {
@@ -1184,6 +1408,10 @@ const BidLinks = () => {
       const visibleLinks = filteredBidLinks
         .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
         .map(link => link.url);
+
+      // Save opened links to localStorage and update state
+      const updatedLinks = addOpenedLinks(visibleLinks);
+      setOpenedLinks(updatedLinks);
 
       visibleLinks.forEach(url => {
         window.open(url, '_blank');
@@ -1300,8 +1528,33 @@ const BidLinks = () => {
                     value: Array.isArray(queryDateLimit) ? queryDateLimit : [queryDateLimit],
                     onChange: (e) => {
                       const values = e.target.value;
-                      setQueryDateLimit(values);
-                      localStorage.setItem("queryDateLimit", JSON.stringify(values));
+                      let newValues = [...values];
+                      
+                      // Check if "All" (-1) was just selected
+                      const wasAllSelected = queryDateLimit.includes(-1);
+                      const isAllSelected = values.includes(-1);
+                      
+                      if (isAllSelected && !wasAllSelected) {
+                        // If "All" was just selected, deselect everything else
+                        newValues = [-1];
+                      }
+                      else if (values.some(v => [0, 1, 7, 30, 365].includes(v))) {
+                        // Remove "All" (-1) if it exists
+                        newValues = newValues.filter(v => v !== -1);
+                      }
+                      // If selecting "All" (-1)
+                      else if (values.includes(-1)) {
+                        // Remove all other options
+                        newValues = [-1];
+                      }
+                      
+                      // If nothing is selected, select "All"
+                      if (newValues.length === 0) {
+                        newValues = [-1];
+                      }
+                      
+                      setQueryDateLimit(newValues);
+                      localStorage.setItem("queryDateLimit", JSON.stringify(newValues));
                     },
                     renderValue: (selected) => {
                       if (!selected || selected.length === 0) return "Select time ranges";
@@ -1398,6 +1651,17 @@ const BidLinks = () => {
                   }
                   label="Enable Notifications"
                 />
+              </Grid>
+
+              <Grid item>
+                <Button
+                  variant="outlined"
+                  onClick={() => setOpenNotificationConfig(true)}
+                  size="small"
+                  disabled={!notificationsEnabled}
+                >
+                  Configure Notifications
+                </Button>
               </Grid>
             </Grid>
           </Grid>
@@ -1762,6 +2026,14 @@ const BidLinks = () => {
             <Button onClick={() => setOpenSearchDialog(false)}>Close</Button>
           </DialogActions>
         </Dialog>
+
+        <NotificationConfigDialog 
+          open={openNotificationConfig}
+          onClose={() => setOpenNotificationConfig(false)}
+          notificationConfig={notificationConfig}
+          onConfigChange={handleNotificationConfigChange}
+          categories={categories}
+        />
       </Box>
     </Box>
   );
