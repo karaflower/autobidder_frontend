@@ -408,7 +408,7 @@ const Resume = () => {
               category: skill.category,
               skills: skill.skills
             })),
-            additional_info: analyzedResume.additional_info || ''
+            additional_info: prev.additional_info || ''
           }));
         }
 
