@@ -327,7 +327,7 @@ const BidLinks = () => {
   const [sortBy, setSortBy] = useState('confidence'); // 'date' or 'confidence'
   const [sortOrder, setSortOrder] = useState('desc'); // 'asc' or 'desc'
   const [anchorEl, setAnchorEl] = useState(null);
-  const [confidenceRange, setConfidenceRange] = useState([0, 1]); // Range from 0 to 1
+  const [confidenceRange, setConfidenceRange] = useState([0.2, 1]); // Range from 0 to 1
   const [hiddenCategories, setHiddenCategories] = useState(() => {
     const stored = localStorage.getItem("hiddenCategories");
     return stored ? JSON.parse(stored) : [];
