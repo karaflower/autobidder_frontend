@@ -349,6 +349,8 @@ const BidLinks = () => {
     };
   });
   const [openNotificationConfig, setOpenNotificationConfig] = useState(false);
+  const [searchResultsPage, setSearchResultsPage] = useState(0);
+  const [searchResultsRowsPerPage, setSearchResultsRowsPerPage] = useState(10);
 
   const getRelativeTimeString = (date) => {
     const now = new Date();
@@ -1964,63 +1966,88 @@ const BidLinks = () => {
             Global Search Results ({globalSearchResults.length})
           </DialogTitle>
           <DialogContent>
-            <List sx={{ maxHeight: "60vh", overflow: "auto" }}>
-              {globalSearchResults.map((link) => (
-                <ListItem key={link._id} divider>
-                  <ListItemText
-                    primary={
-                      <Link
-                        href={link.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        sx={{
-                          color: 'primary.main',
-                          textDecoration: 'none',
-                          '&:hover': {
-                            textDecoration: 'underline'
-                          },
-                          '&:visited': {
-                            color: (theme) => theme.palette.mode === 'dark' 
-                              ? '#e0b0ff'  // Light purple for dark mode
-                              : '#551A8B'  // Standard visited purple for light mode
-                          }
-                        }}
-                      >
-                        {link.title}
-                      </Link>
-                    }
-                    secondary={
-                      <>
-                        <Typography variant="body2" color="text.secondary">
-                          Company: {link.company || "N/A"} | Posted:{" "}
-                          {link.date || "N/A"} | Added:{" "}
-                          {getRelativeTimeString(new Date(link.created_at))}
-                          {link.created_by && users[link.created_by] && (
-                            <> | By: {users[link.created_by]}</>
-                          )}
-                        </Typography>
-                        <Typography variant="body2">
-                          {link.description}
-                        </Typography>
-                      </>
-                    }
-                  />
-                  <Tooltip title="Show Details" placement="left">
-                    <Button
-                      size="small"
-                      onClick={() => setSelectedLink(link)}
-                      sx={{ 
-                        minWidth: "40px",
-                        height: "40px",
-                        borderRadius: 1
-                      }}
-                    >
-                      <InfoIcon color="action" />
-                    </Button>
-                  </Tooltip>
-                </ListItem>
-              ))}
-            </List>
+            <TableContainer>
+              <Table>
+                <TableBody>
+                  {globalSearchResults
+                    .slice(
+                      searchResultsPage * searchResultsRowsPerPage,
+                      searchResultsPage * searchResultsRowsPerPage + searchResultsRowsPerPage
+                    )
+                    .map((link) => (
+                      <TableRow key={link._id} hover>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                            <Link
+                              href={link.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              sx={{
+                                color: 'primary.main',
+                                textDecoration: 'none',
+                                fontSize: "1.1rem",
+                                fontFamily: '"Inter","Roboto","Helvetica","Arial",sans-serif',
+                                fontWeight: 500,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                '&:hover': {
+                                  textDecoration: 'underline'
+                                },
+                                '&:visited': {
+                                  color: (theme) => theme.palette.mode === 'dark' 
+                                    ? '#e0b0ff'
+                                    : '#551A8B'
+                                }
+                              }}
+                            >
+                              {link.title}
+                              {link.confidence && <ConfidenceIndicator confidence={link.confidence} />}
+                            </Link>
+                            <Typography variant="body2" color="text.secondary">
+                              Company: {link.company || "N/A"} | Posted:{" "}
+                              {link.date || "N/A"} | Added:{" "}
+                              {getRelativeTimeString(new Date(link.created_at))}
+                              {link.created_by && users[link.created_by] && (
+                                <> | By: {users[link.created_by]}</>
+                              )}
+                            </Typography>
+                            <Typography variant="body2">
+                              {link.description}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell align="right" sx={{ width: '60px' }}>
+                          <Tooltip title="Show Details" placement="left">
+                            <Button
+                              size="small"
+                              onClick={() => setSelectedLink(link)}
+                              sx={{ 
+                                minWidth: "40px",
+                                height: "40px",
+                                borderRadius: 1
+                              }}
+                            >
+                              <InfoIcon color="action" />
+                            </Button>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <TablePagination
+              component="div"
+              count={globalSearchResults.length}
+              page={searchResultsPage}
+              onPageChange={(event, newPage) => setSearchResultsPage(newPage)}
+              rowsPerPage={searchResultsRowsPerPage}
+              onRowsPerPageChange={(event) => {
+                setSearchResultsRowsPerPage(parseInt(event.target.value, 10));
+                setSearchResultsPage(0);
+              }}
+              rowsPerPageOptions={[10, 25, 50]}
+            />
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setOpenSearchDialog(false)}>Close</Button>
