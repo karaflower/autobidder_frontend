@@ -756,6 +756,7 @@ const BidLinks = () => {
         }
       );
       setGlobalSearchResults(Array.isArray(response.data) ? response.data : []);
+      setSearchResultsPage(0);
       setOpenSearchDialog(true);
     } catch (error) {
       console.error("Failed to perform global search:", error);
