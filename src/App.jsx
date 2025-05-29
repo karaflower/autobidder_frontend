@@ -331,7 +331,7 @@ function App() {
                       sx={{
                         flexGrow: 1,
                         ml: isNavExpanded ? '250px' : '65px',
-                        mt: 4,
+                        mt: 1,
                         p: 3,
                         minHeight: '100vh',
                         bgcolor: 'background.default',

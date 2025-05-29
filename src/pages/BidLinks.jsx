@@ -41,17 +41,24 @@ import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DoNotTouchIcon from "@mui/icons-material/DoNotTouch";
 import VisibilityIcon from "@mui/icons-material/Visibility";
-import InfoIcon from '@mui/icons-material/Info';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import SegmentIcon from '@mui/icons-material/Segment';
-import BarChartIcon from '@mui/icons-material/BarChart';
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, CartesianGrid } from 'recharts';
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
-import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import Slider from '@mui/material/Slider';
+import InfoIcon from "@mui/icons-material/Info";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import SegmentIcon from "@mui/icons-material/Segment";
+import BarChartIcon from "@mui/icons-material/BarChart";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  ResponsiveContainer,
+  CartesianGrid,
+} from "recharts";
+import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import Slider from "@mui/material/Slider";
 
-const OPENED_LINKS_STORAGE_KEY = 'openedBidLinks';
+const OPENED_LINKS_STORAGE_KEY = "openedBidLinks";
 const MAX_STORED_LINKS = 10000;
 const LINK_EXPIRY_DAYS = 30;
 
@@ -59,24 +66,29 @@ const getOpenedLinks = () => {
   try {
     const stored = localStorage.getItem(OPENED_LINKS_STORAGE_KEY);
     if (!stored) return [];
-    
+
     const links = JSON.parse(stored);
     const now = new Date().getTime();
-    
+
     // Filter out expired links
-    const validLinks = links.filter(link => {
-      const expiryDate = new Date(link.timestamp).getTime() + (LINK_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+    const validLinks = links.filter((link) => {
+      const expiryDate =
+        new Date(link.timestamp).getTime() +
+        LINK_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
       return now < expiryDate;
     });
-    
+
     // If we filtered out any expired links, update storage
     if (validLinks.length !== links.length) {
-      localStorage.setItem(OPENED_LINKS_STORAGE_KEY, JSON.stringify(validLinks));
+      localStorage.setItem(
+        OPENED_LINKS_STORAGE_KEY,
+        JSON.stringify(validLinks)
+      );
     }
-    
+
     return validLinks;
   } catch (error) {
-    console.error('Error reading opened links:', error);
+    console.error("Error reading opened links:", error);
     return [];
   }
 };
@@ -85,21 +97,26 @@ const addOpenedLinks = (newLinks) => {
   try {
     const currentLinks = getOpenedLinks();
     const now = new Date().getTime();
-    
+
     // Add new links with timestamp
-    const linksToAdd = newLinks.map(url => ({
+    const linksToAdd = newLinks.map((url) => ({
       url,
-      timestamp: now
+      timestamp: now,
     }));
-    
+
     // Combine with existing links and limit to MAX_STORED_LINKS
-    const updatedLinks = [...linksToAdd, ...currentLinks]
-      .slice(0, MAX_STORED_LINKS);
-    
-    localStorage.setItem(OPENED_LINKS_STORAGE_KEY, JSON.stringify(updatedLinks));
+    const updatedLinks = [...linksToAdd, ...currentLinks].slice(
+      0,
+      MAX_STORED_LINKS
+    );
+
+    localStorage.setItem(
+      OPENED_LINKS_STORAGE_KEY,
+      JSON.stringify(updatedLinks)
+    );
     return updatedLinks;
   } catch (error) {
-    console.error('Error saving opened links:', error);
+    console.error("Error saving opened links:", error);
     return currentLinks;
   }
 };
@@ -107,37 +124,40 @@ const addOpenedLinks = (newLinks) => {
 const ConfidenceIndicator = React.memo(({ confidence }) => {
   // Convert confidence from 0-1 to 0-100
   const score = Math.round((confidence || 0) * 100);
-  
+
   // Color gradient with theme-aware colors
   const getColor = (score, theme) => {
-    const isDarkMode = theme?.palette?.mode === 'dark';
-    
+    const isDarkMode = theme?.palette?.mode === "dark";
+
     if (score < 40) {
-      return isDarkMode ? '#ff5252' : 'hsl(0, 100%, 50%)'; // Red - brighter in dark mode
+      return isDarkMode ? "#ff5252" : "hsl(0, 100%, 50%)"; // Red - brighter in dark mode
     } else if (score < 80) {
-      return isDarkMode ? '#ffab2e' : 'hsl(60, 100.00%, 30.90%)'; // Yellow - brighter in dark mode
+      return isDarkMode ? "#ffab2e" : "hsl(60, 100.00%, 30.90%)"; // Yellow - brighter in dark mode
     }
-    return isDarkMode ? '#2cdb92' : 'hsl(120, 100%, 40%)'; // Green - brighter in dark mode
+    return isDarkMode ? "#2cdb92" : "hsl(120, 100%, 40%)"; // Green - brighter in dark mode
   };
 
   return (
     <Tooltip title={`Recommended: ${score}%`}>
       <Box
         sx={{
-          display: 'inline-flex',
-          position: 'relative',
+          display: "inline-flex",
+          position: "relative",
           width: 16,
           height: 16,
           ml: 1,
-          verticalAlign: 'text-bottom'
+          verticalAlign: "text-bottom",
         }}
       >
         <CircularProgress
           variant="determinate"
           value={100}
           sx={{
-            position: 'absolute',
-            color: (theme) => theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.2)' : theme.palette.grey[200]
+            position: "absolute",
+            color: (theme) =>
+              theme.palette.mode === "dark"
+                ? "rgba(255, 255, 255, 0.2)"
+                : theme.palette.grey[200],
           }}
           size={16}
         />
@@ -146,7 +166,7 @@ const ConfidenceIndicator = React.memo(({ confidence }) => {
           value={score}
           sx={{
             color: (theme) => getColor(score, theme),
-            position: 'absolute'
+            position: "absolute",
           }}
           size={16}
         />
@@ -156,129 +176,173 @@ const ConfidenceIndicator = React.memo(({ confidence }) => {
 });
 
 // Move NotificationConfigDialog outside of BidLinks component
-const NotificationConfigDialog = React.memo(({ 
-  open, 
-  onClose, 
-  notificationConfig, 
-  onConfigChange,
-  categories 
-}) => {
-  // Add local state to track temporary changes
-  const [tempConfig, setTempConfig] = useState(notificationConfig);
+const NotificationConfigDialog = React.memo(
+  ({
+    open,
+    onClose,
+    notificationConfig,
+    onConfigChange,
+    categories,
+    notificationsEnabled,
+    handleNotificationToggle,
+  }) => {
+    // Add local state to track temporary changes
+    const [tempConfig, setTempConfig] = useState(notificationConfig);
 
-  // Update tempConfig when notificationConfig prop changes
-  useEffect(() => {
-    setTempConfig(notificationConfig);
-  }, [notificationConfig]);
+    // Update tempConfig when notificationConfig prop changes
+    useEffect(() => {
+      setTempConfig(notificationConfig);
+    }, [notificationConfig]);
 
-  const handleSaveConfig = () => {
-    onConfigChange(tempConfig);
-    onClose();
-    toast.success('Notification settings saved');
-  };
+    const handleSaveConfig = () => {
+      onConfigChange(tempConfig);
+      onClose();
+      toast.success("Notification settings saved");
+    };
 
-  const handleCancel = () => {
-    setTempConfig(notificationConfig); // Reset to original config
-    onClose();
-  };
+    const handleCancel = () => {
+      setTempConfig(notificationConfig); // Reset to original config
+      onClose();
+    };
 
-  return (
-    <Dialog
-      open={open}
-      onClose={handleCancel}
-      maxWidth="sm"
-      fullWidth
-    >
-      <DialogTitle>Notification Settings</DialogTitle>
-      <DialogContent>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, pt: 3, pr: 3, pl: 3 }}>
-          <Box>
-            <Typography variant="subtitle1" gutterBottom>
-              Categories to Notify
-            </Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              {categories.map((category) => (
-                <Chip
-                  key={category}
-                  label={category}
-                  onClick={() => {
+    return (
+      <Dialog open={open} onClose={handleCancel} maxWidth="sm" fullWidth>
+        <DialogTitle>Notification Settings</DialogTitle>
+        <DialogContent>
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 3,
+              pt: 3,
+              pr: 3,
+              pl: 3,
+            }}
+          >
+            <Box>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={notificationsEnabled}
+                    onChange={handleNotificationToggle}
+                    color="primary"
+                  />
+                }
+                label="Enable Notifications"
+              />
+            </Box>
+            <>
+              <Box>
+                <Typography variant="subtitle1" gutterBottom>
+                  Categories to Notify
+                </Typography>
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                  {categories.map((category) => (
+                    <Chip
+                      key={category}
+                      label={category}
+                      onClick={() => {
+                        setTempConfig({
+                          ...tempConfig,
+                          categories: tempConfig.categories.includes(category)
+                            ? tempConfig.categories.filter(
+                                (c) => c !== category
+                              )
+                            : [...tempConfig.categories, category],
+                        });
+                      }}
+                      color={
+                        tempConfig.categories.includes(category)
+                          ? "primary"
+                          : "default"
+                      }
+                      variant={
+                        tempConfig.categories.includes(category)
+                          ? "filled"
+                          : "outlined"
+                      }
+                    />
+                  ))}
+                </Box>
+              </Box>
+
+              <Box>
+                <Typography variant="subtitle1" gutterBottom>
+                  Confidence Threshold
+                </Typography>
+                <TextField
+                  select
+                  fullWidth
+                  value={tempConfig.confidenceThreshold}
+                  onChange={(e) => {
                     setTempConfig({
                       ...tempConfig,
-                      categories: tempConfig.categories.includes(category)
-                        ? tempConfig.categories.filter(c => c !== category)
-                        : [...tempConfig.categories, category]
+                      confidenceThreshold: parseFloat(e.target.value),
                     });
                   }}
-                  color={tempConfig.categories.includes(category) ? "primary" : "default"}
-                  variant={tempConfig.categories.includes(category) ? "filled" : "outlined"}
-                />
-              ))}
-            </Box>
-          </Box>
+                  variant="outlined"
+                  size="small"
+                >
+                  {[1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0].map(
+                    (value) => (
+                      <MenuItem key={value} value={value}>
+                        {Math.round(value * 100)}%
+                      </MenuItem>
+                    )
+                  )}
+                </TextField>
+              </Box>
 
-          <Box>
-            <Typography variant="subtitle1" gutterBottom>
-              Confidence Threshold
-            </Typography>
-            <TextField
-              select
-              fullWidth
-              value={tempConfig.confidenceThreshold}
-              onChange={(e) => {
-                setTempConfig({
-                  ...tempConfig,
-                  confidenceThreshold: parseFloat(e.target.value)
-                });
-              }}
-              variant="outlined"
-              size="small"
-            >
-              {[1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0].map((value) => (
-                <MenuItem key={value} value={value}>
-                  {Math.round(value * 100)}%
-                </MenuItem>
-              ))}
-            </TextField>
+              <Box>
+                <Typography variant="subtitle1" gutterBottom>
+                  Date Limits
+                </Typography>
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                  {[
+                    { value: 0, label: "Any time" },
+                    { value: 1, label: "Past 24 hours" },
+                    { value: 7, label: "Past week" },
+                    { value: 30, label: "Past month" },
+                    { value: 365, label: "Past year" },
+                  ].map(({ value, label }) => (
+                    <Chip
+                      key={value}
+                      label={label}
+                      onClick={() => {
+                        setTempConfig({
+                          ...tempConfig,
+                          dateLimits: tempConfig.dateLimits.includes(value)
+                            ? tempConfig.dateLimits.filter((d) => d !== value)
+                            : [...tempConfig.dateLimits, value],
+                        });
+                      }}
+                      color={
+                        tempConfig.dateLimits.includes(value)
+                          ? "primary"
+                          : "default"
+                      }
+                      variant={
+                        tempConfig.dateLimits.includes(value)
+                          ? "filled"
+                          : "outlined"
+                      }
+                    />
+                  ))}
+                </Box>
+              </Box>
+            </>
           </Box>
-
-          <Box>
-            <Typography variant="subtitle1" gutterBottom>
-              Date Limits
-            </Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              {[
-                { value: 0, label: 'Any time' },
-                { value: 1, label: 'Past 24 hours' },
-                { value: 7, label: 'Past week' },
-                { value: 30, label: 'Past month' },
-                { value: 365, label: 'Past year' }
-              ].map(({ value, label }) => (
-                <Chip
-                  key={value}
-                  label={label}
-                  onClick={() => {
-                    setTempConfig({
-                      ...tempConfig,
-                      dateLimits: tempConfig.dateLimits.includes(value)
-                        ? tempConfig.dateLimits.filter(d => d !== value)
-                        : [...tempConfig.dateLimits, value]
-                    });
-                  }}
-                  color={tempConfig.dateLimits.includes(value) ? "primary" : "default"}
-                  variant={tempConfig.dateLimits.includes(value) ? "filled" : "outlined"}
-                />
-              ))}
-            </Box>
-          </Box>
-        </Box>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={handleCancel}>Cancel</Button>
-        <Button onClick={handleSaveConfig} variant="contained">Save</Button>
-      </DialogActions>
-    </Dialog>
-  );
-});
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancel}>Cancel</Button>
+          <Button onClick={handleSaveConfig} variant="contained">
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+    );
+  }
+);
 
 const BidLinks = () => {
   const [bidLinks, setBidLinks] = useState([]);
@@ -299,7 +363,7 @@ const BidLinks = () => {
   const [isReloadingBids, setIsReloadingBids] = useState(false);
   const [isSearchInputLoading, setIsSearchInputLoading] = useState(false);
   const [categories, setCategories] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState("all");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(() => {
     const stored = localStorage.getItem("rowsPerPage");
@@ -318,14 +382,14 @@ const BidLinks = () => {
     }
     return [-1];
   });
-  const [viewMode, setViewMode] = useState('categories');
+  const [viewMode, setViewMode] = useState("categories");
   const [selectedQueries, setSelectedQueries] = useState([]);
   const [openChartDialog, setOpenChartDialog] = useState(false);
   const [chartData, setChartData] = useState([]);
   const [selectedLink, setSelectedLink] = useState(null);
   const [confidenceFilter, setConfidenceFilter] = useState(-1); // -1 means no filter
-  const [sortBy, setSortBy] = useState('confidence'); // 'date' or 'confidence'
-  const [sortOrder, setSortOrder] = useState('desc'); // 'asc' or 'desc'
+  const [sortBy, setSortBy] = useState("confidence"); // 'date' or 'confidence'
+  const [sortOrder, setSortOrder] = useState("desc"); // 'asc' or 'desc'
   const [anchorEl, setAnchorEl] = useState(null);
   const [confidenceRange, setConfidenceRange] = useState([0.2, 1]); // Range from 0 to 1
   const [hiddenCategories, setHiddenCategories] = useState(() => {
@@ -334,19 +398,21 @@ const BidLinks = () => {
   });
   const [notifiedJobs, setNotifiedJobs] = useState(new Set());
   const [notificationsEnabled, setNotificationsEnabled] = useState(() => {
-    const stored = localStorage.getItem('notificationsEnabled');
+    const stored = localStorage.getItem("notificationsEnabled");
     return stored ? JSON.parse(stored) : false;
   });
   const lastFetchTime = useRef(null);
   const lastNotificationCheck = useRef(new Date());
   const [openedLinks, setOpenedLinks] = useState(() => getOpenedLinks());
   const [notificationConfig, setNotificationConfig] = useState(() => {
-    const stored = localStorage.getItem('notificationConfig');
-    return stored ? JSON.parse(stored) : {
-      categories: [],
-      confidenceThreshold: 0.7,
-      dateLimits: []
-    };
+    const stored = localStorage.getItem("notificationConfig");
+    return stored
+      ? JSON.parse(stored)
+      : {
+          categories: [],
+          confidenceThreshold: 0.7,
+          dateLimits: [],
+        };
   });
   const [openNotificationConfig, setOpenNotificationConfig] = useState(false);
   const [searchResultsPage, setSearchResultsPage] = useState(0);
@@ -355,51 +421,57 @@ const BidLinks = () => {
   const getRelativeTimeString = (date) => {
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
+
     // Handle days + hours specially
-    if (diffInSeconds >= 86400) { // More than a day
+    if (diffInSeconds >= 86400) {
+      // More than a day
       const days = Math.floor(diffInSeconds / 86400);
       const remainingHours = Math.floor((diffInSeconds % 86400) / 3600);
-      
+
       if (remainingHours === 0) {
-        return days === 1 ? '1 day ago' : `${days} days ago`;
+        return days === 1 ? "1 day ago" : `${days} days ago`;
       }
-      return days === 1 
-        ? `1 day ${remainingHours} ${remainingHours === 1 ? 'hour' : 'hours'} ago`
-        : `${days} days ${remainingHours} ${remainingHours === 1 ? 'hour' : 'hours'} ago`;
+      return days === 1
+        ? `1 day ${remainingHours} ${
+            remainingHours === 1 ? "hour" : "hours"
+          } ago`
+        : `${days} days ${remainingHours} ${
+            remainingHours === 1 ? "hour" : "hours"
+          } ago`;
     }
     const intervals = {
       hour: 3600,
-      minute: 60
+      minute: 60,
     };
-  
+
     for (const [unit, seconds] of Object.entries(intervals)) {
       const interval = Math.floor(diffInSeconds / seconds);
       if (interval >= 1) {
         return interval === 1 ? `1 ${unit} ago` : `${interval} ${unit}s ago`;
       }
     }
-    
-    return 'just now';
+
+    return "just now";
   };
-  
 
   const getQueriesForCategory = (category) => {
-    const dateLimits = Array.isArray(queryDateLimit) ? queryDateLimit : [queryDateLimit];
+    const dateLimits = Array.isArray(queryDateLimit)
+      ? queryDateLimit
+      : [queryDateLimit];
     const queries = bidLinks
-      .filter(link => {
+      .filter((link) => {
         // First apply date filter
         if (dateLimits.length > 0) {
-          const matchesDateLimit = dateLimits.some(limit => {
+          const matchesDateLimit = dateLimits.some((limit) => {
             if (limit === -1) return true;
             if (limit === 0) return link.queryDateLimit == null;
             return link.queryDateLimit === limit;
           });
           if (!matchesDateLimit) return false;
         }
-        
+
         // Then apply category filter
-        return category === 'all' || link.queryId?.category === category;
+        return category === "all" || link.queryId?.category === category;
       })
       .reduce((acc, link) => {
         if (link.queryId?.link) {
@@ -418,9 +490,11 @@ const BidLinks = () => {
       }
 
       // Date limit filter
-      const dateLimits = Array.isArray(queryDateLimit) ? queryDateLimit : [queryDateLimit];
+      const dateLimits = Array.isArray(queryDateLimit)
+        ? queryDateLimit
+        : [queryDateLimit];
       if (dateLimits.length > 0) {
-        const matchesDateLimit = dateLimits.some(limit => {
+        const matchesDateLimit = dateLimits.some((limit) => {
           if (limit === -1) return true;
           if (limit === 0) return link.queryDateLimit == null;
           return link.queryDateLimit === limit;
@@ -429,7 +503,10 @@ const BidLinks = () => {
       }
 
       // Category filter
-      if (selectedCategory !== 'all' && link.queryId?.category !== selectedCategory) {
+      if (
+        selectedCategory !== "all" &&
+        link.queryId?.category !== selectedCategory
+      ) {
         return false;
       }
 
@@ -456,13 +533,13 @@ const BidLinks = () => {
 
     // Sort the filtered results
     filtered.sort((a, b) => {
-      if (sortBy === 'confidence') {
+      if (sortBy === "confidence") {
         const confA = a.confidence || 0;
         const confB = b.confidence || 0;
-        return sortOrder === 'desc' ? confB - confA : confA - confB;
+        return sortOrder === "desc" ? confB - confA : confA - confB;
       } else {
         // Default date sorting
-        return sortOrder === 'desc' 
+        return sortOrder === "desc"
           ? new Date(b.created_at) - new Date(a.created_at)
           : new Date(a.created_at) - new Date(b.created_at);
       }
@@ -491,14 +568,14 @@ const BidLinks = () => {
   const handleNotificationToggle = async (event) => {
     const enabled = event.target.checked;
     setNotificationsEnabled(enabled);
-    localStorage.setItem('notificationsEnabled', JSON.stringify(enabled));
-    
+    localStorage.setItem("notificationsEnabled", JSON.stringify(enabled));
+
     if (enabled) {
       const permissionGranted = await requestNotificationPermission();
       if (!permissionGranted) {
         setNotificationsEnabled(false);
-        localStorage.setItem('notificationsEnabled', JSON.stringify(false));
-        toast.error('Please enable notifications in your browser settings');
+        localStorage.setItem("notificationsEnabled", JSON.stringify(false));
+        toast.error("Please enable notifications in your browser settings");
       }
     }
   };
@@ -521,19 +598,21 @@ const BidLinks = () => {
   // Function to show notification
   const showNotification = (job) => {
     if (!notificationsEnabled) return;
-    
+
     if (Notification.permission === "granted") {
       const notification = new Notification("New High-Confidence Job Found", {
-        body: `${job.title || 'Untitled'} - ${job.company || 'Unknown Company'}`,
+        body: `${job.title || "Untitled"} - ${
+          job.company || "Unknown Company"
+        }`,
         icon: "/favicon.ico",
         tag: job._id,
         requireInteraction: true,
-        data: { url: job.url }
+        data: { url: job.url },
       });
 
-      notification.onclick = function() {
+      notification.onclick = function () {
         window.focus();
-        window.open(job.url, '_blank');
+        window.open(job.url, "_blank");
         notification.close();
       };
     }
@@ -542,20 +621,22 @@ const BidLinks = () => {
   // Function to check for new high-confidence jobs
   const checkNewHighConfidenceJobs = (newBidLinks) => {
     if (!notificationsEnabled) return;
-    
+
     const currentTime = new Date();
-    
+
     // Filter jobs that were indexed after the last notification check
-    const newJobs = newBidLinks.filter(job => {
+    const newJobs = newBidLinks.filter((job) => {
       const jobCreatedAt = new Date(job.created_at);
       return jobCreatedAt > lastNotificationCheck.current;
     });
-    
+
     // Check each new job against notification config
-    newJobs.forEach(job => {
+    newJobs.forEach((job) => {
       // Check category
-      if (notificationConfig.categories.length > 0 && 
-          !notificationConfig.categories.includes(job.queryId?.category)) {
+      if (
+        notificationConfig.categories.length > 0 &&
+        !notificationConfig.categories.includes(job.queryId?.category)
+      ) {
         return;
       }
 
@@ -569,8 +650,8 @@ const BidLinks = () => {
         const jobDate = new Date(job.date);
         const now = new Date();
         const daysDiff = Math.floor((now - jobDate) / (1000 * 60 * 60 * 24));
-        
-        const matchesDateLimit = notificationConfig.dateLimits.some(limit => {
+
+        const matchesDateLimit = notificationConfig.dateLimits.some((limit) => {
           if (limit === 0) return true;
           return daysDiff <= limit;
         });
@@ -581,7 +662,7 @@ const BidLinks = () => {
       // If we get here, the job matches all criteria
       if (!notifiedJobs.has(job._id)) {
         showNotification(job);
-        setNotifiedJobs(prev => new Set([...prev, job._id]));
+        setNotifiedJobs((prev) => new Set([...prev, job._id]));
       }
     });
 
@@ -593,7 +674,7 @@ const BidLinks = () => {
   const fetchBidLinks = async () => {
     try {
       setIsReloadingBids(true);
-      
+
       // Convert selectedDate to local timezone's 00:00:00 to 23:59:59
       const fromDate = new Date(selectedDate);
       fromDate.setHours(0, 0, 0, 0);
@@ -623,7 +704,7 @@ const BidLinks = () => {
       if (lastFetchTime.current) {
         checkNewHighConfidenceJobs(sortedLinks);
       }
-      
+
       lastFetchTime.current = new Date();
       setBidLinks(sortedLinks);
     } catch (err) {
@@ -641,7 +722,7 @@ const BidLinks = () => {
   // Set up auto-refresh every 30 minutes
   useEffect(() => {
     fetchBidLinks(); // Initial fetch
-    
+
     const intervalId = setInterval(() => {
       fetchBidLinks();
     }, 30 * 60 * 1000); // 30 minutes in milliseconds
@@ -651,11 +732,14 @@ const BidLinks = () => {
 
   useEffect(() => {
     // Extract unique categories from bidLinks
-    const uniqueCategories = [...new Set(bidLinks
-      .filter(link => link.queryId?.category) // Only include links with queryId.category
-      .map(link => link.queryId.category)
-    )].sort();
-    
+    const uniqueCategories = [
+      ...new Set(
+        bidLinks
+          .filter((link) => link.queryId?.category) // Only include links with queryId.category
+          .map((link) => link.queryId.category)
+      ),
+    ].sort();
+
     setCategories(uniqueCategories);
   }, [bidLinks]);
 
@@ -664,7 +748,7 @@ const BidLinks = () => {
       const response = await axios.get(
         `${process.env.REACT_APP_API_URL}/bid-links/blacklist`,
         {
-          params: { isTeam: isTeam }
+          params: { isTeam: isTeam },
         }
       );
       setBlacklists(response.data.blacklists || []);
@@ -679,17 +763,21 @@ const BidLinks = () => {
     try {
       // Split by comma and trim each entry
       const blacklistArray = newBlackWords
-        .split(',')
-        .map(word => word.trim())
-        .filter(word => word.length > 0); // Filter out empty strings
+        .split(",")
+        .map((word) => word.trim())
+        .filter((word) => word.length > 0); // Filter out empty strings
 
       await axios.post(`${process.env.REACT_APP_API_URL}/bid-links/blacklist`, {
         blacklists: blacklistArray,
-        isTeam: isTeam
+        isTeam: isTeam,
       });
       await fetchBlacklists(isTeam);
       await fetchBidLinks();
-      toast.success(`${blacklistArray.length} item(s) added to ${isTeam ? 'team' : 'personal'} blacklist`);
+      toast.success(
+        `${blacklistArray.length} item(s) added to ${
+          isTeam ? "team" : "personal"
+        } blacklist`
+      );
     } catch (error) {
       console.error("Failed to add to blacklist:", error);
       toast.error("Failed to add to blacklist");
@@ -706,7 +794,7 @@ const BidLinks = () => {
     try {
       await axios.post(`${process.env.REACT_APP_API_URL}/bid-links/blacklist`, {
         blacklists: [company.trim()],
-        isTeam: true // Always add to team blacklist
+        isTeam: true, // Always add to team blacklist
       });
       await fetchBlacklists(true); // Fetch team blacklists to update the count
       toast.success(`Added ${company} to team blacklist`);
@@ -723,15 +811,17 @@ const BidLinks = () => {
       await axios.delete(
         `${process.env.REACT_APP_API_URL}/bid-links/blacklist`,
         {
-          data: { 
+          data: {
             blacklists: [urlToDelete],
-            isTeam: isTeam
+            isTeam: isTeam,
           },
         }
       );
       await fetchBlacklists(isTeam);
       await fetchBidLinks();
-      toast.success(`URL removed from ${isTeam ? 'team' : 'personal'} blacklist`);
+      toast.success(
+        `URL removed from ${isTeam ? "team" : "personal"} blacklist`
+      );
     } catch (error) {
       console.error("Failed to remove from blacklist:", error);
       toast.error("Failed to remove from blacklist");
@@ -768,15 +858,17 @@ const BidLinks = () => {
 
   const fetchTeamMembers = async () => {
     try {
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/teams/my-team`);
+      const response = await axios.get(
+        `${process.env.REACT_APP_API_URL}/teams/my-team`
+      );
       const membersMap = {};
-      response.data.forEach(member => {
+      response.data.forEach((member) => {
         membersMap[member._id] = member.name;
       });
       setTeamMembers(membersMap);
     } catch (error) {
-      console.error('Failed to fetch team members:', error);
-      toast.error('Failed to fetch team members');
+      console.error("Failed to fetch team members:", error);
+      toast.error("Failed to fetch team members");
     }
   };
 
@@ -788,14 +880,14 @@ const BidLinks = () => {
   useEffect(() => {
     window.scrollTo({
       top: 0,
-      behavior: 'smooth'
+      behavior: "smooth",
     });
   }, [page]);
 
   const generateChartData = () => {
     // Set the dialog to open first
     setOpenChartDialog(true);
-    
+
     // We'll let the ChartDialog component handle data fetching
     // No need to set chart data here anymore
   };
@@ -810,12 +902,12 @@ const BidLinks = () => {
 
   const renderBlacklistPanel = () => {
     const [isAddingBlacklist, setIsAddingBlacklist] = useState(false);
-    const [blacklistType, setBlacklistType] = useState('team'); // Default to team blacklist
+    const [blacklistType, setBlacklistType] = useState("team"); // Default to team blacklist
 
     // Add this useEffect to fetch the blacklists when the panel opens
     useEffect(() => {
       if (openBlacklistDialog) {
-        fetchBlacklists(blacklistType === 'team');
+        fetchBlacklists(blacklistType === "team");
       }
     }, [openBlacklistDialog]);
 
@@ -823,7 +915,7 @@ const BidLinks = () => {
       if (!value.trim()) return;
       setIsAddingBlacklist(true);
       try {
-        await handleAddBlacklist(value, blacklistType === 'team');
+        await handleAddBlacklist(value, blacklistType === "team");
         // Clear the input value after successful addition
         return true; // Return true to indicate success
       } finally {
@@ -847,33 +939,33 @@ const BidLinks = () => {
           <Typography variant="h6" gutterBottom>
             Manage Blacklisted Words
           </Typography>
-          
+
           {/* Add tabs for My/Team selection */}
-          <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
-            <Box sx={{ display: 'flex' }}>
-              <Button 
-                variant={blacklistType === 'personal' ? 'contained' : 'text'}
+          <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}>
+            <Box sx={{ display: "flex" }}>
+              <Button
+                variant={blacklistType === "personal" ? "contained" : "text"}
                 onClick={() => {
-                  setBlacklistType('personal');
+                  setBlacklistType("personal");
                   fetchBlacklists(false);
                 }}
-                sx={{ flex: 1, borderRadius: '4px 0 0 4px' }}
+                sx={{ flex: 1, borderRadius: "4px 0 0 4px" }}
               >
                 My Blacklist
               </Button>
-              <Button 
-                variant={blacklistType === 'team' ? 'contained' : 'text'}
+              <Button
+                variant={blacklistType === "team" ? "contained" : "text"}
                 onClick={() => {
-                  setBlacklistType('team');
+                  setBlacklistType("team");
                   fetchBlacklists(true);
                 }}
-                sx={{ flex: 1, borderRadius: '0 4px 4px 0' }}
+                sx={{ flex: 1, borderRadius: "0 4px 4px 0" }}
               >
                 Team Blacklist
               </Button>
             </Box>
           </Box>
-          
+
           <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
             <TextField
               fullWidth
@@ -886,13 +978,13 @@ const BidLinks = () => {
                 if (e.key === "Enter") {
                   const success = await handleBlacklistSubmit(e.target.value);
                   if (success) {
-                    e.target.value = '';
+                    e.target.value = "";
                   }
                 }
               }}
               InputProps={{
                 endAdornment: isAddingBlacklist && (
-                  <CircularProgress size={20}/>
+                  <CircularProgress size={20} />
                 ),
               }}
             />
@@ -906,7 +998,9 @@ const BidLinks = () => {
                   <IconButton
                     edge="end"
                     aria-label="delete"
-                    onClick={() => handleDeleteBlacklist(url, blacklistType === 'team')}
+                    onClick={() =>
+                      handleDeleteBlacklist(url, blacklistType === "team")
+                    }
                   >
                     <DeleteIcon />
                   </IconButton>
@@ -940,17 +1034,22 @@ const BidLinks = () => {
 
   const DetailDialog = React.memo(({ open, onClose, link }) => {
     if (!link) return null;
-    
+
     // Helper function to format queryDateLimit
     const formatQueryDateLimit = (days) => {
-      if (days === null || days === undefined) return 'Any time';
-      
-      switch(days) {
-        case 1: return 'Past 24 hours';
-        case 7: return 'Past week';
-        case 30: return 'Past month';
-        case 365: return 'Past year';
-        default: return `${days} days`;
+      if (days === null || days === undefined) return "Any time";
+
+      switch (days) {
+        case 1:
+          return "Past 24 hours";
+        case 7:
+          return "Past week";
+        case 30:
+          return "Past month";
+        case 365:
+          return "Past year";
+        default:
+          return `${days} days`;
       }
     };
 
@@ -960,50 +1059,51 @@ const BidLinks = () => {
         <DialogContent>
           <List>
             <ListItem>
-              <ListItemText 
-                primary="Title"
-                secondary={link.title || 'N/A'}
-              />
+              <ListItemText primary="Title" secondary={link.title || "N/A"} />
             </ListItem>
             <ListItem>
-              <ListItemText 
+              <ListItemText
                 primary="URL"
                 secondary={
-                  <Link href={link.url} target="_blank" rel="noopener noreferrer">
+                  <Link
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     {link.url}
                   </Link>
                 }
               />
             </ListItem>
             <ListItem>
-              <ListItemText 
+              <ListItemText
                 primary="Company"
-                secondary={link.company || 'N/A'}
+                secondary={link.company || "N/A"}
               />
             </ListItem>
             <ListItem>
-              <ListItemText 
+              <ListItemText
                 primary="Description"
-                secondary={link.description || 'N/A'}
-                secondaryTypographyProps={{ 
-                  style: { whiteSpace: 'pre-wrap' } 
+                secondary={link.description || "N/A"}
+                secondaryTypographyProps={{
+                  style: { whiteSpace: "pre-wrap" },
                 }}
               />
             </ListItem>
             <ListItem>
-              <ListItemText 
+              <ListItemText
                 primary="Posted Date"
-                secondary={link.date || 'N/A'}
+                secondary={link.date || "N/A"}
               />
             </ListItem>
             <ListItem>
-              <ListItemText 
+              <ListItemText
                 primary="Indexed By"
-                secondary={teamMembers[link.created_by] || 'Unknown'}
+                secondary={teamMembers[link.created_by] || "Unknown"}
               />
             </ListItem>
             <ListItem>
-              <ListItemText 
+              <ListItemText
                 primary="Indexed"
                 secondary={getRelativeTimeString(new Date(link.created_at))}
               />
@@ -1011,21 +1111,21 @@ const BidLinks = () => {
             {link.queryId && (
               <>
                 <ListItem>
-                  <ListItemText 
+                  <ListItemText
                     primary="Query Used"
                     secondary={link.queryId.link}
                   />
                 </ListItem>
                 <ListItem>
-                  <ListItemText 
+                  <ListItemText
                     primary="Query Date Limit"
                     secondary={formatQueryDateLimit(link.queryDateLimit)}
                   />
                 </ListItem>
                 <ListItem>
-                  <ListItemText 
+                  <ListItemText
                     primary="Category"
-                    secondary={link.queryId.category || 'N/A'}
+                    secondary={link.queryId.category || "N/A"}
                   />
                 </ListItem>
               </>
@@ -1033,15 +1133,15 @@ const BidLinks = () => {
             {link.confidence && (
               <>
                 <ListItem>
-                  <ListItemText 
+                  <ListItemText
                     primary="Confidence"
-                    secondary={link.confidence || 'N/A'}
+                    secondary={link.confidence || "N/A"}
                   />
                 </ListItem>
                 <ListItem>
-                  <ListItemText 
+                  <ListItemText
                     primary="Reason"
-                    secondary={link.reason || 'N/A'}
+                    secondary={link.reason || "N/A"}
                   />
                 </ListItem>
               </>
@@ -1055,184 +1155,199 @@ const BidLinks = () => {
     );
   });
 
-  const FilteredBidLinks = React.memo(
-    ({ filteredBidLinks, users }) => {
-      const [goToPage, setGoToPage] = useState('');
-      const emptyRows = page > 0 
-        ? Math.max(0, (1 + page) * rowsPerPage - filteredBidLinks.length) 
+  const FilteredBidLinks = React.memo(({ filteredBidLinks, users }) => {
+    const [goToPage, setGoToPage] = useState("");
+    const emptyRows =
+      page > 0
+        ? Math.max(0, (1 + page) * rowsPerPage - filteredBidLinks.length)
         : 0;
 
-      if (filteredBidLinks.length === 0) {
-        return (
-          <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-            <Typography variant="h6" color="text.secondary">
-              No links
-            </Typography>
-          </Box>
-        );
-      }
-
-      const PaginationComponent = () => {
-        const totalPages = Math.ceil(filteredBidLinks.length / rowsPerPage);
-
-        return (
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'flex-end', 
-            alignItems: 'center',
-            p: 2,
-            gap: 2
-          }}>
-            <TablePagination
-              component="div"
-              count={filteredBidLinks.length}
-              page={page}
-              onPageChange={(event, newPage) => setPage(newPage)}
-              rowsPerPage={rowsPerPage}
-              onRowsPerPageChange={(event) => {
-                const newRowsPerPage = parseInt(event.target.value, 10);
-                setRowsPerPage(newRowsPerPage);
-                localStorage.setItem("rowsPerPage", newRowsPerPage.toString());
-                setPage(0);
-              }}
-              showFirstButton
-              showLastButton
-            />
-          </Box>
-        );
-      };
-
+    if (filteredBidLinks.length === 0) {
       return (
-        <Box sx={{ width: '100%' }}>
-          <Paper sx={{
-            borderRadius: 2,
-            overflow: 'hidden',
-          }}>
-            <PaginationComponent />
-            <TableContainer sx={{ minWidth: "100%" }}>
-              <Table aria-labelledby="tableTitle">
-                <TableBody>
-                  {filteredBidLinks
-                    .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                    .map((link, index) => {
-                      const fullIndex = page * rowsPerPage + index + 1;
-                      return (
-                        <TableRow 
-                          hover 
-                          key={link._id}
-                          sx={{ 
-                            '&:hover': {
-                              backgroundColor: 'rgba(0, 0, 0, 0.02) !important',
-                            },
-                            '&:nth-of-type(even)': {
-                              backgroundColor: 'rgba(0, 0, 0, 0.01)'
-                            }
-                          }}
-                        >
-                          <TableCell sx={{ py: 1.5, px: 3 }}>{fullIndex}</TableCell>
-                          <TableCell 
-                            sx={{ py: 1.5, px: 3 }}
-                          >
-                            <Link
-                              href={link.url}
-                              target="_blank"
-                              sx={{ 
-                                fontSize: "1.1rem",
-                                fontFamily: '"Inter","Roboto","Helvetica","Arial",sans-serif',
-                                fontWeight: 500,
-                                textDecoration: 'none',
-                                color: 'primary.main',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                '&:hover': {
-                                  textDecoration: 'underline'
-                                },
-                                '&:visited': {
-                                  color: (theme) => theme.palette.mode === 'dark' 
-                                    ? '#e0b0ff'  // Light purple for dark mode
-                                    : '#551A8B'  // Standard visited purple for light mode
-                                },
-                                ...(openedLinks.some(openedLink => openedLink.url === link.url) && {
-                                  color: (theme) => theme.palette.mode === 'dark' 
-                                    ? '#e0b0ff'  // Light purple for dark mode
-                                    : '#551A8B'  // Standard visited purple for light mode
-                                })
-                              }}
-                            >
-                              {link.title}
-                              {link.confidence && <ConfidenceIndicator confidence={link.confidence} />}
-                            </Link>
-                            <Typography 
-                              variant="body2" 
-                              color="text.secondary"
-                              sx={{ 
-                                mt: 1,
-                                lineHeight: 1.6
-                              }}
-                            >
-                              {(link.company || link.date) && (
-                                <>
-                                  {link.company && (
-                                    <>Company: {link.company}</>
-                                  )}
-                                  {link.company && link.date && " | "}
-                                  {link.date && (
-                                    <>Posted: {link.date}</>
-                                  )}
-                                  <br />
-                                </>
-                              )}
-                              {link.description}
-                            </Typography>
-                          </TableCell>
-                          <TableCell sx={{ py: 1, px: 3 }}>
-                            <Box sx={{ 
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 1
-                            }}>
-                              <Tooltip title="Show Details" placement="left">
-                                <Button
-                                  size="small"
-                                  onClick={() => setSelectedLink(link)}
-                                  sx={{ 
-                                    minWidth: "40px",
-                                    height: "40px",
-                                    borderRadius: 1
-                                  }}
-                                >
-                                  <InfoIcon color="action" />
-                                </Button>
-                              </Tooltip>
-                              {link.company && (
-                                <Tooltip title={`Add ${link.company} to blacklist`} placement="left">                                  
-                                  <Button
-                                    size="small"
-                                    onClick={() => handleAddCompanyToBlacklist(link.company)}
-                                    sx={{ 
-                                      minWidth: "40px",
-                                      height: "40px",
-                                      borderRadius: 1
-                                    }}
-                                  >
-                                    <DoNotTouchIcon color="action" />
-                                  </Button>
-                                </Tooltip>
-                              )}
-                            </Box>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                </TableBody>
-              </Table>
-            </TableContainer>
-            <PaginationComponent />
-          </Paper>
+        <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
+          <Typography variant="h6" color="text.secondary">
+            No links
+          </Typography>
         </Box>
       );
     }
-  );
+
+    const PaginationComponent = () => {
+      const totalPages = Math.ceil(filteredBidLinks.length / rowsPerPage);
+
+      return (
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "flex-end",
+            alignItems: "center",
+            p: 2,
+            gap: 2,
+          }}
+        >
+          <TablePagination
+            component="div"
+            count={filteredBidLinks.length}
+            page={page}
+            onPageChange={(event, newPage) => setPage(newPage)}
+            rowsPerPage={rowsPerPage}
+            onRowsPerPageChange={(event) => {
+              const newRowsPerPage = parseInt(event.target.value, 10);
+              setRowsPerPage(newRowsPerPage);
+              localStorage.setItem("rowsPerPage", newRowsPerPage.toString());
+              setPage(0);
+            }}
+            showFirstButton
+            showLastButton
+          />
+        </Box>
+      );
+    };
+
+    return (
+      <Box sx={{ width: "100%" }}>
+        <Paper
+          sx={{
+            borderRadius: 2,
+            overflow: "hidden",
+          }}
+        >
+          <PaginationComponent />
+          <TableContainer sx={{ minWidth: "100%" }}>
+            <Table aria-labelledby="tableTitle">
+              <TableBody>
+                {filteredBidLinks
+                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                  .map((link, index) => {
+                    const fullIndex = page * rowsPerPage + index + 1;
+                    return (
+                      <TableRow
+                        hover
+                        key={link._id}
+                        sx={{
+                          "&:hover": {
+                            backgroundColor: "rgba(0, 0, 0, 0.02) !important",
+                          },
+                          "&:nth-of-type(even)": {
+                            backgroundColor: "rgba(0, 0, 0, 0.01)",
+                          },
+                        }}
+                      >
+                        <TableCell sx={{ py: 1.5, px: 3 }}>
+                          {fullIndex}
+                        </TableCell>
+                        <TableCell sx={{ py: 1.5, px: 3 }}>
+                          <Link
+                            href={link.url}
+                            target="_blank"
+                            sx={{
+                              fontSize: "1.1rem",
+                              fontFamily:
+                                '"Inter","Roboto","Helvetica","Arial",sans-serif',
+                              fontWeight: 500,
+                              textDecoration: "none",
+                              color: "primary.main",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              "&:hover": {
+                                textDecoration: "underline",
+                              },
+                              "&:visited": {
+                                color: (theme) =>
+                                  theme.palette.mode === "dark"
+                                    ? "#e0b0ff" // Light purple for dark mode
+                                    : "#551A8B", // Standard visited purple for light mode
+                              },
+                              ...(openedLinks.some(
+                                (openedLink) => openedLink.url === link.url
+                              ) && {
+                                color: (theme) =>
+                                  theme.palette.mode === "dark"
+                                    ? "#e0b0ff" // Light purple for dark mode
+                                    : "#551A8B", // Standard visited purple for light mode
+                              }),
+                            }}
+                          >
+                            {link.title}
+                            {link.confidence && (
+                              <ConfidenceIndicator
+                                confidence={link.confidence}
+                              />
+                            )}
+                          </Link>
+                          <Typography
+                            variant="body2"
+                            color="text.secondary"
+                            sx={{
+                              mt: 1,
+                              lineHeight: 1.6,
+                            }}
+                          >
+                            {(link.company || link.date) && (
+                              <>
+                                {link.company && <>Company: {link.company}</>}
+                                {link.company && link.date && " | "}
+                                {link.date && <>Posted: {link.date}</>}
+                                <br />
+                              </>
+                            )}
+                            {link.description}
+                          </Typography>
+                        </TableCell>
+                        <TableCell sx={{ py: 1, px: 3 }}>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 1,
+                            }}
+                          >
+                            <Tooltip title="Show Details" placement="left">
+                              <Button
+                                size="small"
+                                onClick={() => setSelectedLink(link)}
+                                sx={{
+                                  minWidth: "40px",
+                                  height: "40px",
+                                  borderRadius: 1,
+                                }}
+                              >
+                                <InfoIcon color="action" />
+                              </Button>
+                            </Tooltip>
+                            {link.company && (
+                              <Tooltip
+                                title={`Add ${link.company} to blacklist`}
+                                placement="left"
+                              >
+                                <Button
+                                  size="small"
+                                  onClick={() =>
+                                    handleAddCompanyToBlacklist(link.company)
+                                  }
+                                  sx={{
+                                    minWidth: "40px",
+                                    height: "40px",
+                                    borderRadius: 1,
+                                  }}
+                                >
+                                  <DoNotTouchIcon color="action" />
+                                </Button>
+                              </Tooltip>
+                            )}
+                          </Box>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <PaginationComponent />
+        </Paper>
+      </Box>
+    );
+  });
 
   const ChartDialog = () => {
     const [dateRange, setDateRange] = useState(7); // Default to 7 days
@@ -1244,11 +1359,11 @@ const BidLinks = () => {
     const fetchChartData = async (range) => {
       setIsLoading(true);
       setError(null);
-      
+
       try {
         const toDate = new Date();
         const fromDate = new Date();
-        
+
         // If range is 0 (all time), use a far past date
         if (range === 0) {
           fromDate.setFullYear(fromDate.getFullYear() - 5); // Go back 5 years
@@ -1264,20 +1379,27 @@ const BidLinks = () => {
         });
 
         const response = await axios.get(
-          `${process.env.REACT_APP_API_URL}/bid-links/daily-count?${params.toString()}`
+          `${
+            process.env.REACT_APP_API_URL
+          }/bid-links/daily-count?${params.toString()}`
         );
 
         // Transform the data to match the chart format
-        const transformedData = response.data.dailyCounts.map(item => ({
-          date: new Date(item._id).toLocaleDateString(),
-          count: item.count
-        })).sort((a, b) => new Date(a.date) - new Date(b.date));
+        const transformedData = response.data.dailyCounts
+          .map((item) => ({
+            date: new Date(item._id).toLocaleDateString(),
+            count: item.count,
+          }))
+          .sort((a, b) => new Date(a.date) - new Date(b.date));
 
         setLocalChartData(transformedData);
       } catch (error) {
-        console.error('Failed to fetch chart data:', error);
-        setError('Failed to fetch chart data. Please try again.');
-        toast.error('Failed to load chart data: ' + (error.response?.data?.message || error.message));
+        console.error("Failed to fetch chart data:", error);
+        setError("Failed to fetch chart data. Please try again.");
+        toast.error(
+          "Failed to load chart data: " +
+            (error.response?.data?.message || error.message)
+        );
       } finally {
         setIsLoading(false);
       }
@@ -1294,9 +1416,16 @@ const BidLinks = () => {
     const CustomTooltip = ({ active, payload, label }) => {
       if (active && payload && payload.length) {
         return (
-          <Paper elevation={3} sx={{ p: 1.5, backgroundColor: 'rgba(255, 255, 255, 0.9)' }}>
-            <Typography variant="body2"><strong>Date:</strong> {label}</Typography>
-            <Typography variant="body2"><strong>Count:</strong> {payload[0].value}</Typography>
+          <Paper
+            elevation={3}
+            sx={{ p: 1.5, backgroundColor: "rgba(255, 255, 255, 0.9)" }}
+          >
+            <Typography variant="body2">
+              <strong>Date:</strong> {label}
+            </Typography>
+            <Typography variant="body2">
+              <strong>Count:</strong> {payload[0].value}
+            </Typography>
           </Paper>
         );
       }
@@ -1311,7 +1440,7 @@ const BidLinks = () => {
         fullWidth
       >
         <DialogTitle>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <span>Bid Links Distribution</span>
             <TextField
               select
@@ -1333,31 +1462,62 @@ const BidLinks = () => {
         <DialogContent>
           <Box sx={{ height: 400, pt: 2 }}>
             {isLoading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  height: "100%",
+                }}
+              >
                 <CircularProgress />
               </Box>
             ) : error ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', flexDirection: 'column', gap: 2 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  height: "100%",
+                  flexDirection: "column",
+                  gap: 2,
+                }}
+              >
                 <Typography color="error">{error}</Typography>
-                <Button variant="outlined" onClick={() => fetchChartData(dateRange)}>
+                <Button
+                  variant="outlined"
+                  onClick={() => fetchChartData(dateRange)}
+                >
                   Retry
                 </Button>
               </Box>
             ) : localChartData.length === 0 ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-                <Typography>No data available for the selected time range</Typography>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  height: "100%",
+                }}
+              >
+                <Typography>
+                  No data available for the selected time range
+                </Typography>
               </Box>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={localChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                <LineChart
+                  data={localChartData}
+                  margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" />
                   <YAxis />
                   <Tooltip content={<CustomTooltip />} />
-                  <Line 
-                    type="monotone" 
-                    dataKey="count" 
-                    stroke="#8884d8" 
+                  <Line
+                    type="monotone"
+                    dataKey="count"
+                    stroke="#8884d8"
                     strokeWidth={2}
                     dot={{ r: 4, strokeWidth: 2 }}
                     activeDot={{ r: 6, strokeWidth: 2 }}
@@ -1377,13 +1537,13 @@ const BidLinks = () => {
 
   const handleNotificationConfigChange = (newConfig) => {
     setNotificationConfig(newConfig);
-    localStorage.setItem('notificationConfig', JSON.stringify(newConfig));
+    localStorage.setItem("notificationConfig", JSON.stringify(newConfig));
   };
 
   const renderSettingsBar = () => {
     // Update the count calculation to consider selected queries
     const getCountForDateLimit = (limit) => {
-      return bidLinks.filter(link => {
+      return bidLinks.filter((link) => {
         // First apply date filter
         if (limit === -1) {
           // No date filter
@@ -1392,17 +1552,20 @@ const BidLinks = () => {
         } else if (link.queryDateLimit !== limit) {
           return false;
         }
-        
+
         // Then apply category filter
-        if (selectedCategory !== 'all' && link.queryId?.category !== selectedCategory) {
+        if (
+          selectedCategory !== "all" &&
+          link.queryId?.category !== selectedCategory
+        ) {
           return false;
         }
 
         // Finally apply query filter if in query mode with selected queries
-        if (viewMode === 'queries' && selectedQueries.length > 0) {
+        if (viewMode === "queries" && selectedQueries.length > 0) {
           return selectedQueries.includes(link.queryId?.link);
         }
-        
+
         return true;
       }).length;
     };
@@ -1410,14 +1573,14 @@ const BidLinks = () => {
     const handleOpenAllLinks = () => {
       const visibleLinks = filteredBidLinks
         .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-        .map(link => link.url);
+        .map((link) => link.url);
 
       // Save opened links to localStorage and update state
       const updatedLinks = addOpenedLinks(visibleLinks);
       setOpenedLinks(updatedLinks);
 
-      visibleLinks.forEach(url => {
-        window.open(url, '_blank');
+      visibleLinks.forEach((url) => {
+        window.open(url, "_blank");
       });
 
       toast.info(`Opened ${visibleLinks.length} links`);
@@ -1432,7 +1595,7 @@ const BidLinks = () => {
           sx: {
             width: 300,
             p: 2,
-          }
+          },
         }}
       >
         <Typography variant="subtitle2" gutterBottom>
@@ -1451,13 +1614,13 @@ const BidLinks = () => {
             max={1}
             step={0.1}
             marks={[
-              { value: 0, label: '0%' },
-              { value: 0.3, label: '30%' },
-              { value: 1, label: '100%' }
+              { value: 0, label: "0%" },
+              { value: 0.3, label: "30%" },
+              { value: 1, label: "100%" },
             ]}
           />
         </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, px: 2 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 2 }}>
           <TextField
             select
             variant="standard"
@@ -1475,12 +1638,12 @@ const BidLinks = () => {
           </TextField>
           <IconButton
             onClick={() => {
-              setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+              setSortOrder(sortOrder === "asc" ? "desc" : "asc");
               setPage(0);
             }}
             size="small"
           >
-            {sortOrder === 'desc' ? (
+            {sortOrder === "desc" ? (
               <Tooltip title="Sort Descending">
                 <ArrowDownwardIcon />
               </Tooltip>
@@ -1502,16 +1665,28 @@ const BidLinks = () => {
           position: "sticky",
           top: 20,
           zIndex: 1000,
-          backgroundColor: 'background.paper',
+          backgroundColor: "background.paper",
           padding: "16px",
-          boxShadow: (theme) => theme.palette.mode === 'light' 
-            ? ["0 4px 6px -1px rgba(0, 0, 0, 0.1)", "0 2px 4px -1px rgba(0, 0, 0, 0.1)"]
-            : ["0 4px 6px -1px rgba(0, 0, 0, 0.5)", "0 2px 4px -1px rgba(0, 0, 0, 0.5)"],
+          boxShadow: (theme) =>
+            theme.palette.mode === "light"
+              ? [
+                  "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                  "0 2px 4px -1px rgba(0, 0, 0, 0.1)",
+                ]
+              : [
+                  "0 4px 6px -1px rgba(0, 0, 0, 0.5)",
+                  "0 2px 4px -1px rgba(0, 0, 0, 0.5)",
+                ],
         }}
       >
         <Grid container spacing={2}>
           <Grid item xs={12}>
-            <Grid container spacing={2} alignItems="center">
+            <Grid
+              container
+              spacing={2}
+              alignItems="center"
+              justifyContent="center"
+            >
               <Grid item>
                 <TextField
                   variant="standard"
@@ -1528,68 +1703,96 @@ const BidLinks = () => {
                   select
                   SelectProps={{
                     multiple: true,
-                    value: Array.isArray(queryDateLimit) ? queryDateLimit : [queryDateLimit],
+                    value: Array.isArray(queryDateLimit)
+                      ? queryDateLimit
+                      : [queryDateLimit],
                     onChange: (e) => {
                       const values = e.target.value;
                       let newValues = [...values];
-                      
+
                       // Check if "All" (-1) was just selected
                       const wasAllSelected = queryDateLimit.includes(-1);
                       const isAllSelected = values.includes(-1);
-                      
+
                       if (isAllSelected && !wasAllSelected) {
                         // If "All" was just selected, deselect everything else
                         newValues = [-1];
-                      }
-                      else if (values.some(v => [0, 1, 7, 30, 365].includes(v))) {
+                      } else if (
+                        values.some((v) => [0, 1, 7, 30, 365].includes(v))
+                      ) {
                         // Remove "All" (-1) if it exists
-                        newValues = newValues.filter(v => v !== -1);
+                        newValues = newValues.filter((v) => v !== -1);
                       }
                       // If selecting "All" (-1)
                       else if (values.includes(-1)) {
                         // Remove all other options
                         newValues = [-1];
                       }
-                      
+
                       // If nothing is selected, select "All"
                       if (newValues.length === 0) {
                         newValues = [-1];
                       }
-                      
+
                       setQueryDateLimit(newValues);
-                      localStorage.setItem("queryDateLimit", JSON.stringify(newValues));
+                      localStorage.setItem(
+                        "queryDateLimit",
+                        JSON.stringify(newValues)
+                      );
                     },
                     renderValue: (selected) => {
-                      if (!selected || selected.length === 0) return "Select time ranges";
-                      return selected.map(value => {
-                        switch(value) {
-                          case -1: return "All";
-                          case 0: return "Any time";
-                          case 1: return "Past 24 hours";
-                          case 7: return "Past week";
-                          case 30: return "Past month";
-                          case 365: return "Past year";
-                          default: return `${value} days`;
-                        }
-                      }).join(", ");
-                    }
+                      if (!selected || selected.length === 0)
+                        return "Select time ranges";
+                      return selected
+                        .map((value) => {
+                          switch (value) {
+                            case -1:
+                              return "All";
+                            case 0:
+                              return "Any time";
+                            case 1:
+                              return "Past 24 hours";
+                            case 7:
+                              return "Past week";
+                            case 30:
+                              return "Past month";
+                            case 365:
+                              return "Past year";
+                            default:
+                              return `${value} days`;
+                          }
+                        })
+                        .join(", ");
+                    },
                   }}
                   variant="standard"
                   size="small"
                   sx={{ width: "200px" }}
                 >
                   <MenuItem value={-1}>
-                    {viewMode === 'queries' && selectedQueries.length > 0
+                    {viewMode === "queries" && selectedQueries.length > 0
                       ? `Selected Query (${getCountForDateLimit(-1)})`
-                      : selectedCategory === 'all'
-                        ? `All (${getCountForDateLimit(-1)})`
-                        : `All in ${selectedCategory} (${getCountForDateLimit(-1)})`}
+                      : selectedCategory === "all"
+                      ? `All (${getCountForDateLimit(-1)})`
+                      : `All in ${selectedCategory} (${getCountForDateLimit(
+                          -1
+                        )})`}
                   </MenuItem>
-                  <MenuItem value={0}>Any time ({getCountForDateLimit(0)})</MenuItem>
-                  <MenuItem value={1}>Past 24 hours ({getCountForDateLimit(1)})</MenuItem>
-                  <MenuItem value={7}>Past week ({getCountForDateLimit(7)})</MenuItem>
-                  <MenuItem value={30}>Past month ({getCountForDateLimit(30)})</MenuItem>
-                  <MenuItem value={365}>Past year ({getCountForDateLimit(365)})</MenuItem>
+                  <MenuItem value={0}>
+                    Any time ({getCountForDateLimit(0)})
+                  </MenuItem>
+                  <MenuItem value={1}>
+                    Past 24 hours ({getCountForDateLimit(1)})
+                  </MenuItem>
+                  <MenuItem value={7}>
+                    Past week ({getCountForDateLimit(7)})
+                  </MenuItem>
+                  <MenuItem value={30}>
+                    Past month ({getCountForDateLimit(30)})
+                  </MenuItem>
+                  <MenuItem value={365}>
+                    Past year ({getCountForDateLimit(365)})
+                  </MenuItem>
                 </TextField>
               </Grid>
 
@@ -1599,7 +1802,7 @@ const BidLinks = () => {
                   onKeyDown={async (e) => {
                     if (e.key === "Enter") {
                       await handleGlobalSearch(e.target.value);
-                      e.target.value = '';
+                      e.target.value = "";
                     }
                   }}
                   placeholder="Enter Search Term..."
@@ -1607,18 +1810,40 @@ const BidLinks = () => {
                   variant="standard"
                   InputProps={{
                     endAdornment: isSearchInputLoading && (
-                      <CircularProgress size={20}/>
+                      <CircularProgress size={20} />
                     ),
                   }}
                 />
               </Grid>
+
               <Grid item>
                 <Button
                   variant="outlined"
                   onClick={handleOpenAllLinks}
                   size="small"
                 >
-                  Open All ({Math.min(rowsPerPage, filteredBidLinks.length - (page * rowsPerPage))})
+                  Open All (
+                  {Math.min(
+                    rowsPerPage,
+                    filteredBidLinks.length - page * rowsPerPage
+                  )}
+                  )
+                </Button>
+              </Grid>
+
+              <Grid item>
+                <Button
+                  variant="outlined"
+                  onClick={() => {
+                    const allLinks = filteredBidLinks.map((link) => link.url);
+                    navigator.clipboard.writeText(allLinks.join("\n"));
+                    toast.success(
+                      `Copied ${allLinks.length} links to clipboard`
+                    );
+                  }}
+                  size="small"
+                >
+                  Copy All ({filteredBidLinks.length})
                 </Button>
               </Grid>
 
@@ -1636,35 +1861,21 @@ const BidLinks = () => {
               <Grid item>{blacklistButton}</Grid>
 
               <Grid item>
+                <Button
+                  variant="outlined"
+                  onClick={() => setOpenNotificationConfig(true)}
+                  size="small"
+                >
+                  Configure Notifications
+                </Button>
+              </Grid>
+
+              <Grid item>
                 <Tooltip title="Additional Settings">
                   <IconButton onClick={handleMenuOpen} size="small">
                     <MoreVertIcon />
                   </IconButton>
                 </Tooltip>
-              </Grid>
-
-              <Grid item>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={notificationsEnabled}
-                      onChange={handleNotificationToggle}
-                      color="primary"
-                    />
-                  }
-                  label="Enable Notifications"
-                />
-              </Grid>
-
-              <Grid item>
-                <Button
-                  variant="outlined"
-                  onClick={() => setOpenNotificationConfig(true)}
-                  size="small"
-                  disabled={!notificationsEnabled}
-                >
-                  Configure Notifications
-                </Button>
               </Grid>
             </Grid>
           </Grid>
@@ -1678,75 +1889,89 @@ const BidLinks = () => {
   const handleToggleCategoryVisibility = (category, event) => {
     event.stopPropagation(); // Prevent ListItemButton click
     const newHiddenCategories = hiddenCategories.includes(category)
-      ? hiddenCategories.filter(c => c !== category)
+      ? hiddenCategories.filter((c) => c !== category)
       : [...hiddenCategories, category];
-    
+
     setHiddenCategories(newHiddenCategories);
-    localStorage.setItem("hiddenCategories", JSON.stringify(newHiddenCategories));
-    
+    localStorage.setItem(
+      "hiddenCategories",
+      JSON.stringify(newHiddenCategories)
+    );
+
     // If we're hiding the currently selected category, switch to 'all'
     if (newHiddenCategories.includes(selectedCategory)) {
-      setSelectedCategory('all');
+      setSelectedCategory("all");
     }
   };
 
   const renderLeftPanel = () => {
     const queries = getQueriesForCategory(selectedCategory);
-    
+
     // Calculate total links for current category with date filter
-    const totalQueryLinks = bidLinks.filter(link => {
+    const totalQueryLinks = bidLinks.filter((link) => {
       // First apply date filter
       if (queryDateLimit.length > 0) {
-        const matchesDateLimit = queryDateLimit.some(limit => {
+        const matchesDateLimit = queryDateLimit.some((limit) => {
           if (limit === -1) return true;
           if (limit === 0) return link.queryDateLimit == null;
           return link.queryDateLimit === limit;
         });
         if (!matchesDateLimit) return false;
       }
-      
+
       // Then apply category filter
-      return selectedCategory === 'all' || link.queryId?.category === selectedCategory;
+      return (
+        selectedCategory === "all" ||
+        link.queryId?.category === selectedCategory
+      );
     }).length;
 
     return (
-      <Card sx={{ 
-        width: 250, 
-        height: 'calc(100vh - 80px)',
-        position: 'sticky',
-        top: 20,
-        display: 'flex',
-        flexDirection: 'column'
-      }}>
-        <CardContent sx={{
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          p: 2,
-          '&:last-child': { pb: 2 }
-        }}>
-          <Box sx={{ 
-            position: 'sticky',
-            top: 0,
-            zIndex: 1,
-            pb: 2,
-            borderBottom: '1px solid',
-            borderColor: 'divider'
-          }}>
-            <Box sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              mb: 2,
-              justifyContent: 'space-between'
-            }}>
-              <Typography variant="h6" style={{ fontWeight: 'normal' }}>
-                {viewMode === 'categories' ? 'Categories' : 'Queries'}
+      <Card
+        sx={{
+          width: 250,
+          height: "calc(100vh - 80px)",
+          position: "sticky",
+          top: 20,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <CardContent
+          sx={{
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+            p: 2,
+            "&:last-child": { pb: 2 },
+          }}
+        >
+          <Box
+            sx={{
+              position: "sticky",
+              top: 0,
+              zIndex: 1,
+              pb: 2,
+              borderBottom: "1px solid",
+              borderColor: "divider",
+            }}
+          >
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                mb: 2,
+                justifyContent: "space-between",
+              }}
+            >
+              <Typography variant="h6" style={{ fontWeight: "normal" }}>
+                {viewMode === "categories" ? "Categories" : "Queries"}
               </Typography>
-              {viewMode === 'queries' && (
+              {viewMode === "queries" && (
                 <Button
                   size="small"
                   onClick={() => {
-                    setViewMode('categories');
+                    setViewMode("categories");
                     setSelectedQueries([]);
                   }}
                   startIcon={<ArrowBackIcon />}
@@ -1757,54 +1982,64 @@ const BidLinks = () => {
             </Box>
           </Box>
 
-          <List sx={{ 
-            flexGrow: 1,
-            overflow: 'auto'
-          }}>
-            {viewMode === 'categories' ? (
+          <List
+            sx={{
+              flexGrow: 1,
+              overflow: "auto",
+            }}
+          >
+            {viewMode === "categories" ? (
               <>
                 <ListItemButton
-                  selected={selectedCategory === 'all'}
-                  onClick={() => setSelectedCategory('all')}
+                  selected={selectedCategory === "all"}
+                  onClick={() => setSelectedCategory("all")}
                   sx={{ pr: 8 }} // Reduced padding since we only need space for one icon
                 >
-                  <ListItemText 
+                  <ListItemText
                     primary="All"
-                    secondary={`${bidLinks.filter(link => {
-                      if (queryDateLimit.length > 0) {
-                        const matchesDateLimit = queryDateLimit.some(limit => {
-                          if (limit === -1) return true;
-                          if (limit === 0) return link.queryDateLimit == null;
-                          return link.queryDateLimit === limit;
-                        });
-                        if (!matchesDateLimit) return false;
-                      }
-                      return !hiddenCategories.includes(link.queryId?.category);
-                    }).length} links`}
+                    secondary={`${
+                      bidLinks.filter((link) => {
+                        if (queryDateLimit.length > 0) {
+                          const matchesDateLimit = queryDateLimit.some(
+                            (limit) => {
+                              if (limit === -1) return true;
+                              if (limit === 0)
+                                return link.queryDateLimit == null;
+                              return link.queryDateLimit === limit;
+                            }
+                          );
+                          if (!matchesDateLimit) return false;
+                        }
+                        return !hiddenCategories.includes(
+                          link.queryId?.category
+                        );
+                      }).length
+                    } links`}
                   />
                   <IconButton
                     size="small"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setSelectedCategory('all');
-                      setViewMode('queries');
+                      setSelectedCategory("all");
+                      setViewMode("queries");
                     }}
-                    sx={{ position: 'absolute', right: 8 }} // Moved to right: 8
+                    sx={{ position: "absolute", right: 8 }} // Moved to right: 8
                   >
                     <SegmentIcon fontSize="small" />
                   </IconButton>
                 </ListItemButton>
                 {categories
-                  .filter(category => !hiddenCategories.includes(category))
+                  .filter((category) => !hiddenCategories.includes(category))
                   .map((category) => {
-                    const categoryCount = bidLinks.filter(link => 
-                      link.queryId?.category === category &&
-                      (queryDateLimit.length === 0 || 
-                        queryDateLimit.some(limit => {
-                          if (limit === -1) return true;
-                          if (limit === 0) return link.queryDateLimit == null;
-                          return link.queryDateLimit === limit;
-                        }))
+                    const categoryCount = bidLinks.filter(
+                      (link) =>
+                        link.queryId?.category === category &&
+                        (queryDateLimit.length === 0 ||
+                          queryDateLimit.some((limit) => {
+                            if (limit === -1) return true;
+                            if (limit === 0) return link.queryDateLimit == null;
+                            return link.queryDateLimit === limit;
+                          }))
                     ).length;
 
                     return (
@@ -1814,14 +2049,16 @@ const BidLinks = () => {
                         onClick={() => setSelectedCategory(category)}
                         sx={{ pr: 16 }} // Increased padding for two icons
                       >
-                        <ListItemText 
+                        <ListItemText
                           primary={category}
                           secondary={`${categoryCount} links`}
                         />
                         <IconButton
                           size="small"
-                          onClick={(e) => handleToggleCategoryVisibility(category, e)}
-                          sx={{ position: 'absolute', right: 48 }}
+                          onClick={(e) =>
+                            handleToggleCategoryVisibility(category, e)
+                          }
+                          sx={{ position: "absolute", right: 48 }}
                         >
                           <VisibilityIcon fontSize="small" />
                         </IconButton>
@@ -1830,9 +2067,9 @@ const BidLinks = () => {
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedCategory(category);
-                            setViewMode('queries');
+                            setViewMode("queries");
                           }}
-                          sx={{ position: 'absolute', right: 8 }}
+                          sx={{ position: "absolute", right: 8 }}
                         >
                           <SegmentIcon fontSize="small" />
                         </IconButton>
@@ -1844,22 +2081,22 @@ const BidLinks = () => {
                   <>
                     <ListItemText
                       primary="Hidden Categories"
-                      sx={{ px: 2, pt: 2, pb: 1, color: 'text.secondary' }}
+                      sx={{ px: 2, pt: 2, pb: 1, color: "text.secondary" }}
                     />
                     {categories
-                      .filter(category => hiddenCategories.includes(category))
+                      .filter((category) => hiddenCategories.includes(category))
                       .map((category) => (
                         <ListItemButton
                           key={category}
                           sx={{ pr: 16, opacity: 0.6 }}
                         >
-                          <ListItemText 
-                            primary={category}
-                          />
+                          <ListItemText primary={category} />
                           <IconButton
                             size="small"
-                            onClick={(e) => handleToggleCategoryVisibility(category, e)}
-                            sx={{ position: 'absolute', right: 48 }}
+                            onClick={(e) =>
+                              handleToggleCategoryVisibility(category, e)
+                            }
+                            sx={{ position: "absolute", right: 48 }}
                           >
                             <VisibilityOffIcon fontSize="small" />
                           </IconButton>
@@ -1868,9 +2105,9 @@ const BidLinks = () => {
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedCategory(category);
-                              setViewMode('queries');
+                              setViewMode("queries");
                             }}
-                            sx={{ position: 'absolute', right: 8 }}
+                            sx={{ position: "absolute", right: 8 }}
                           >
                             <SegmentIcon fontSize="small" />
                           </IconButton>
@@ -1888,20 +2125,21 @@ const BidLinks = () => {
                     setPage(0);
                   }}
                 >
-                  <ListItemText 
+                  <ListItemText
                     primary="All Queries"
                     secondary={`${totalQueryLinks} links`}
                   />
                 </ListItemButton>
                 {queries.map((query) => {
-                  const queryCount = bidLinks.filter(link => 
-                    link.queryId?.link === query &&
-                    (queryDateLimit.length === 0 || 
-                      queryDateLimit.some(limit => {
-                        if (limit === -1) return true;
-                        if (limit === 0) return link.queryDateLimit == null;
-                        return link.queryDateLimit === limit;
-                      }))
+                  const queryCount = bidLinks.filter(
+                    (link) =>
+                      link.queryId?.link === query &&
+                      (queryDateLimit.length === 0 ||
+                        queryDateLimit.some((limit) => {
+                          if (limit === -1) return true;
+                          if (limit === 0) return link.queryDateLimit == null;
+                          return link.queryDateLimit === limit;
+                        }))
                   ).length;
 
                   return (
@@ -1913,7 +2151,7 @@ const BidLinks = () => {
                         setPage(0);
                       }}
                     >
-                      <ListItemText 
+                      <ListItemText
                         primary={query}
                         secondary={`${queryCount} links`}
                       />
@@ -1929,14 +2167,18 @@ const BidLinks = () => {
   };
 
   return (
-    <Box sx={{ display: 'flex', gap: 3 }}>
+    <Box sx={{ display: "flex", gap: 3 }}>
       {renderLeftPanel()}
       <Box sx={{ flex: 1 }}>
         <Grid container spacing={2}>
           <Grid item xs={12}>
             {renderSettingsBar()}
             {isReloadingBids ? (
-              <Grid item xs={12} sx={{ display: "flex", justifyContent: "center", p: 4 }}>
+              <Grid
+                item
+                xs={12}
+                sx={{ display: "flex", justifyContent: "center", p: 4 }}
+              >
                 <CircularProgress />
               </Grid>
             ) : (
@@ -1951,7 +2193,7 @@ const BidLinks = () => {
         {renderBlacklistPanel()}
         <ChartDialog />
 
-        <DetailDialog 
+        <DetailDialog
           open={Boolean(selectedLink)}
           onClose={() => setSelectedLink(null)}
           link={selectedLink}
@@ -1973,36 +2215,49 @@ const BidLinks = () => {
                   {globalSearchResults
                     .slice(
                       searchResultsPage * searchResultsRowsPerPage,
-                      searchResultsPage * searchResultsRowsPerPage + searchResultsRowsPerPage
+                      searchResultsPage * searchResultsRowsPerPage +
+                        searchResultsRowsPerPage
                     )
                     .map((link) => (
                       <TableRow key={link._id} hover>
                         <TableCell>
-                          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 1,
+                            }}
+                          >
                             <Link
                               href={link.url}
                               target="_blank"
                               rel="noopener noreferrer"
                               sx={{
-                                color: 'primary.main',
-                                textDecoration: 'none',
+                                color: "primary.main",
+                                textDecoration: "none",
                                 fontSize: "1.1rem",
-                                fontFamily: '"Inter","Roboto","Helvetica","Arial",sans-serif',
+                                fontFamily:
+                                  '"Inter","Roboto","Helvetica","Arial",sans-serif',
                                 fontWeight: 500,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                '&:hover': {
-                                  textDecoration: 'underline'
+                                display: "inline-flex",
+                                alignItems: "center",
+                                "&:hover": {
+                                  textDecoration: "underline",
                                 },
-                                '&:visited': {
-                                  color: (theme) => theme.palette.mode === 'dark' 
-                                    ? '#e0b0ff'
-                                    : '#551A8B'
-                                }
+                                "&:visited": {
+                                  color: (theme) =>
+                                    theme.palette.mode === "dark"
+                                      ? "#e0b0ff"
+                                      : "#551A8B",
+                                },
                               }}
                             >
                               {link.title}
-                              {link.confidence && <ConfidenceIndicator confidence={link.confidence} />}
+                              {link.confidence && (
+                                <ConfidenceIndicator
+                                  confidence={link.confidence}
+                                />
+                              )}
                             </Link>
                             <Typography variant="body2" color="text.secondary">
                               Company: {link.company || "N/A"} | Posted:{" "}
@@ -2017,15 +2272,15 @@ const BidLinks = () => {
                             </Typography>
                           </Box>
                         </TableCell>
-                        <TableCell align="right" sx={{ width: '60px' }}>
+                        <TableCell align="right" sx={{ width: "60px" }}>
                           <Tooltip title="Show Details" placement="left">
                             <Button
                               size="small"
                               onClick={() => setSelectedLink(link)}
-                              sx={{ 
+                              sx={{
                                 minWidth: "40px",
                                 height: "40px",
-                                borderRadius: 1
+                                borderRadius: 1,
                               }}
                             >
                               <InfoIcon color="action" />
@@ -2055,12 +2310,14 @@ const BidLinks = () => {
           </DialogActions>
         </Dialog>
 
-        <NotificationConfigDialog 
+        <NotificationConfigDialog
           open={openNotificationConfig}
           onClose={() => setOpenNotificationConfig(false)}
           notificationConfig={notificationConfig}
           onConfigChange={handleNotificationConfigChange}
           categories={categories}
+          notificationsEnabled={notificationsEnabled}
+          handleNotificationToggle={handleNotificationToggle}
         />
       </Box>
     </Box>
