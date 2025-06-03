@@ -61,6 +61,16 @@ import Slider from "@mui/material/Slider";
 const OPENED_LINKS_STORAGE_KEY = "openedBidLinks";
 const MAX_STORED_LINKS = 10000;
 const LINK_EXPIRY_DAYS = 30;
+const STRICT_TAGS = ['Email Found', 'Remote Job', 'Non Remote Job', 'Verification Required', 'Expired', 'Invalid URL', 'Other Relevant'];
+const TAG_PRIORITY = {
+  'Email Found': 1,
+  'Remote Job': 2,
+  'Non Remote Job': 3,
+  'Other Relevant': 4,
+  'Verification Required': 5,
+  'Expired': 6,
+  'Invalid URL': 7,
+};
 
 const getOpenedLinks = () => {
   try {
@@ -344,6 +354,62 @@ const NotificationConfigDialog = React.memo(
   }
 );
 
+const getTagColor = (tag) => {
+  switch (tag) {
+    case 'Email Found':
+      return { 
+        sx: { 
+          backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#1b5e20' : '#4caf50',
+          color: '#fff'
+        }
+      };
+    case 'Remote Job':
+      return { 
+        sx: { 
+          backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#1565c0' : '#1976d2',
+          color: '#fff'
+        }
+      };
+    case 'Non Remote Job':
+      return { 
+        sx: { 
+          backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#e65100' : '#ff9800',
+          color: '#fff'
+        }
+      };
+    case 'Verification Required':
+      return { 
+        sx: { 
+          backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#b71c1c' : '#f44336',
+          color: '#fff'
+        }
+      };
+    case 'Other Relevant':
+      return { 
+        sx: { 
+          backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#01579b' : '#03a9f4',
+          color: '#fff'
+        }
+      };
+    case 'Invalid URL':
+      return { 
+        sx: { 
+          backgroundColor: 'transparent',
+          borderColor: (theme) => theme.palette.mode === 'dark' ? '#f44336' : '#d32f2f',
+          color: (theme) => theme.palette.mode === 'dark' ? '#f44336' : '#d32f2f'
+        }
+      };
+    default:
+      return { 
+        sx: { 
+          backgroundColor: 'transparent',
+          borderColor: (theme) => theme.palette.mode === 'dark' ? '#757575' : '#9e9e9e',
+          color: (theme) => theme.palette.mode === 'dark' ? '#757575' : '#9e9e9e'
+        }
+      };
+  }
+};
+
 const BidLinks = () => {
   const [bidLinks, setBidLinks] = useState([]);
   const [currentUserId, setCurrentUserId] = useState("user123");
@@ -417,6 +483,10 @@ const BidLinks = () => {
   const [openNotificationConfig, setOpenNotificationConfig] = useState(false);
   const [searchResultsPage, setSearchResultsPage] = useState(0);
   const [searchResultsRowsPerPage, setSearchResultsRowsPerPage] = useState(10);
+  const [strictlyFilteredJobs, setStrictlyFilteredJobs] = useState(() => {
+    const stored = localStorage.getItem("strictlyFilteredJobs");
+    return stored ? JSON.parse(stored) : false;
+  });
 
   const getRelativeTimeString = (date) => {
     const now = new Date();
@@ -526,6 +596,14 @@ const BidLinks = () => {
         return false;
       }
 
+      // Strictly filtered jobs logic
+      if (strictlyFilteredJobs) {
+        const tag = link.final_details?.tag;
+        if (!tag || !STRICT_TAGS.includes(tag) || tag === 'Irrelevant') {
+          return false;
+        }
+      }
+
       return true;
     };
 
@@ -533,6 +611,19 @@ const BidLinks = () => {
 
     // Sort the filtered results
     filtered.sort((a, b) => {
+      // If strictly filtered jobs is enabled, sort by tag priority first
+      if (strictlyFilteredJobs) {
+        const tagA = a.final_details?.tag || '';
+        const tagB = b.final_details?.tag || '';
+        const priorityA = TAG_PRIORITY[tagA] || 999; // Default high number for unknown tags
+        const priorityB = TAG_PRIORITY[tagB] || 999;
+        
+        if (priorityA !== priorityB) {
+          return priorityA - priorityB;
+        }
+      }
+
+      // Then apply the regular sorting
       if (sortBy === "confidence") {
         const confA = a.confidence || 0;
         const confB = b.confidence || 0;
@@ -557,6 +648,7 @@ const BidLinks = () => {
     sortBy,
     sortOrder,
     hiddenCategories,
+    strictlyFilteredJobs,
   ]);
 
   // Add these useEffects to reset page when category, viewMode, or queryDateLimit changes
@@ -1053,6 +1145,8 @@ const BidLinks = () => {
       }
     };
 
+    const displayUrl = strictlyFilteredJobs && link.final_details?.final_url ? link.final_details.final_url : link.url;
+
     return (
       <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
         <DialogTitle>Link Details</DialogTitle>
@@ -1063,7 +1157,7 @@ const BidLinks = () => {
             </ListItem>
             <ListItem>
               <ListItemText
-                primary="URL"
+                primary="Original URL"
                 secondary={
                   <Link
                     href={link.url}
@@ -1075,6 +1169,22 @@ const BidLinks = () => {
                 }
               />
             </ListItem>
+            {strictlyFilteredJobs && link.final_details?.final_url && (
+              <ListItem>
+                <ListItemText
+                  primary="Final URL"
+                  secondary={
+                    <Link
+                      href={link.final_details.final_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {link.final_details.final_url}
+                    </Link>
+                  }
+                />
+              </ListItem>
+            )}
             <ListItem>
               <ListItemText
                 primary="Company"
@@ -1220,6 +1330,7 @@ const BidLinks = () => {
                   .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                   .map((link, index) => {
                     const fullIndex = page * rowsPerPage + index + 1;
+                    const displayUrl = strictlyFilteredJobs && link.final_details?.url ? link.final_details.url : link.url;
                     return (
                       <TableRow
                         hover
@@ -1238,7 +1349,7 @@ const BidLinks = () => {
                         </TableCell>
                         <TableCell sx={{ py: 1.5, px: 3 }}>
                           <Link
-                            href={link.url}
+                            href={displayUrl}
                             target="_blank"
                             sx={{
                               fontSize: "1.1rem",
@@ -1272,6 +1383,13 @@ const BidLinks = () => {
                             {link.confidence && (
                               <ConfidenceIndicator
                                 confidence={link.confidence}
+                              />
+                            )}
+                            {strictlyFilteredJobs && link.final_details?.tag && (
+                              <Chip
+                                label={link.final_details.tag}
+                                size="small"
+                                sx={{ ml: 1, ...getTagColor(link.final_details.tag).sx }}
                               />
                             )}
                           </Link>
@@ -1620,6 +1738,20 @@ const BidLinks = () => {
             ]}
           />
         </Box>
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={strictlyFilteredJobs}
+              onChange={(e) => {
+                setStrictlyFilteredJobs(e.target.checked);
+                localStorage.setItem("strictlyFilteredJobs", JSON.stringify(e.target.checked));
+                setPage(0);
+              }}
+            />
+          }
+          label="Strictly filtered jobs"
+          sx={{ mb: 2 }}
+        />
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 2 }}>
           <TextField
             select
@@ -2003,8 +2135,7 @@ const BidLinks = () => {
                           const matchesDateLimit = queryDateLimit.some(
                             (limit) => {
                               if (limit === -1) return true;
-                              if (limit === 0)
-                                return link.queryDateLimit == null;
+                              if (limit === 0) return link.queryDateLimit == null;
                               return link.queryDateLimit === limit;
                             }
                           );

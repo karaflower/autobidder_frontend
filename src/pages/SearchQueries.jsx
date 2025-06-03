@@ -1224,7 +1224,7 @@ const SearchQueries = () => {
               disabled={searchLoading === query._id}
             >
               {searchLoading === query._id ? (
-                <CircularProgress color="inherit" />
+                <CircularProgress color="inherit" size={20}/>
               ) : (
                 'SEARCH'
               )}
@@ -1248,7 +1248,7 @@ const SearchQueries = () => {
               disabled={deleteLoading === query._id}
             >
               {deleteLoading === query._id ? (
-                <CircularProgress  color="inherit" />
+                <CircularProgress  color="inherit" size={20}/>
               ) : (
                 'DELETE'
               )}
