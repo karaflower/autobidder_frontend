@@ -61,7 +61,7 @@ import Slider from "@mui/material/Slider";
 const OPENED_LINKS_STORAGE_KEY = "openedBidLinks";
 const MAX_STORED_LINKS = 10000;
 const LINK_EXPIRY_DAYS = 30;
-const STRICT_TAGS = ['Email Found', 'Remote Job', 'Non Remote Job', 'Login Required', 'Verification Required', 'Expired', 'Invalid URL', 'Other Relevant'];
+const STRICT_TAGS = ['Email Found', 'Remote Job', 'Non Remote Job', 'Other Relevant', 'Login Required', 'Verification Required', 'Expired', 'Invalid URL'];
 const TAG_PRIORITY = {
   'Email Found': 1,
   'Remote Job': 2,
@@ -495,6 +495,14 @@ const BidLinks = () => {
     const stored = localStorage.getItem("strictlyFilteredJobs");
     return stored ? JSON.parse(stored) : false;
   });
+  // Add new state for tag visibility
+  const [visibleTags, setVisibleTags] = useState(() => {
+    const stored = localStorage.getItem("visibleTags");
+    return stored ? JSON.parse(stored) : STRICT_TAGS.reduce((acc, tag) => {
+      acc[tag] = true;
+      return acc;
+    }, {});
+  });
 
   const getRelativeTimeString = (date) => {
     const now = new Date();
@@ -604,10 +612,10 @@ const BidLinks = () => {
         return false;
       }
 
-      // Strictly filtered jobs logic
+      // Strictly filtered jobs logic with tag visibility
       if (strictlyFilteredJobs) {
         const tag = link.final_details?.tag;
-        if (!tag || !STRICT_TAGS.includes(tag) || tag === 'Irrelevant') {
+        if (!tag || !STRICT_TAGS.includes(tag) || !visibleTags[tag]) {
           return false;
         }
       }
@@ -657,6 +665,7 @@ const BidLinks = () => {
     sortOrder,
     hiddenCategories,
     strictlyFilteredJobs,
+    visibleTags, // Add visibleTags to dependencies
   ]);
 
   // Add these useEffects to reset page when category, viewMode, or queryDateLimit changes
@@ -1391,14 +1400,14 @@ const BidLinks = () => {
                                 confidence={link.confidence}
                               />
                             )}
-                            {strictlyFilteredJobs && link.final_details?.tag && (
-                              <Chip
-                                label={link.final_details.tag}
-                                size="small"
-                                sx={{ ml: 1, ...getTagColor(link.final_details.tag).sx }}
-                              />
-                            )}
                           </Link>
+                          {strictlyFilteredJobs && link.final_details?.tag && (
+                            <Chip
+                              label={link.final_details.tag}
+                              size="small"
+                              sx={{ ml: 1, ...getTagColor(link.final_details.tag).sx }}
+                            />
+                          )}
                           <Typography
                             variant="body2"
                             color="text.secondary"
@@ -1744,21 +1753,7 @@ const BidLinks = () => {
             ]}
           />
         </Box>
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={strictlyFilteredJobs}
-              onChange={(e) => {
-                setStrictlyFilteredJobs(e.target.checked);
-                localStorage.setItem("strictlyFilteredJobs", JSON.stringify(e.target.checked));
-                setPage(0);
-              }}
-            />
-          }
-          label="Strictly filtered jobs"
-          sx={{ mb: 2 }}
-        />
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 2 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 2, mb: 2 }}>
           <TextField
             select
             variant="standard"
@@ -1792,6 +1787,47 @@ const BidLinks = () => {
             )}
           </IconButton>
         </Box>
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={strictlyFilteredJobs}
+              onChange={(e) => {
+                setStrictlyFilteredJobs(e.target.checked);
+                localStorage.setItem("strictlyFilteredJobs", JSON.stringify(e.target.checked));
+                setPage(0);
+              }}
+            />
+          }
+          label="Strictly filtered jobs"
+          sx={{ mb: 2 }}
+        />
+        {strictlyFilteredJobs && (
+          <Box sx={{ pl: 2, mb: 2, display: "flex", flexDirection: "column", gap: 1 }}>
+            <Typography variant="subtitle2" gutterBottom>
+              Visible Tags
+            </Typography>
+            {STRICT_TAGS.map((tag) => (
+              <FormControlLabel
+                key={tag}
+                control={
+                  <Checkbox
+                    checked={visibleTags[tag]}
+                    onChange={(e) => {
+                      const newVisibleTags = {
+                        ...visibleTags,
+                        [tag]: e.target.checked
+                      };
+                      setVisibleTags(newVisibleTags);
+                      localStorage.setItem("visibleTags", JSON.stringify(newVisibleTags));
+                      setPage(0);
+                    }}
+                  />
+                }
+                label={tag}
+              />
+            ))}
+          </Box>
+        )}
       </Menu>
     );
 
