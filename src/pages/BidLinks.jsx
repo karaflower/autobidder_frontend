@@ -61,15 +61,16 @@ import Slider from "@mui/material/Slider";
 const OPENED_LINKS_STORAGE_KEY = "openedBidLinks";
 const MAX_STORED_LINKS = 10000;
 const LINK_EXPIRY_DAYS = 30;
-const STRICT_TAGS = ['Email Found', 'Remote Job', 'Non Remote Job', 'Verification Required', 'Expired', 'Invalid URL', 'Other Relevant'];
+const STRICT_TAGS = ['Email Found', 'Remote Job', 'Non Remote Job', 'Login Required', 'Verification Required', 'Expired', 'Invalid URL', 'Other Relevant'];
 const TAG_PRIORITY = {
   'Email Found': 1,
   'Remote Job': 2,
   'Non Remote Job': 3,
-  'Other Relevant': 4,
-  'Verification Required': 5,
-  'Expired': 6,
-  'Invalid URL': 7,
+  'Login Required': 4,
+  'Other Relevant': 5,
+  'Verification Required': 6,
+  'Expired': 7,
+  'Invalid URL': 8,
 };
 
 const getOpenedLinks = () => {
@@ -378,6 +379,13 @@ const getTagColor = (tag) => {
         }
       };
     case 'Verification Required':
+      return { 
+        sx: { 
+          backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#b71c1c' : '#f44336',
+          color: '#fff'
+        }
+      };
+    case 'Login Required':
       return { 
         sx: { 
           backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#b71c1c' : '#f44336',
@@ -1145,8 +1153,6 @@ const BidLinks = () => {
       }
     };
 
-    const displayUrl = strictlyFilteredJobs && link.final_details?.final_url ? link.final_details.final_url : link.url;
-
     return (
       <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
         <DialogTitle>Link Details</DialogTitle>
@@ -1169,17 +1175,17 @@ const BidLinks = () => {
                 }
               />
             </ListItem>
-            {strictlyFilteredJobs && link.final_details?.final_url && (
+            {strictlyFilteredJobs && link.final_details?.finalUrl && (
               <ListItem>
                 <ListItemText
                   primary="Final URL"
                   secondary={
                     <Link
-                      href={link.final_details.final_url}
+                      href={link.final_details.finalUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      {link.final_details.final_url}
+                      {link.final_details.finalUrl}
                     </Link>
                   }
                 />
@@ -1330,7 +1336,7 @@ const BidLinks = () => {
                   .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                   .map((link, index) => {
                     const fullIndex = page * rowsPerPage + index + 1;
-                    const displayUrl = strictlyFilteredJobs && link.final_details?.url ? link.final_details.url : link.url;
+                    const displayUrl = strictlyFilteredJobs && link.final_details?.finalUrl ? link.final_details.finalUrl : link.url;
                     return (
                       <TableRow
                         hover
@@ -1370,7 +1376,7 @@ const BidLinks = () => {
                                     : "#551A8B", // Standard visited purple for light mode
                               },
                               ...(openedLinks.some(
-                                (openedLink) => openedLink.url === link.url
+                                (openedLink) => openedLink.url === displayUrl
                               ) && {
                                 color: (theme) =>
                                   theme.palette.mode === "dark"
@@ -1691,7 +1697,7 @@ const BidLinks = () => {
     const handleOpenAllLinks = () => {
       const visibleLinks = filteredBidLinks
         .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-        .map((link) => link.url);
+        .map((link) => strictlyFilteredJobs && link.final_details?.finalUrl ? link.final_details.finalUrl : link.url);
 
       // Save opened links to localStorage and update state
       const updatedLinks = addOpenedLinks(visibleLinks);
@@ -1967,7 +1973,7 @@ const BidLinks = () => {
                 <Button
                   variant="outlined"
                   onClick={() => {
-                    const allLinks = filteredBidLinks.map((link) => link.url);
+                    const allLinks = filteredBidLinks.map((link) => strictlyFilteredJobs && link.final_details?.finalUrl ? link.final_details.finalUrl : link.url);
                     navigator.clipboard.writeText(allLinks.join("\n"));
                     toast.success(
                       `Copied ${allLinks.length} links to clipboard`
