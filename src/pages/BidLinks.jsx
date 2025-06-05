@@ -1674,7 +1674,26 @@ const BidLinks = () => {
   };
 
   const renderSettingsBar = () => {
-    // Update the count calculation to consider selected queries
+    // Helper function to check if a link passes all filters
+    const passesAllFilters = (link) => {
+      // Check confidence range
+      const confidence = link.confidence || 0;
+      if (confidence < confidenceRange[0] || confidence > confidenceRange[1]) {
+          return false;
+        }
+
+      // Check strict filtering
+      if (strictlyFilteredJobs) {
+      const tag = link.final_details?.tag;
+        if (!tag || !STRICT_TAGS.includes(tag) || !visibleTags[tag]) {
+        return false;
+      }
+      }
+
+      return true;
+    };
+
+    // Update the count calculation to consider all filters
     const getCountForDateLimit = (limit) => {
       return bidLinks.filter((link) => {
         // First apply date filter
@@ -1687,19 +1706,17 @@ const BidLinks = () => {
         }
 
         // Then apply category filter
-        if (
-          selectedCategory !== "all" &&
-          link.queryId?.category !== selectedCategory
-        ) {
+        if (selectedCategory !== "all" && link.queryId?.category !== selectedCategory) {
           return false;
         }
 
-        // Finally apply query filter if in query mode with selected queries
+        // Then apply query filter if in query mode with selected queries
         if (viewMode === "queries" && selectedQueries.length > 0) {
-          return selectedQueries.includes(link.queryId?.link);
+          if (!selectedQueries.includes(link.queryId?.link)) return false;
         }
 
-        return true;
+        // Finally apply all other filters
+        return passesAllFilters(link);
       }).length;
     };
 
@@ -1743,12 +1760,12 @@ const BidLinks = () => {
             }}
             valueLabelDisplay="auto"
             valueLabelFormat={(value) => `${Math.round(value * 100)}%`}
-            min={0}
+            min={0.3}  // Changed from 0 to 0.3
             max={1}
             step={0.1}
             marks={[
-              { value: 0, label: "0%" },
-              { value: 0.3, label: "30%" },
+              { value: 0.3, label: "30%" },  // Changed from 0 to 0.3
+              { value: 0.6, label: "60%" },  // Added middle mark
               { value: 1, label: "100%" },
             ]}
           />
@@ -1888,9 +1905,7 @@ const BidLinks = () => {
                   select
                   SelectProps={{
                     multiple: true,
-                    value: Array.isArray(queryDateLimit)
-                      ? queryDateLimit
-                      : [queryDateLimit],
+                    value: Array.isArray(queryDateLimit) ? queryDateLimit : [queryDateLimit],
                     onChange: (e) => {
                       const values = e.target.value;
                       let newValues = [...values];
@@ -1902,9 +1917,7 @@ const BidLinks = () => {
                       if (isAllSelected && !wasAllSelected) {
                         // If "All" was just selected, deselect everything else
                         newValues = [-1];
-                      } else if (
-                        values.some((v) => [0, 1, 7, 30, 365].includes(v))
-                      ) {
+                      } else if (values.some((v) => [0, 1, 7, 30, 365].includes(v))) {
                         // Remove "All" (-1) if it exists
                         newValues = newValues.filter((v) => v !== -1);
                       }
@@ -1920,14 +1933,10 @@ const BidLinks = () => {
                       }
 
                       setQueryDateLimit(newValues);
-                      localStorage.setItem(
-                        "queryDateLimit",
-                        JSON.stringify(newValues)
-                      );
+                      localStorage.setItem("queryDateLimit", JSON.stringify(newValues));
                     },
                     renderValue: (selected) => {
-                      if (!selected || selected.length === 0)
-                        return "Select time ranges";
+                      if (!selected || selected.length === 0) return "Select time ranges";
                       return selected
                         .map((value) => {
                           switch (value) {
@@ -1959,9 +1968,7 @@ const BidLinks = () => {
                       ? `Selected Query (${getCountForDateLimit(-1)})`
                       : selectedCategory === "all"
                       ? `All (${getCountForDateLimit(-1)})`
-                      : `All in ${selectedCategory} (${getCountForDateLimit(
-                          -1
-                        )})`}
+                      : `All in ${selectedCategory} (${getCountForDateLimit(-1)})`}
                   </MenuItem>
                   <MenuItem value={0}>
                     Any time ({getCountForDateLimit(0)})
@@ -2092,14 +2099,26 @@ const BidLinks = () => {
   const renderLeftPanel = () => {
     const queries = getQueriesForCategory(selectedCategory);
 
-    // Helper function to check if a link passes strict filtering
-    const passesStrictFilter = (link) => {
-      if (!strictlyFilteredJobs) return true;
-      const tag = link.final_details?.tag;
-      return tag && STRICT_TAGS.includes(tag) && visibleTags[tag];
+    // Helper function to check if a link passes all filters
+    const passesAllFilters = (link) => {
+      // Check confidence range
+      const confidence = link.confidence || 0;
+      if (confidence < confidenceRange[0] || confidence > confidenceRange[1]) {
+        return false;
+      }
+
+      // Check strict filtering
+      if (strictlyFilteredJobs) {
+        const tag = link.final_details?.tag;
+        if (!tag || !STRICT_TAGS.includes(tag) || !visibleTags[tag]) {
+          return false;
+        }
+      }
+
+      return true;
     };
 
-    // Calculate total links for current category with date filter and strict filtering
+    // Calculate total links for current category with all filters
     const totalQueryLinks = bidLinks.filter((link) => {
       // First apply date filter
       if (queryDateLimit.length > 0) {
@@ -2116,8 +2135,8 @@ const BidLinks = () => {
         return false;
       }
 
-      // Finally apply strict filtering
-      return passesStrictFilter(link);
+      // Finally apply all other filters
+      return passesAllFilters(link);
     }).length;
 
     return (
@@ -2208,8 +2227,8 @@ const BidLinks = () => {
                           return false;
                         }
 
-                        // Apply strict filtering
-                        return passesStrictFilter(link);
+                        // Apply all other filters
+                        return passesAllFilters(link);
                       }).length
                     } links`}
                   />
@@ -2237,7 +2256,7 @@ const BidLinks = () => {
                             if (limit === 0) return link.queryDateLimit == null;
                             return link.queryDateLimit === limit;
                           })) &&
-                        passesStrictFilter(link)
+                        passesAllFilters(link)
                     ).length;
 
                     return (
@@ -2338,7 +2357,7 @@ const BidLinks = () => {
                           if (limit === 0) return link.queryDateLimit == null;
                           return link.queryDateLimit === limit;
                         })) &&
-                      passesStrictFilter(link)
+                      passesAllFilters(link)
                   ).length;
 
                   return (
