@@ -1807,24 +1807,35 @@ const BidLinks = () => {
               Visible Tags
             </Typography>
             {STRICT_TAGS.map((tag) => (
-              <FormControlLabel
-                key={tag}
-                control={
-                  <Checkbox
-                    checked={visibleTags[tag]}
-                    onChange={(e) => {
-                      const newVisibleTags = {
-                        ...visibleTags,
-                        [tag]: e.target.checked
-                      };
-                      setVisibleTags(newVisibleTags);
-                      localStorage.setItem("visibleTags", JSON.stringify(newVisibleTags));
-                      setPage(0);
-                    }}
-                  />
-                }
-                label={tag}
-              />
+              <Box key={tag} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={visibleTags[tag]}
+                      onChange={(e) => {
+                        const newVisibleTags = {
+                          ...visibleTags,
+                          [tag]: e.target.checked
+                        };
+                        setVisibleTags(newVisibleTags);
+                        localStorage.setItem("visibleTags", JSON.stringify(newVisibleTags));
+                        setPage(0);
+                      }}
+                    />
+                  }
+                  label={tag}
+                />
+                {tag === 'Email Found' && (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={extractEmails}
+                    sx={{ ml: 1 }}
+                  >
+                    Get Emails
+                  </Button>
+                )}
+              </Box>
             ))}
           </Box>
         )}
@@ -2081,7 +2092,14 @@ const BidLinks = () => {
   const renderLeftPanel = () => {
     const queries = getQueriesForCategory(selectedCategory);
 
-    // Calculate total links for current category with date filter
+    // Helper function to check if a link passes strict filtering
+    const passesStrictFilter = (link) => {
+      if (!strictlyFilteredJobs) return true;
+      const tag = link.final_details?.tag;
+      return tag && STRICT_TAGS.includes(tag) && visibleTags[tag];
+    };
+
+    // Calculate total links for current category with date filter and strict filtering
     const totalQueryLinks = bidLinks.filter((link) => {
       // First apply date filter
       if (queryDateLimit.length > 0) {
@@ -2094,10 +2112,12 @@ const BidLinks = () => {
       }
 
       // Then apply category filter
-      return (
-        selectedCategory === "all" ||
-        link.queryId?.category === selectedCategory
-      );
+      if (selectedCategory !== "all" && link.queryId?.category !== selectedCategory) {
+        return false;
+      }
+
+      // Finally apply strict filtering
+      return passesStrictFilter(link);
     }).length;
 
     return (
@@ -2167,25 +2187,29 @@ const BidLinks = () => {
                 <ListItemButton
                   selected={selectedCategory === "all"}
                   onClick={() => setSelectedCategory("all")}
-                  sx={{ pr: 8 }} // Reduced padding since we only need space for one icon
+                  sx={{ pr: 8 }}
                 >
                   <ListItemText
                     primary="All"
                     secondary={`${
                       bidLinks.filter((link) => {
+                        // Apply date filter
                         if (queryDateLimit.length > 0) {
-                          const matchesDateLimit = queryDateLimit.some(
-                            (limit) => {
-                              if (limit === -1) return true;
-                              if (limit === 0) return link.queryDateLimit == null;
-                              return link.queryDateLimit === limit;
-                            }
-                          );
+                          const matchesDateLimit = queryDateLimit.some((limit) => {
+                            if (limit === -1) return true;
+                            if (limit === 0) return link.queryDateLimit == null;
+                            return link.queryDateLimit === limit;
+                          });
                           if (!matchesDateLimit) return false;
                         }
-                        return !hiddenCategories.includes(
-                          link.queryId?.category
-                        );
+
+                        // Apply category visibility filter
+                        if (hiddenCategories.includes(link.queryId?.category)) {
+                          return false;
+                        }
+
+                        // Apply strict filtering
+                        return passesStrictFilter(link);
                       }).length
                     } links`}
                   />
@@ -2196,7 +2220,7 @@ const BidLinks = () => {
                       setSelectedCategory("all");
                       setViewMode("queries");
                     }}
-                    sx={{ position: "absolute", right: 8 }} // Moved to right: 8
+                    sx={{ position: "absolute", right: 8 }}
                   >
                     <SegmentIcon fontSize="small" />
                   </IconButton>
@@ -2212,7 +2236,8 @@ const BidLinks = () => {
                             if (limit === -1) return true;
                             if (limit === 0) return link.queryDateLimit == null;
                             return link.queryDateLimit === limit;
-                          }))
+                          })) &&
+                        passesStrictFilter(link)
                     ).length;
 
                     return (
@@ -2220,7 +2245,7 @@ const BidLinks = () => {
                         key={category}
                         selected={selectedCategory === category}
                         onClick={() => setSelectedCategory(category)}
-                        sx={{ pr: 16 }} // Increased padding for two icons
+                        sx={{ pr: 16 }}
                       >
                         <ListItemText
                           primary={category}
@@ -2312,7 +2337,8 @@ const BidLinks = () => {
                           if (limit === -1) return true;
                           if (limit === 0) return link.queryDateLimit == null;
                           return link.queryDateLimit === limit;
-                        }))
+                        })) &&
+                      passesStrictFilter(link)
                   ).length;
 
                   return (
@@ -2337,6 +2363,24 @@ const BidLinks = () => {
         </CardContent>
       </Card>
     );
+  };
+
+  const extractEmails = () => {
+    const emails = filteredBidLinks
+      .filter(link => link.final_details?.applicationMethods?.applicationEmail)
+      .map(link => link.final_details.applicationMethods.applicationEmail);
+
+    if (emails.length === 0) {
+      toast.info('No emails found in the current filtered results');
+      return;
+    }
+
+    // Join emails with commas
+    const emailList = emails.join(', ');
+
+    // Copy to clipboard
+    navigator.clipboard.writeText(emailList);
+    toast.success(`Copied ${emails.length} emails to clipboard`);
   };
 
   return (
@@ -2498,3 +2542,4 @@ const BidLinks = () => {
 };
 
 export default BidLinks;
+
