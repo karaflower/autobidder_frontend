@@ -1401,7 +1401,7 @@ const BidLinks = () => {
                               />
                             )}
                           </Link>
-                          {strictlyFilteredJobs && link.final_details?.tag && (
+                          {link.final_details?.tag && (
                             <Chip
                               label={link.final_details.tag}
                               size="small"
