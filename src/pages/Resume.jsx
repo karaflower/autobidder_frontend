@@ -16,7 +16,9 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  DialogContentText
+  DialogContentText,
+  Switch,
+  FormControlLabel
 } from '@mui/material';
 import axios from 'axios';
 import EditIcon from '@mui/icons-material/Edit';
@@ -43,6 +45,12 @@ const Resume = () => {
   const [fileToUpload, setFileToUpload] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [customizedResumesOpen, setCustomizedResumesOpen] = useState(false);
+  const [autoEmailEnabled, setAutoEmailEnabled] = useState(false);
+  const [appPassword, setAppPassword] = useState('');
+  const [coverLetterTitle, setCoverLetterTitle] = useState('');
+  const [coverLetterContent, setCoverLetterContent] = useState('');
+  const [savingAutoEmail, setSavingAutoEmail] = useState(false);
+  const [savingAutoEmailSettings, setSavingAutoEmailSettings] = useState(false);
   const { user } = useAuth();
 
   const fetchResumes = async () => {
@@ -81,7 +89,11 @@ const Resume = () => {
             experience: experienceEntries,
             skillset: skillEntries,
             additional_info: content.additional_info || '',
-            path: resumeData.path
+            path: resumeData.path,
+            auto_email_application: resumeData.auto_email_application || false,
+            app_password: resumeData.app_password || '',
+            cover_letter_title: resumeData.cover_letter?.title || '',
+            cover_letter_content: resumeData.cover_letter?.content || ''
           };
         });
 
@@ -420,6 +432,87 @@ const Resume = () => {
       }
     }
   };
+
+  const handleAutoEmailToggle = async (checked) => {
+    if (!selectedResume) return;
+    
+    setSavingAutoEmail(true);
+    try {
+      const response = await axios.put(
+        `${process.env.REACT_APP_API_URL}/resumes/${selectedResume._id}/auto-email-application`,
+        { auto_email_application: checked },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      // Update the local resume data
+      const updatedResumes = [...resumes];
+      updatedResumes[selectedResumeIndex] = {
+        ...updatedResumes[selectedResumeIndex],
+        auto_email_application: checked
+      };
+      setResumes(updatedResumes);
+      
+      setAutoEmailEnabled(checked);
+      setError('');
+    } catch (err) {
+      setError('Failed to update auto email application status');
+      // Revert the toggle if the API call failed
+      setAutoEmailEnabled(!checked);
+    } finally {
+      setSavingAutoEmail(false);
+    }
+  };
+
+  const handleSaveAutoEmailSettings = async () => {
+    if (!selectedResume) return;
+    
+    setSavingAutoEmailSettings(true);
+    try {
+      await axios.put(
+        `${process.env.REACT_APP_API_URL}/resumes/${selectedResume._id}/auto-email-settings`,
+        { 
+          app_password: appPassword,
+          cover_letter_title: coverLetterTitle,
+          cover_letter_content: coverLetterContent
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      // Update the local resume data
+      const updatedResumes = [...resumes];
+      updatedResumes[selectedResumeIndex] = {
+        ...updatedResumes[selectedResumeIndex],
+        app_password: appPassword,
+        cover_letter_title: coverLetterTitle,
+        cover_letter_content: coverLetterContent
+      };
+      setResumes(updatedResumes);
+      
+      setError('');
+    } catch (err) {
+      setError('Failed to save auto email settings');
+    } finally {
+      setSavingAutoEmailSettings(false);
+    }
+  };
+
+  useEffect(() => {
+    const currentResume = resumes[selectedResumeIndex];
+    if (currentResume) {
+      setAutoEmailEnabled(!!currentResume.auto_email_application);
+      setAppPassword(currentResume.app_password || '');
+      setCoverLetterTitle(currentResume.cover_letter_title || '');
+      setCoverLetterContent(currentResume.cover_letter_content || '');
+    }
+  }, [selectedResumeIndex, resumes]);
 
   if (loading) {
     return (
@@ -860,6 +953,85 @@ const Resume = () => {
                   ))}
                 </Typography>
               )
+            )}
+          </Box>
+
+          {/* Automatic Email Applications Section */}
+          <Box mb={4}>
+            <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Typography variant="h5" gutterBottom>
+                Automatic Email Applications (beta testing version)
+              </Typography>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={autoEmailEnabled}
+                    onChange={(e) => handleAutoEmailToggle(e.target.checked)}
+                    color="primary"
+                    disabled={savingAutoEmail}
+                  />
+                }
+                label=""
+              />
+            </Box>
+            <Divider />
+            {autoEmailEnabled && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="h6" gutterBottom>
+                  Email Settings
+                </Typography>
+                
+                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 3 }}>
+                  <TextField
+                    type="password"
+                    label="App Password"
+                    value={appPassword}
+                    onChange={(e) => setAppPassword(e.target.value)}
+                    placeholder="Enter your app password"
+                    sx={{ flex: 1 }}
+                  />
+                </Box>
+                
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 3, ml: 1 }}>
+                  Can be acquired from <a style={{color: 'cyan', textDecoration: 'underline'}} href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer">https://myaccount.google.com/apppasswords</a>
+                </Typography>
+
+                <Typography variant="h6" gutterBottom>
+                  Cover Letter
+                </Typography>
+                
+                <TextField
+                  fullWidth
+                  label="Cover Letter Title"
+                  value={coverLetterTitle}
+                  onChange={(e) => setCoverLetterTitle(e.target.value)}
+                  placeholder="e.g., Application for Software Engineer Position"
+                  sx={{ mb: 3 }}
+                />
+                
+                <TextField
+                  fullWidth
+                  multiline
+                  minRows={6}
+                  maxRows={Infinity}
+                  label="Cover Letter Content"
+                  value={coverLetterContent}
+                  onChange={(e) => setCoverLetterContent(e.target.value)}
+                  placeholder="Write your cover letter content here. You can use placeholders like {company_name}, {position_title}, {job_description} that will be automatically replaced with actual values."
+                  sx={{ mb: 3 }}
+                />
+
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <Button
+                    variant="contained"
+                    onClick={handleSaveAutoEmailSettings}
+                    disabled={savingAutoEmailSettings}
+                    startIcon={savingAutoEmailSettings ? <CircularProgress size={20} /> : <SaveIcon />}
+                  >
+                    {savingAutoEmailSettings ? 'Saving...' : 'Save All Settings'}
+                  </Button>
+                </Box>
+              </Box>
             )}
           </Box>
 
