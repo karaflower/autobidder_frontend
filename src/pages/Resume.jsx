@@ -29,6 +29,8 @@ import * as pdfjsLib from 'pdfjs-dist';
 import CloseIcon from '@mui/icons-material/Close';
 import CustomizedResumes from './CustomizedResumes';
 import { useAuth } from '../context/AuthContext';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 // Set the worker source using a local path instead of CDN
 pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
@@ -497,8 +499,10 @@ const Resume = () => {
       setResumes(updatedResumes);
       
       setError('');
+      toast.success('Settings saved successfully!');
     } catch (err) {
-      setError('Failed to save auto email settings');
+      setError('Failed to save automatic email application settings');
+      toast.error('Failed to save automatic email application settings');
     } finally {
       setSavingAutoEmailSettings(false);
     }
