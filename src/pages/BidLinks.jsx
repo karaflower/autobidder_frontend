@@ -876,14 +876,24 @@ const BidLinks = () => {
         .map((word) => word.trim())
         .filter((word) => word.length > 0); // Filter out empty strings
 
+      // Process each blacklist entry
+      const processedBlacklists = blacklistArray.map(entry => {
+        // Check if it's a company blacklist
+        if (entry.toLowerCase().startsWith('company:')) {
+          // Keep the exact format for company blacklists
+          return entry.trim();
+        }
+        return entry;
+      });
+
       await axios.post(`${process.env.REACT_APP_API_URL}/bid-links/blacklist`, {
-        blacklists: blacklistArray,
+        blacklists: processedBlacklists,
         isTeam: isTeam,
       });
       await fetchBlacklists(isTeam);
       await fetchBidLinks();
       toast.success(
-        `${blacklistArray.length} item(s) added to ${
+        `${processedBlacklists.length} item(s) added to ${
           isTeam ? "team" : "personal"
         } blacklist`
       );
@@ -902,7 +912,7 @@ const BidLinks = () => {
 
     try {
       await axios.post(`${process.env.REACT_APP_API_URL}/bid-links/blacklist`, {
-        blacklists: [company.trim()],
+        blacklists: [`company:${company.trim()}`],
         isTeam: true, // Always add to team blacklist
       });
       await fetchBlacklists(true); // Fetch team blacklists to update the count
