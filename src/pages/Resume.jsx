@@ -18,11 +18,14 @@ import {
   DialogActions,
   DialogContentText,
   Switch,
-  FormControlLabel
+  FormControlLabel,
+  Alert,
+  Chip
 } from '@mui/material';
 import axios from 'axios';
 import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import SaveIcon from '@mui/icons-material/Save';
 import CancelIcon from '@mui/icons-material/Cancel';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -31,6 +34,9 @@ import CustomizedResumes from './CustomizedResumes';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import GoogleIcon from '@mui/icons-material/Google';
+import LinkIcon from '@mui/icons-material/Link';
+import LinkOffIcon from '@mui/icons-material/LinkOff';
 
 // Set the worker source using a local path instead of CDN
 pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
@@ -48,11 +54,17 @@ const Resume = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [customizedResumesOpen, setCustomizedResumesOpen] = useState(false);
   const [autoEmailEnabled, setAutoEmailEnabled] = useState(false);
-  const [appPassword, setAppPassword] = useState('');
   const [coverLetterTitle, setCoverLetterTitle] = useState('');
   const [coverLetterContent, setCoverLetterContent] = useState('');
   const [savingAutoEmail, setSavingAutoEmail] = useState(false);
   const [savingAutoEmailSettings, setSavingAutoEmailSettings] = useState(false);
+  const [gmailConnected, setGmailConnected] = useState(false);
+  const [gmailEmail, setGmailEmail] = useState('');
+  const [generatingAuthUrl, setGeneratingAuthUrl] = useState(false);
+  const [authUrl, setAuthUrl] = useState('');
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [removingGmail, setRemovingGmail] = useState(false);
+  const [gmailTokenExpiryDate, setGmailTokenExpiryDate] = useState(null);
   const { user } = useAuth();
 
   const fetchResumes = async () => {
@@ -93,9 +105,10 @@ const Resume = () => {
             additional_info: content.additional_info || '',
             path: resumeData.path,
             auto_email_application: resumeData.auto_email_application || false,
-            app_password: resumeData.app_password || '',
             cover_letter_title: resumeData.cover_letter?.title || '',
-            cover_letter_content: resumeData.cover_letter?.content || ''
+            cover_letter_content: resumeData.cover_letter?.content || '',
+            gmail_credentials_setup: resumeData.gmail_credentials_setup || false,
+            gmail_email: resumeData.gmail_email || ''
           };
         });
 
@@ -269,7 +282,9 @@ const Resume = () => {
       experience: [],
       summarized_experience: [],
       skillset: [],
-      additional_info: ''
+      additional_info: '',
+      gmail_credentials_setup: false,
+      gmail_email: ''
     };
 
     setResumes([...resumes, emptyResume]);
@@ -477,7 +492,6 @@ const Resume = () => {
       await axios.put(
         `${process.env.REACT_APP_API_URL}/resumes/${selectedResume._id}/auto-email-settings`,
         { 
-          app_password: appPassword,
           cover_letter_title: coverLetterTitle,
           cover_letter_content: coverLetterContent
         },
@@ -492,7 +506,6 @@ const Resume = () => {
       const updatedResumes = [...resumes];
       updatedResumes[selectedResumeIndex] = {
         ...updatedResumes[selectedResumeIndex],
-        app_password: appPassword,
         cover_letter_title: coverLetterTitle,
         cover_letter_content: coverLetterContent
       };
@@ -508,13 +521,104 @@ const Resume = () => {
     }
   };
 
+  const fetchGmailStatus = async (resumeId) => {
+    try {
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/resumes/${resumeId}/gmail-status`);
+      setGmailConnected(response.data.connected);
+      setGmailEmail(response.data.email);
+      
+      // Add handling for token expiry date
+      if (response.data.tokenExpiryDate) {
+        setGmailTokenExpiryDate(new Date(response.data.tokenExpiryDate));
+      } else {
+        setGmailTokenExpiryDate(null);
+      }
+    } catch (error) {
+      console.error('Error fetching Gmail status:', error);
+      setGmailConnected(false);
+      setGmailEmail('');
+      setGmailTokenExpiryDate(null);
+    }
+  };
+
+  const handleGenerateAuthUrl = async () => {
+    if (!selectedResume) return;
+    
+    setGeneratingAuthUrl(true);
+    try {
+      const response = await axios.get(
+        `${process.env.REACT_APP_API_URL}/auth/gmail/url/${selectedResume._id}`
+      );
+      
+      setAuthUrl(response.data.authUrl);
+      setShowAuthDialog(true);
+    } catch (error) {
+      console.error('Error generating auth URL:', error);
+      toast.error('Failed to generate Gmail authorization URL');
+    } finally {
+      setGeneratingAuthUrl(false);
+    }
+  };
+
+  const handleRemoveGmailCredentials = async () => {
+    if (!selectedResume) return;
+    
+    setRemovingGmail(true);
+    try {
+      await axios.delete(
+        `${process.env.REACT_APP_API_URL}/resumes/${selectedResume._id}/gmail-credentials`
+      );
+      
+      setGmailConnected(false);
+      setGmailEmail('');
+      
+      const updatedResumes = [...resumes];
+      updatedResumes[selectedResumeIndex] = {
+        ...updatedResumes[selectedResumeIndex],
+        gmail_credentials_setup: false,
+        gmail_email: ''
+      };
+      setResumes(updatedResumes);
+      
+      toast.success('Gmail credentials removed successfully');
+    } catch (error) {
+      console.error('Error removing Gmail credentials:', error);
+      toast.error('Failed to remove Gmail credentials');
+    } finally {
+      setRemovingGmail(false);
+    }
+  };
+
+  const handleRefreshGmailStatus = async () => {
+    if (!selectedResume) return;
+    
+    try {
+      await fetchGmailStatus(selectedResume._id);
+      await fetchResumes();
+      toast.success('Gmail status refreshed');
+    } catch (error) {
+      console.error('Error refreshing Gmail status:', error);
+      toast.error('Failed to refresh Gmail status');
+    }
+  };
+
+  // Add a function to check if token is about to expire
+  const isTokenNearExpiry = () => {
+    if (!gmailTokenExpiryDate) return false;
+    
+    const now = new Date();
+    const oneDayInMs = 24 * 60 * 60 * 1000;
+    return (gmailTokenExpiryDate - now) <= oneDayInMs;
+  };
+
   useEffect(() => {
     const currentResume = resumes[selectedResumeIndex];
     if (currentResume) {
       setAutoEmailEnabled(!!currentResume.auto_email_application);
-      setAppPassword(currentResume.app_password || '');
       setCoverLetterTitle(currentResume.cover_letter_title || '');
       setCoverLetterContent(currentResume.cover_letter_content || '');
+      
+      fetchGmailStatus(currentResume._id);
     }
   }, [selectedResumeIndex, resumes]);
 
@@ -980,62 +1084,141 @@ const Resume = () => {
             </Box>
             <Divider />
             {autoEmailEnabled && (
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="h6" gutterBottom>
-                  Email Settings
-                </Typography>
-                
-                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mb: 3 }}>
+              <>
+                {/* Gmail API Integration Section */}
+                <Box sx={{ mt: 3, mb: 4 }}>
+                  <Box display="flex" alignItems="center" justifyContent="space-between">
+                    <Typography variant="h6" gutterBottom>
+                      Gmail API Integration
+                    </Typography>
+                    <Chip
+                      label={gmailConnected ? "Connected" : "Not Connected"}
+                      color={gmailConnected ? "success" : "default"}
+                      icon={gmailConnected ? <LinkIcon /> : <LinkOffIcon />}
+                    />
+                  </Box>
+                  <Divider />
+                  
+                  {gmailConnected ? (
+                    <Box sx={{ mt: 2 }}>
+                      <Alert severity="success" sx={{ mb: 2 }}>
+                        <Typography variant="body2">
+                          <strong>Connected to:</strong> {gmailEmail}
+                        </Typography>
+                        {gmailTokenExpiryDate && (
+                          <Typography variant="body2" sx={{ mt: 1 }}>
+                            <strong>Token expires:</strong> {gmailTokenExpiryDate.toLocaleString()}
+                          </Typography>
+                        )}
+                      </Alert>
+                      
+                      {isTokenNearExpiry() && (
+                        <Alert severity="warning" sx={{ mb: 2 }}>
+                          <Typography variant="body2">
+                            Your Gmail connection will expire soon. Please reconnect your Gmail account to ensure uninterrupted service.
+                          </Typography>
+                        </Alert>
+                      )}
+                      
+                      <Box sx={{ display: 'flex', gap: 2 }}>
+                        <Button
+                          variant="outlined"
+                          startIcon={<LinkOffIcon />}
+                          onClick={handleRemoveGmailCredentials}
+                          disabled={removingGmail}
+                        >
+                          {removingGmail ? 'Removing...' : 'Disconnect Gmail'}
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          onClick={handleRefreshGmailStatus}
+                        >
+                          Refresh Status
+                        </Button>
+                        {isTokenNearExpiry() && (
+                          <Button
+                            variant="contained"
+                            color="warning"
+                            startIcon={<GoogleIcon />}
+                            onClick={handleGenerateAuthUrl}
+                          >
+                            Reconnect Gmail
+                          </Button>
+                        )}
+                      </Box>
+                    </Box>
+                  ) : (
+                    <Box sx={{ mt: 2 }}>
+                      <Alert severity="info" sx={{ mb: 2 }}>
+                        <Typography variant="body2">
+                          Connect your Gmail account to use Gmail API for sending emails. 
+                          This provides better reliability and includes automatic PDF attachments.
+                        </Typography>
+                      </Alert>
+                      
+                      <Box sx={{ display: 'flex', gap: 2 }}>
+                        <Button
+                          variant="contained"
+                          startIcon={<GoogleIcon />}
+                          onClick={handleGenerateAuthUrl}
+                          disabled={generatingAuthUrl}
+                        >
+                          {generatingAuthUrl ? 'Generating...' : 'Connect Gmail Account'}
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          onClick={handleRefreshGmailStatus}
+                        >
+                          Refresh Status
+                        </Button>
+                      </Box>
+                      
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+                        <strong>Note:</strong> The Gmail account email must match your resume email address: <strong>{selectedResume?.personal_info?.email}</strong>
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+
+                {/* Cover Letter Section */}
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Cover Letter
+                  </Typography>
+                  
                   <TextField
-                    type="password"
-                    label="App Password"
-                    value={appPassword}
-                    onChange={(e) => setAppPassword(e.target.value)}
-                    placeholder="Enter your app password"
-                    sx={{ flex: 1 }}
+                    fullWidth
+                    label="Cover Letter Title"
+                    value={coverLetterTitle}
+                    onChange={(e) => setCoverLetterTitle(e.target.value)}
+                    placeholder="e.g., Application for Software Engineer Position"
+                    sx={{ mb: 3 }}
                   />
-                </Box>
-                
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 3, ml: 1 }}>
-                  Can be acquired from <a style={{color: 'cyan', textDecoration: 'underline'}} href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener noreferrer">https://myaccount.google.com/apppasswords</a>
-                </Typography>
+                  
+                  <TextField
+                    fullWidth
+                    multiline
+                    minRows={6}
+                    maxRows={Infinity}
+                    label="Cover Letter Content"
+                    value={coverLetterContent}
+                    onChange={(e) => setCoverLetterContent(e.target.value)}
+                    placeholder="Write your cover letter content here. You can use placeholders like {company_name}, {position_title}, {job_description} that will be automatically replaced with actual values."
+                    sx={{ mb: 3 }}
+                  />
 
-                <Typography variant="h6" gutterBottom>
-                  Cover Letter
-                </Typography>
-                
-                <TextField
-                  fullWidth
-                  label="Cover Letter Title"
-                  value={coverLetterTitle}
-                  onChange={(e) => setCoverLetterTitle(e.target.value)}
-                  placeholder="e.g., Application for Software Engineer Position"
-                  sx={{ mb: 3 }}
-                />
-                
-                <TextField
-                  fullWidth
-                  multiline
-                  minRows={6}
-                  maxRows={Infinity}
-                  label="Cover Letter Content"
-                  value={coverLetterContent}
-                  onChange={(e) => setCoverLetterContent(e.target.value)}
-                  placeholder="Write your cover letter content here. You can use placeholders like {company_name}, {position_title}, {job_description} that will be automatically replaced with actual values."
-                  sx={{ mb: 3 }}
-                />
-
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <Button
-                    variant="contained"
-                    onClick={handleSaveAutoEmailSettings}
-                    disabled={savingAutoEmailSettings}
-                    startIcon={savingAutoEmailSettings ? <CircularProgress size={20} /> : <SaveIcon />}
-                  >
-                    {savingAutoEmailSettings ? 'Saving...' : 'Save All Settings'}
-                  </Button>
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <Button
+                      variant="contained"
+                      onClick={handleSaveAutoEmailSettings}
+                      disabled={savingAutoEmailSettings}
+                      startIcon={savingAutoEmailSettings ? <CircularProgress size={20} /> : <SaveIcon />}
+                    >
+                      {savingAutoEmailSettings ? 'Saving...' : 'Save All Settings'}
+                    </Button>
+                  </Box>
                 </Box>
-              </Box>
+              </>
             )}
           </Box>
 
@@ -1084,6 +1267,66 @@ const Resume = () => {
           <Button onClick={handleDeleteConfirm} color="error" autoFocus>
             Delete
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modify the Auth URL Dialog */}
+      <Dialog 
+        open={showAuthDialog} 
+        onClose={() => setShowAuthDialog(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" alignItems="center" gap={1}>
+            <GoogleIcon color="primary" />
+            Connect Gmail Account
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" gutterBottom>
+            To use Gmail API for sending emails, you need to authorize this application to access your Gmail account.
+          </Typography>
+          
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <Typography variant="body2">
+              <strong>Important:</strong> Please use the Gmail account that matches your resume email address: <strong>{selectedResume?.personal_info?.email}</strong>
+            </Typography>
+          </Alert>
+          
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            Copy the authorization URL below and open it in the browser profile where you're signed in with your Gmail account.
+          </Typography>
+          
+          <Box sx={{ mt: 2 }}>
+            <TextField
+              fullWidth
+              value={authUrl}
+              variant="outlined"
+              InputProps={{
+                readOnly: true,
+                endAdornment: (
+                  <IconButton
+                    onClick={() => {
+                      navigator.clipboard.writeText(authUrl);
+                      toast.success('URL copied to clipboard!');
+                    }}
+                    size="small"
+                    sx={{ ml: 1, color: 'primary.main', '&:hover': { color: 'primary.dark' } }}
+                  >
+                    <ContentCopyIcon />
+                  </IconButton>
+                ),
+              }}
+            />
+          </Box>
+          
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            After authorization, return to this page and click "Refresh Status" to see the updated connection status.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowAuthDialog(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </Box>

@@ -9,7 +9,7 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const Login = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -100,6 +100,26 @@ const Login = () => {
         >
           {isLogin ? 'Need an account? Sign Up' : 'Already have an account? Login'}
         </Button>
+
+        <Box sx={{ 
+          mt: 2, 
+          textAlign: 'center',
+          fontSize: '14px',
+          color: 'text.secondary'
+        }}>
+          By using this service, you agree to our{' '}
+          <Link 
+            to="/terms-and-privacy" 
+            style={{ 
+              color: 'inherit',
+              textDecoration: 'underline'
+            }}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Terms of Service & Privacy Policy
+          </Link>
+        </Box>
       </Paper>
     </Box>
   );

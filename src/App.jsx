@@ -19,6 +19,7 @@ import AiPrompts from './pages/AiPrompts';
 import Settings from './pages/Settings';
 import BidHistory from './pages/BidHistory';
 import BossDashboard from './pages/BossDashboard';
+import TermsAndPrivacy from './pages/TermsAndPrivacy';
 const getTheme = (mode) => createTheme({
   palette: {
     mode,
@@ -317,6 +318,7 @@ function App() {
           </Box>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/terms-and-privacy" element={<TermsAndPrivacy />} />
             <Route
               path="/*"
               element={
