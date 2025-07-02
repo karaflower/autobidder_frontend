@@ -65,6 +65,11 @@ const Resume = () => {
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [removingGmail, setRemovingGmail] = useState(false);
   const [gmailTokenExpiryDate, setGmailTokenExpiryDate] = useState(null);
+  const [gmailCleanup, setGmailCleanup] = useState(false);
+  const [canEnableCleanup, setCanEnableCleanup] = useState(false);
+  const [loadingCleanup, setLoadingCleanup] = useState(false);
+  const [cleanupError, setCleanupError] = useState("");
+  const [savingGmailCleanup, setSavingGmailCleanup] = useState(false);
   const { user } = useAuth();
 
   const fetchResumes = async () => {
@@ -108,7 +113,18 @@ const Resume = () => {
             cover_letter_title: resumeData.cover_letter?.title || '',
             cover_letter_content: resumeData.cover_letter?.content || '',
             gmail_credentials_setup: resumeData.gmail_credentials_setup || false,
-            gmail_email: resumeData.gmail_email || ''
+            gmail_email: resumeData.gmail_email || '',
+            gmail_status: resumeData.gmail_status || {
+              connected: false,
+              email: '',
+              hasToken: false,
+              tokenExpiryDate: null,
+              isNearExpiry: false
+            },
+            gmail_cleanup_status: resumeData.gmail_cleanup_status || {
+              gmail_auto_cleanup: false,
+              can_enable: false
+            }
           };
         });
 
@@ -521,26 +537,6 @@ const Resume = () => {
     }
   };
 
-  const fetchGmailStatus = async (resumeId) => {
-    try {
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/resumes/${resumeId}/gmail-status`);
-      setGmailConnected(response.data.connected);
-      setGmailEmail(response.data.email);
-      
-      // Add handling for token expiry date
-      if (response.data.tokenExpiryDate) {
-        setGmailTokenExpiryDate(new Date(response.data.tokenExpiryDate));
-      } else {
-        setGmailTokenExpiryDate(null);
-      }
-    } catch (error) {
-      console.error('Error fetching Gmail status:', error);
-      setGmailConnected(false);
-      setGmailEmail('');
-      setGmailTokenExpiryDate(null);
-    }
-  };
-
   const handleGenerateAuthUrl = async () => {
     if (!selectedResume) return;
     
@@ -569,16 +565,8 @@ const Resume = () => {
         `${process.env.REACT_APP_API_URL}/resumes/${selectedResume._id}/gmail-credentials`
       );
       
-      setGmailConnected(false);
-      setGmailEmail('');
-      
-      const updatedResumes = [...resumes];
-      updatedResumes[selectedResumeIndex] = {
-        ...updatedResumes[selectedResumeIndex],
-        gmail_credentials_setup: false,
-        gmail_email: ''
-      };
-      setResumes(updatedResumes);
+      // Refresh the resume data from server to get updated Gmail status
+      await fetchResumes();
       
       toast.success('Gmail credentials removed successfully');
     } catch (error) {
@@ -593,7 +581,6 @@ const Resume = () => {
     if (!selectedResume) return;
     
     try {
-      await fetchGmailStatus(selectedResume._id);
       await fetchResumes();
       toast.success('Gmail status refreshed');
     } catch (error) {
@@ -618,9 +605,72 @@ const Resume = () => {
       setCoverLetterTitle(currentResume.cover_letter_title || '');
       setCoverLetterContent(currentResume.cover_letter_content || '');
       
-      fetchGmailStatus(currentResume._id);
+      if (currentResume.gmail_status) {
+        setGmailConnected(currentResume.gmail_status.connected);
+        setGmailEmail(currentResume.gmail_status.email);
+        setGmailTokenExpiryDate(currentResume.gmail_status.tokenExpiryDate ? new Date(currentResume.gmail_status.tokenExpiryDate) : null);
+      }
+      
+      if (currentResume.gmail_cleanup_status) {
+        setGmailCleanup(currentResume.gmail_cleanup_status.gmail_auto_cleanup);
+        setCanEnableCleanup(currentResume.gmail_cleanup_status.can_enable);
+      }
     }
   }, [selectedResumeIndex, resumes]);
+
+  useEffect(() => {
+    // Fetch cleanup status on mount
+    const fetchCleanupStatus = async () => {
+      try {
+        setLoadingCleanup(true);
+        const res = await axios.get(`${process.env.REACT_APP_API_URL}/resumes/${resumes[selectedResumeIndex]._id}/gmail-cleanup-status`);
+        setGmailCleanup(res.data.gmail_auto_cleanup);
+        setCanEnableCleanup(res.data.can_enable);
+      } catch (err) {
+        setCleanupError("Failed to load Gmail cleanup status.");
+      } finally {
+        setLoadingCleanup(false);
+      }
+    };
+    fetchCleanupStatus();
+  }, [selectedResumeIndex, resumes]);
+
+  const handleGmailCleanupToggle = async (checked) => {
+    if (!selectedResume) return;
+    
+    setSavingGmailCleanup(true);
+    try {
+      await axios.put(
+        `${process.env.REACT_APP_API_URL}/resumes/${selectedResume._id}/gmail-cleanup`,
+        { enabled: checked },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      // Update the local resume data
+      const updatedResumes = [...resumes];
+      updatedResumes[selectedResumeIndex] = {
+        ...updatedResumes[selectedResumeIndex],
+        gmail_cleanup_status: {
+          ...updatedResumes[selectedResumeIndex].gmail_cleanup_status,
+          gmail_auto_cleanup: checked
+        }
+      };
+      setResumes(updatedResumes);
+      
+      setGmailCleanup(checked);
+      setCleanupError('');
+    } catch (err) {
+      setCleanupError('Failed to update Gmail cleanup setting');
+      // Revert the toggle if the API call failed
+      setGmailCleanup(!checked);
+    } finally {
+      setSavingGmailCleanup(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -1222,6 +1272,36 @@ const Resume = () => {
             )}
           </Box>
 
+          {/* Automatic Gmail Management Section */}
+          <Box mb={4}>
+            <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Typography variant="h5" gutterBottom>
+                Automatic Gmail Management
+              </Typography>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={gmailCleanup}
+                    onChange={(e) => handleGmailCleanupToggle(e.target.checked)}
+                    color="primary"
+                    disabled={!canEnableCleanup || savingGmailCleanup}
+                  />
+                }
+                label=""
+              />
+            </Box>
+            <Divider />
+            {!canEnableCleanup && (
+              <Box sx={{ mt: 2 }}>
+                <Alert severity="info">
+                  <Typography variant="body2">
+                    Connect Gmail to enable automatic email cleanup feature.
+                  </Typography>
+                </Alert>
+              </Box>
+            )}
+          </Box>
+
           {/* Add new Dialog for Customized Resumes */}
           <Dialog
             open={customizedResumesOpen}
@@ -1326,7 +1406,10 @@ const Resume = () => {
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setShowAuthDialog(false)}>Close</Button>
+          <Button onClick={async () => {
+            setShowAuthDialog(false);
+            await handleRefreshGmailStatus();
+          }}>Close</Button>
         </DialogActions>
       </Dialog>
     </Box>
