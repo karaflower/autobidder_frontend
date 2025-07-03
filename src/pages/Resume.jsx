@@ -66,7 +66,6 @@ const Resume = () => {
   const [removingGmail, setRemovingGmail] = useState(false);
   const [gmailTokenExpiryDate, setGmailTokenExpiryDate] = useState(null);
   const [gmailCleanup, setGmailCleanup] = useState(false);
-  const [canEnableCleanup, setCanEnableCleanup] = useState(false);
   const [loadingCleanup, setLoadingCleanup] = useState(false);
   const [cleanupError, setCleanupError] = useState("");
   const [savingGmailCleanup, setSavingGmailCleanup] = useState(false);
@@ -123,7 +122,6 @@ const Resume = () => {
             },
             gmail_cleanup_status: resumeData.gmail_cleanup_status || {
               gmail_auto_cleanup: false,
-              can_enable: false
             }
           };
         });
@@ -613,26 +611,8 @@ const Resume = () => {
       
       if (currentResume.gmail_cleanup_status) {
         setGmailCleanup(currentResume.gmail_cleanup_status.gmail_auto_cleanup);
-        setCanEnableCleanup(currentResume.gmail_cleanup_status.can_enable);
       }
     }
-  }, [selectedResumeIndex, resumes]);
-
-  useEffect(() => {
-    // Fetch cleanup status on mount
-    const fetchCleanupStatus = async () => {
-      try {
-        setLoadingCleanup(true);
-        const res = await axios.get(`${process.env.REACT_APP_API_URL}/resumes/${resumes[selectedResumeIndex]._id}/gmail-cleanup-status`);
-        setGmailCleanup(res.data.gmail_auto_cleanup);
-        setCanEnableCleanup(res.data.can_enable);
-      } catch (err) {
-        setCleanupError("Failed to load Gmail cleanup status.");
-      } finally {
-        setLoadingCleanup(false);
-      }
-    };
-    fetchCleanupStatus();
   }, [selectedResumeIndex, resumes]);
 
   const handleGmailCleanupToggle = async (checked) => {
@@ -1284,18 +1264,18 @@ const Resume = () => {
                     checked={gmailCleanup}
                     onChange={(e) => handleGmailCleanupToggle(e.target.checked)}
                     color="primary"
-                    disabled={!canEnableCleanup || savingGmailCleanup}
+                    disabled={savingGmailCleanup}
                   />
                 }
                 label=""
               />
             </Box>
             <Divider />
-            {!canEnableCleanup && (
+            {cleanupError && (
               <Box sx={{ mt: 2 }}>
-                <Alert severity="info">
+                <Alert severity="error">
                   <Typography variant="body2">
-                    Connect Gmail to enable automatic email cleanup feature.
+                    {cleanupError}
                   </Typography>
                 </Alert>
               </Box>
