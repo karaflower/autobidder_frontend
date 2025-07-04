@@ -473,7 +473,7 @@ const BidHistory = () => {
                   </Box>
                 </TableCell>
                 <TableCell>Profile</TableCell>
-                <TableCell sx={{ display: 'flex', placeItems: 'baseline' }}>
+                <TableCell sx={{ display: 'flex', placeItems: 'baseline', height: '68.5px' }}>
                   Date
                   <TextField
                     type="date"
