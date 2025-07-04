@@ -472,6 +472,7 @@ const BidHistory = () => {
                     </Tooltip>
                   </Box>
                 </TableCell>
+                <TableCell>Profile</TableCell>
                 <TableCell sx={{ display: 'flex', placeItems: 'baseline' }}>
                   Date
                   <TextField
@@ -504,6 +505,28 @@ const BidHistory = () => {
                     >
                       {bid.url.length > 60 ? bid.url.substring(0, 60) + '...' : bid.url}
                     </Link>
+                  </TableCell>
+                  <TableCell>
+                    {bid.profile ? (
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          backgroundColor: '#008B8B',
+                          color: 'white', 
+                          px: 1, 
+                          py: 0.5, 
+                          borderRadius: 1,
+                          display: 'inline-block',
+                          fontSize: '0.75rem'
+                        }}
+                      >
+                        {bid.profile}
+                      </Typography>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                        No profile
+                      </Typography>
+                    )}
                   </TableCell>
                   <TableCell>
                     {new Date(bid.timestamp).toLocaleString(undefined, {
