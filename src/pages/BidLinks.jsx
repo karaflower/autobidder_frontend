@@ -61,7 +61,7 @@ import Slider from "@mui/material/Slider";
 const OPENED_LINKS_STORAGE_KEY = "openedBidLinks";
 const MAX_STORED_LINKS = 10000;
 const LINK_EXPIRY_DAYS = 30;
-const STRICT_TAGS = ['Email Found', 'Remote Job', 'Non Remote Job', 'Other Relevant', 'Login Required', 'Verification Required', 'Expired', 'Invalid URL'];
+const STRICT_TAGS = ['Email Found', 'Remote Job', 'Non Remote Job', 'Other Relevant', 'Login Required', 'Verification Required', 'Expired', 'Irrelevant'];
 const TAG_PRIORITY = {
   'Email Found': 1,
   'Remote Job': 2,
@@ -70,7 +70,7 @@ const TAG_PRIORITY = {
   'Other Relevant': 5,
   'Verification Required': 6,
   'Expired': 7,
-  'Invalid URL': 8,
+  'Irrelevant': 8,
 };
 
 const getOpenedLinks = () => {
@@ -399,7 +399,7 @@ const getTagColor = (tag) => {
           color: '#fff'
         }
       };
-    case 'Invalid URL':
+    case 'Irrelevant':
       return { 
         sx: { 
           backgroundColor: 'transparent',
