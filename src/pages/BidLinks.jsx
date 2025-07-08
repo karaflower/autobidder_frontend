@@ -955,14 +955,22 @@ const BidLinks = () => {
 
     setIsSearchInputLoading(true);
     try {
+      const params = new URLSearchParams({
+        searchTerm: searchTerm,
+        showBlacklisted: false,
+      });
+
+      params.append('confidenceMin', confidenceRange[0].toString());
+      params.append('confidenceMax', confidenceRange[1].toString());
+
+      // Add strict filtering parameters
+      if (strictlyFilteredJobs) {
+        params.append('strictlyFilteredJobs', 'true');
+        params.append('visibleTags', JSON.stringify(visibleTags));
+      }
+
       const response = await axios.get(
-        `${process.env.REACT_APP_API_URL}/bid-links/search`,
-        {
-          params: {
-            searchTerm: searchTerm,
-            showBlacklisted: false,
-          },
-        }
+        `${process.env.REACT_APP_API_URL}/bid-links/search?${params.toString()}`
       );
       setGlobalSearchResults(Array.isArray(response.data) ? response.data : []);
       setSearchResultsPage(0);
@@ -2474,37 +2482,53 @@ const BidLinks = () => {
                               gap: 1,
                             }}
                           >
-                            <Link
-                              href={link.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                            <Box
                               sx={{
-                                color: "primary.main",
-                                textDecoration: "none",
-                                fontSize: "1.1rem",
-                                fontFamily:
-                                  '"Inter","Roboto","Helvetica","Arial",sans-serif',
-                                fontWeight: 500,
-                                display: "inline-flex",
+                                display: "flex",
                                 alignItems: "center",
-                                "&:hover": {
-                                  textDecoration: "underline",
-                                },
-                                "&:visited": {
-                                  color: (theme) =>
-                                    theme.palette.mode === "dark"
-                                      ? "#e0b0ff"
-                                      : "#551A8B",
-                                },
+                                gap: 1,
+                                flexWrap: "wrap",
                               }}
                             >
-                              {link.title}
-                              {link.confidence && (
-                                <ConfidenceIndicator
-                                  confidence={link.confidence}
+                              <Link
+                                href={link.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                sx={{
+                                  color: "primary.main",
+                                  textDecoration: "none",
+                                  fontSize: "1.1rem",
+                                  fontFamily:
+                                    '"Inter","Roboto","Helvetica","Arial",sans-serif',
+                                  fontWeight: 500,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  "&:hover": {
+                                    textDecoration: "underline",
+                                  },
+                                  "&:visited": {
+                                    color: (theme) =>
+                                      theme.palette.mode === "dark"
+                                        ? "#e0b0ff"
+                                        : "#551A8B",
+                                  },
+                                }}
+                              >
+                                {link.title}
+                                {link.confidence && (
+                                  <ConfidenceIndicator
+                                    confidence={link.confidence}
+                                  />
+                                )}
+                              </Link>
+                              {link.final_details?.tag && (
+                                <Chip
+                                  label={link.final_details.tag}
+                                  size="small"
+                                  sx={{ ...getTagColor(link.final_details.tag).sx }}
                                 />
                               )}
-                            </Link>
+                            </Box>
                             <Typography variant="body2" color="text.secondary">
                               Company: {link.company || "N/A"} | Posted:{" "}
                               {link.date || "N/A"} | Added:{" "}
