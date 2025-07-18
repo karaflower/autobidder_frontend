@@ -349,7 +349,11 @@ function App() {
                             }
                           </ProtectedRoute>
                         } />
-                        <Route path="/resumes" element={<Resume />} />
+                        <Route path="/resumes" element={
+                          <ProtectedRoute forbiddenRole="bidder">
+                            <Resume />
+                          </ProtectedRoute>
+                        } />
                         <Route path="/search-queries" element={
                           <ProtectedRoute forbiddenRole="bidder">
                             <SearchQueries />
