@@ -7,7 +7,6 @@ import {
   Button,
   Box,
   Grid,
-  Alert,
   Select,
   MenuItem,
   List,
@@ -25,10 +24,6 @@ import { useAuth } from "../context/AuthContext";
 const Settings = () => {
   const { user } = useAuth();
   console.log(user);
-  const [apiKeys, setApiKeys] = useState({
-    serper_api_key: "",
-    openai_api_key: "",
-  });
   const [loading, setLoading] = useState(false);
   const [passwords, setPasswords] = useState({
     currentPassword: "",
@@ -40,19 +35,7 @@ const Settings = () => {
   const [selectedUser, setSelectedUser] = useState('');
   const [teamName, setTeamName] = useState('');
 
-  const fetchApiKeys = async () => {
-    try {
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/api-keys`);
-      if (response.data) {
-        setApiKeys(response.data);
-      }
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
   useEffect(() => {
-    fetchApiKeys();
     fetchTeamData();
   }, []);
 
@@ -72,35 +55,6 @@ const Settings = () => {
       console.log(error);
       toast.error("Failed to fetch team data");
     }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      await axios.post(`${process.env.REACT_APP_API_URL}/api-keys`, apiKeys);
-      toast.success("API keys updated successfully");
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to update API keys");
-    }
-    setLoading(false);
-  };
-
-  const handleDelete = async () => {
-    if (!window.confirm("Are you sure you want to delete your API keys?")) return;
-
-    setLoading(true);
-    try {
-      await axios.delete(`${process.env.REACT_APP_API_URL}/api-keys`);
-      setApiKeys({
-        serper_api_key: "",
-        openai_api_key: "",
-      });
-      toast.success("API keys deleted successfully");
-    } catch (error) {
-      toast.error("Failed to delete API keys");
-    }
-    setLoading(false);
   };
 
   const handleAddMember = async () => {
@@ -172,165 +126,108 @@ const Settings = () => {
     <Grid container justifyContent="center" spacing={2}>
       <Grid item xs={12} md={8} lg={6}>
         {user.role === 'lead' && (
-          <>
-            <Card sx={{ mb: 2 }}>
-              <CardContent>
-                <Typography variant="h5" gutterBottom>
-                  API Keys Management
-                </Typography>
+          <Card sx={{ mb: 2 }}>
+            <CardContent>
+              <Typography variant="h5" gutterBottom>
+                Team Management ({teamName})
+              </Typography>
 
-                <form onSubmit={handleSubmit}>
-                  <TextField
-                    label="Serper API Key"
-                    fullWidth
-                    margin="normal"
-                    value={apiKeys.serper_api_key}
-                    onChange={(e) =>
-                      setApiKeys((prev) => ({
-                        ...prev,
-                        serper_api_key: e.target.value,
-                      }))
-                    }
-                  />
-
-                  <TextField
-                    label="OpenAI API Key"
-                    fullWidth
-                    margin="normal"
-                    value={apiKeys.openai_api_key}
-                    onChange={(e) =>
-                      setApiKeys((prev) => ({
-                        ...prev,
-                        openai_api_key: e.target.value,
-                      }))
-                    }
-                  />
-
-                  <Box sx={{ mt: 2, display: "flex", gap: 2 }}>
-                    <Button
-                      type="submit"
-                      variant="contained"
-                      color="primary"
-                      disabled={loading}
-                    >
-                      {loading ? "Saving..." : "Save API Keys"}
-                    </Button>
-
-                    <Button
-                      variant="outlined"
-                      color="error"
-                      onClick={handleDelete}
-                      disabled={loading}
-                    >
-                      Delete API Keys
-                    </Button>
-                  </Box>
-                </form>
-              </CardContent>
-            </Card>
-
-            <Card sx={{ mt: 2 }}>
-              <CardContent>
-                <Typography variant="h5" gutterBottom>
-                  Team Management ({teamName})
-                </Typography>
-
-                <Box sx={{ mb: 2 }}>
-                  <Select
-                    fullWidth
-                    value={selectedUser}
-                    onChange={(e) => setSelectedUser(e.target.value)}
-                    displayEmpty
-                  >
-                    <MenuItem value="" disabled>
-                      Select user to add
+              <Box sx={{ mb: 2 }}>
+                <Select
+                  fullWidth
+                  value={selectedUser}
+                  onChange={(e) => setSelectedUser(e.target.value)}
+                  displayEmpty
+                >
+                  <MenuItem value="" disabled>
+                    Select user to add
+                  </MenuItem>
+                  {teamlessUsers.map((user) => (
+                    <MenuItem key={user._id} value={user._id}>
+                      {user.name}
                     </MenuItem>
-                    {teamlessUsers.map((user) => (
-                      <MenuItem key={user._id} value={user._id}>
-                        {user.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                  <Button
-                    variant="contained"
-                    onClick={handleAddMember}
-                    disabled={!selectedUser}
-                    sx={{ mt: 1 }}
-                  >
-                    Add to Team
-                  </Button>
-                </Box>
+                  ))}
+                </Select>
+                <Button
+                  variant="contained"
+                  onClick={handleAddMember}
+                  disabled={!selectedUser}
+                  sx={{ mt: 1 }}
+                >
+                  Add to Team
+                </Button>
+              </Box>
 
+              <Typography variant="h6" gutterBottom>
+                Team Members
+              </Typography>
+              <List>
+                {teamMembers
+                  .filter(member => member._id !== user._id && member.role === 'member')
+                  .map((member) => (
+                    <ListItem key={member._id}>
+                      <ListItemText 
+                        primary={member.name} 
+                        secondary={`Role: ${member.role}`} 
+                      />
+                      <ListItemSecondaryAction>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() => handleChangeRole(member._id, 'bidder')}
+                          sx={{ mr: 1 }}
+                        >
+                          Make Bidder
+                        </Button>
+                        <IconButton
+                          edge="end"
+                          onClick={() => handleRemoveMember(member._id)}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </ListItemSecondaryAction>
+                    </ListItem>
+                  ))}
+              </List>
+
+              <Box sx={{ my: 2 }}>
                 <Typography variant="h6" gutterBottom>
-                  Team Members
+                  Bidders
                 </Typography>
-                <List>
-                  {teamMembers
-                    .filter(member => member._id !== user._id && member.role === 'member')
-                    .map((member) => (
-                      <ListItem key={member._id}>
-                        <ListItemText 
-                          primary={member.name} 
-                          secondary={`Role: ${member.role}`} 
-                        />
-                        <ListItemSecondaryAction>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            onClick={() => handleChangeRole(member._id, 'bidder')}
-                            sx={{ mr: 1 }}
-                          >
-                            Make Bidder
-                          </Button>
-                          <IconButton
-                            edge="end"
-                            onClick={() => handleRemoveMember(member._id)}
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </ListItemSecondaryAction>
-                      </ListItem>
-                    ))}
-                </List>
+              </Box>
 
-                <Box sx={{ my: 2 }}>
-                  <Typography variant="h6" gutterBottom>
-                    Bidders
-                  </Typography>
-                </Box>
-
-                <List>
-                  {teamMembers
-                    .filter(member => member._id !== user._id && member.role === 'bidder')
-                    .map((member) => (
-                      <ListItem key={member._id}>
-                        <ListItemText 
-                          primary={member.name} 
-                          secondary={`Role: ${member.role}`} 
-                        />
-                        <ListItemSecondaryAction>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            onClick={() => handleChangeRole(member._id, 'member')}
-                            sx={{ mr: 1 }}
-                          >
-                            Make Member
-                          </Button>
-                          <IconButton
-                            edge="end"
-                            onClick={() => handleRemoveMember(member._id)}
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </ListItemSecondaryAction>
-                      </ListItem>
-                    ))}
-                </List>
-              </CardContent>
-            </Card>
-          </>
+              <List>
+                {teamMembers
+                  .filter(member => member._id !== user._id && member.role === 'bidder')
+                  .map((member) => (
+                    <ListItem key={member._id}>
+                      <ListItemText 
+                        primary={member.name} 
+                        secondary={`Role: ${member.role}`} 
+                      />
+                      <ListItemSecondaryAction>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() => handleChangeRole(member._id, 'member')}
+                          sx={{ mr: 1 }}
+                        >
+                          Make Member
+                        </Button>
+                        <IconButton
+                          edge="end"
+                          onClick={() => handleRemoveMember(member._id)}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </ListItemSecondaryAction>
+                    </ListItem>
+                  ))}
+              </List>
+            </CardContent>
+          </Card>
         )}
+        
         <Card sx={{ mt: 2 }}>
           <CardContent>
             <Typography variant="h5" gutterBottom>
@@ -388,6 +285,7 @@ const Settings = () => {
             </form>
           </CardContent>
         </Card>
+        
         <Card sx={{ mt: 2 }}>
           <CardContent>
             <Typography variant="h5" gutterBottom>

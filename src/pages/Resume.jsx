@@ -20,7 +20,11 @@ import {
   Switch,
   FormControlLabel,
   Alert,
-  Chip
+  Chip,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem
 } from '@mui/material';
 import axios from 'axios';
 import EditIcon from '@mui/icons-material/Edit';
@@ -69,6 +73,7 @@ const Resume = () => {
   const [loadingCleanup, setLoadingCleanup] = useState(false);
   const [cleanupError, setCleanupError] = useState("");
   const [savingGmailCleanup, setSavingGmailCleanup] = useState(false);
+  const [emailSendFrequencyDays, setEmailSendFrequencyDays] = useState(1.5);
   const { user } = useAuth();
 
   const fetchResumes = async () => {
@@ -111,6 +116,7 @@ const Resume = () => {
             auto_email_application: resumeData.auto_email_application || false,
             cover_letter_title: resumeData.cover_letter?.title || '',
             cover_letter_content: resumeData.cover_letter?.content || '',
+            email_send_frequency_days: resumeData.email_send_frequency_days || 1.5,
             gmail_credentials_setup: resumeData.gmail_credentials_setup || false,
             gmail_email: resumeData.gmail_email || '',
             gmail_status: resumeData.gmail_status || {
@@ -507,7 +513,8 @@ const Resume = () => {
         `${process.env.REACT_APP_API_URL}/resumes/${selectedResume._id}/auto-email-settings`,
         { 
           cover_letter_title: coverLetterTitle,
-          cover_letter_content: coverLetterContent
+          cover_letter_content: coverLetterContent,
+          email_send_frequency_days: emailSendFrequencyDays
         },
         {
           headers: {
@@ -521,7 +528,8 @@ const Resume = () => {
       updatedResumes[selectedResumeIndex] = {
         ...updatedResumes[selectedResumeIndex],
         cover_letter_title: coverLetterTitle,
-        cover_letter_content: coverLetterContent
+        cover_letter_content: coverLetterContent,
+        email_send_frequency_days: emailSendFrequencyDays
       };
       setResumes(updatedResumes);
       
@@ -602,6 +610,7 @@ const Resume = () => {
       setAutoEmailEnabled(!!currentResume.auto_email_application);
       setCoverLetterTitle(currentResume.cover_letter_title || '');
       setCoverLetterContent(currentResume.cover_letter_content || '');
+      setEmailSendFrequencyDays(currentResume.email_send_frequency_days || 1.5);
       
       if (currentResume.gmail_status) {
         setGmailConnected(currentResume.gmail_status.connected);
@@ -1208,6 +1217,37 @@ const Resume = () => {
                       </Typography>
                     </Box>
                   )}
+                </Box>
+
+                {/* Email Frequency Section */}
+                <Box sx={{ mt: 3 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Email Sending Frequency
+                  </Typography>
+                  
+                  <FormControl fullWidth sx={{ mb: 3 }}>
+                    <InputLabel>Send every * days</InputLabel>
+                    <Select
+                      value={emailSendFrequencyDays}
+                      onChange={(e) => setEmailSendFrequencyDays(e.target.value)}
+                      label="Send every * days"
+                    >
+                      <MenuItem value={1.5}>1.5 days</MenuItem>
+                      <MenuItem value={2}>2 days</MenuItem>
+                      <MenuItem value={3}>3 days</MenuItem>
+                      <MenuItem value={4}>4 days</MenuItem>
+                      <MenuItem value={5}>5 days</MenuItem>
+                      <MenuItem value={6}>6 days</MenuItem>
+                      <MenuItem value={7}>7 days</MenuItem>
+                    </Select>
+                  </FormControl>
+                  
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    <strong>Note:</strong> 
+                    • 1.5-2 days: Emails will be sent within 12 hours of the scheduled time<br/>
+                    • 3-4 days: Emails will be sent within 24 hours of the scheduled time<br/>
+                    • 5-7 days: Emails will be sent within 48 hours of the scheduled time
+                  </Typography>
                 </Box>
 
                 {/* Cover Letter Section */}
