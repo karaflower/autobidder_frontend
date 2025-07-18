@@ -96,28 +96,30 @@ const Navigation = ({ isNavExpanded, setIsNavExpanded }) => {
           </ListItemButton>
         </Tooltip>
 
-        <Tooltip title="Resumes" placement="right" arrow disableHoverListener={isNavExpanded}>
-          <ListItemButton
-            component={RouterLink}
-            to="/resumes"
-            sx={{
-              "&.Mui-selected": {
-                backgroundColor: "action.selected",
-              },
-              justifyContent: isNavExpanded ? 'initial' : 'center',
-              px: 2.5,
-            }}
-            selected={location.pathname === "/resumes"}
-          >
-            <ListItemIcon sx={{ 
-              minWidth: isNavExpanded ? 56 : 'auto',
-              justifyContent: 'center',
-            }}>
-              <DescriptionIcon sx={{ color: "primary.main" }} />
-            </ListItemIcon>
-            {isNavExpanded && <ListItemText primary="Resumes" />}
-          </ListItemButton>
-        </Tooltip>
+        {user?.role !== 'bidder' && (
+          <Tooltip title="Resumes" placement="right" arrow disableHoverListener={isNavExpanded}>
+            <ListItemButton
+              component={RouterLink}
+              to="/resumes"
+              sx={{
+                "&.Mui-selected": {
+                  backgroundColor: "action.selected",
+                },
+                justifyContent: isNavExpanded ? 'initial' : 'center',
+                px: 2.5,
+              }}
+              selected={location.pathname === "/resumes"}
+            >
+              <ListItemIcon sx={{ 
+                minWidth: isNavExpanded ? 56 : 'auto',
+                justifyContent: 'center',
+              }}>
+                <DescriptionIcon sx={{ color: "primary.main" }} />
+              </ListItemIcon>
+              {isNavExpanded && <ListItemText primary="Resumes" />}
+            </ListItemButton>
+          </Tooltip>
+        )}
 
         {user?.role !== 'bidder' && (
           <>
