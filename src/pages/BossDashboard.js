@@ -39,6 +39,7 @@ import {
 } from '@mui/material';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import CreditAnalytics from '../components/CreditAnalytics';
 
 // Register ChartJS components
 ChartJS.register(
@@ -74,6 +75,7 @@ const BossDashboard = () => {
   const [galleryView, setGalleryView] = useState(false);
   const [currentBidIndex, setCurrentBidIndex] = useState(0);
   const thumbnailContainerRef = useRef(null);
+  const [activeTab, setActiveTab] = useState('bids'); // Add this state
 
   // Fetch all teams
   useEffect(() => {
@@ -464,11 +466,27 @@ const BossDashboard = () => {
 
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
-      {initialLoading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-          <CircularProgress />
+      {/* Add Tab Navigation */}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Button
+            variant={activeTab === 'bids' ? 'contained' : 'outlined'}
+            onClick={() => setActiveTab('bids')}
+            size="small"
+          >
+            Bid Analytics
+          </Button>
+          <Button
+            variant={activeTab === 'credits' ? 'contained' : 'outlined'}
+            onClick={() => setActiveTab('credits')}
+            size="small"
+          >
+            Credit Analytics
+          </Button>
         </Box>
-      ) : (
+      </Box>
+
+      {activeTab === 'bids' ? (
         <>
           <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
             <FormControl sx={{ minWidth: 200 }}>
@@ -570,6 +588,8 @@ const BossDashboard = () => {
             )}
           </Paper>
         </>
+      ) : (
+        <CreditAnalytics />
       )}
       
       <Dialog 
