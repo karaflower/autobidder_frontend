@@ -135,12 +135,12 @@ const CreditAnalytics = () => {
   };
 
   const calculateTotals = () => {
-    if (!analyticsData) return { totalCredits: 0, totalSearches: 0 };
+    if (!analyticsData) return { totalCredits: 0, totalDays: 0 };
     
     const totalCredits = analyticsData.teamTotals.reduce((sum, team) => sum + team.totalCredits, 0);
-    const totalSearches = analyticsData.teamTotals.reduce((sum, team) => sum + team.totalSearches, 0);
+    const totalDays = analyticsData.teamTotals.reduce((sum, team) => sum + team.totalSearches, 0); // This now represents days
     
-    return { totalCredits, totalSearches };
+    return { totalCredits, totalDays };
   };
 
   const totals = calculateTotals();
@@ -219,10 +219,10 @@ const CreditAnalytics = () => {
               <Card>
                 <CardContent>
                   <Typography color="textSecondary" gutterBottom>
-                    Total Searches
+                    Days with Activity
                   </Typography>
                   <Typography variant="h4">
-                    {totals.totalSearches.toLocaleString()}
+                    {totals.totalDays.toLocaleString()}
                   </Typography>
                 </CardContent>
               </Card>
@@ -231,11 +231,11 @@ const CreditAnalytics = () => {
               <Card>
                 <CardContent>
                   <Typography color="textSecondary" gutterBottom>
-                    Average Credits per Search
+                    Average Credits per Day
                   </Typography>
                   <Typography variant="h4">
-                    {totals.totalSearches > 0 
-                      ? (totals.totalCredits / totals.totalSearches).toFixed(2)
+                    {totals.totalDays > 0 
+                      ? (totals.totalCredits / totals.totalDays).toFixed(2)
                       : '0'
                     }
                   </Typography>
