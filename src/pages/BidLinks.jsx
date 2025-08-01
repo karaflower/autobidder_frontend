@@ -66,6 +66,7 @@ import Slider from "@mui/material/Slider";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { useAuth } from "../context/AuthContext";
+import RefreshIcon from "@mui/icons-material/Refresh";
 
 const OPENED_LINKS_STORAGE_KEY = "openedBidLinks";
 const MAX_STORED_LINKS = 10000;
@@ -545,7 +546,7 @@ const BidLinks = () => {
   // Add new state for sidebar visibility
   const [sidebarVisible, setSidebarVisible] = useState(() => {
     const stored = localStorage.getItem("sidebarVisible");
-    return stored ? JSON.parse(stored) : true;
+    return stored ? JSON.parse(stored) : false; // Change default to false
   });
 
   const getRelativeTimeString = (date) => {
@@ -904,6 +905,12 @@ const BidLinks = () => {
 
       lastFetchTime.current = new Date();
       setBidLinks(sortedLinks);
+
+      // Show sidebar when links are loaded for the first time
+      if (!lastFetchTime.current || bidLinks.length === 0) {
+        setSidebarVisible(true);
+        localStorage.setItem("sidebarVisible", JSON.stringify(true));
+      }
     } catch (err) {
       console.error("Failed to fetch bid links:", err);
     } finally {
@@ -1891,17 +1898,29 @@ const BidLinks = () => {
           <Typography variant="h6" sx={{ fontWeight: 600 }}>
             Filters & Actions
           </Typography>
-          <IconButton
-            size="small"
-            onClick={() => {
-              const newVisible = !sidebarVisible;
-              setSidebarVisible(newVisible);
-              localStorage.setItem("sidebarVisible", JSON.stringify(newVisible));
-            }}
-            sx={{ ml: 1 }}
-          >
-            <ChevronLeftIcon />
-          </IconButton>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Tooltip title="Reload links">
+              <IconButton
+                size="small"
+                onClick={fetchBidLinks}
+                disabled={isReloadingBids}
+                sx={{ ml: 1 }}
+              >
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <IconButton
+              size="small"
+              onClick={() => {
+                const newVisible = !sidebarVisible;
+                setSidebarVisible(newVisible);
+                localStorage.setItem("sidebarVisible", JSON.stringify(newVisible));
+              }}
+              sx={{ ml: 1 }}
+            >
+              <ChevronLeftIcon />
+            </IconButton>
+          </Box>
         </Box>
 
         {/* Date Filter Section */}
@@ -2595,9 +2614,9 @@ const BidLinks = () => {
 
   return (
     <Box sx={{ display: "flex", gap: 3 }}>
-      {!isReloadingBids && sidebarVisible && renderSidebar()}
+      {sidebarVisible && renderSidebar()}
       <Box sx={{ flex: 1, position: "relative" }}>
-        {!isReloadingBids && !sidebarVisible && renderSidebarToggle()}
+        {!sidebarVisible && renderSidebarToggle()}
         <Grid container spacing={2}>
           <Grid item xs={12}>
             {isReloadingBids ? (
