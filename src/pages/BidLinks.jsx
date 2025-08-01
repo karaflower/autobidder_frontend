@@ -541,6 +541,7 @@ const BidLinks = () => {
     { value: "Europe", label: "Europe", count: 0 },
     { value: "Asia", label: "Asia", count: 0 },
     { value: "Africa", label: "Africa", count: 0 },
+    { value: "Anonymous", label: "Anonymous", count: 0 },
   ];
 
   // Add new state for sidebar visibility
@@ -655,13 +656,8 @@ const BidLinks = () => {
       // Location filter
       if (locationFilter.length > 0 && !locationFilter.includes("all")) {
         const linkLocation = link.location || "Unknown";
-        const isRemote = linkLocation.toLowerCase().includes("remote") || 
-                        linkLocation.toLowerCase().includes("anywhere");
-        const isOnSite = !isRemote && linkLocation !== "Unknown";
         
         const matchesLocation = locationFilter.some(filter => {
-          if (filter === "Remote") return isRemote;
-          if (filter === "On-site") return isOnSite;
           return linkLocation === filter;
         });
         
@@ -735,19 +731,6 @@ const BidLinks = () => {
     locationOptions.forEach(option => {
       if (option.value === "all") {
         counts[option.value] = bidLinks.length;
-      } else if (option.value === "Remote") {
-        counts[option.value] = bidLinks.filter(link => {
-          const location = link.location || "";
-          return location.toLowerCase().includes("remote") || 
-                 location.toLowerCase().includes("anywhere");
-        }).length;
-      } else if (option.value === "On-site") {
-        counts[option.value] = bidLinks.filter(link => {
-          const location = link.location || "";
-          return !location.toLowerCase().includes("remote") && 
-                 !location.toLowerCase().includes("anywhere") &&
-                 location !== "Unknown";
-        }).length;
       } else {
         counts[option.value] = bidLinks.filter(link => 
           link.location === option.value
