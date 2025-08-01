@@ -37,6 +37,7 @@ import {
   AccordionSummary,
   AccordionDetails,
   Divider,
+  ListItemIcon,
 } from "@mui/material";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -71,9 +72,9 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 const OPENED_LINKS_STORAGE_KEY = "openedBidLinks";
 const MAX_STORED_LINKS = 10000;
 const LINK_EXPIRY_DAYS = 30;
-const STRICT_TAGS = ['Email Found', 'Remote Job', 'Non Remote Job', 'Other Relevant', 'Login Required', 'Verification Required', 'Expired', 'Irrelevant'];
+const STRICT_TAGS = ['All', 'Email', 'Remote Job', 'Non Remote Job', 'Other Relevant', 'Login Required', 'Verification Required', 'Expired', 'Irrelevant', 'Uncategorized'];
 const TAG_PRIORITY = {
-  'Email Found': 1,
+  'Email': 1,
   'Remote Job': 2,
   'Non Remote Job': 3,
   'Login Required': 4,
@@ -81,6 +82,7 @@ const TAG_PRIORITY = {
   'Verification Required': 6,
   'Expired': 7,
   'Irrelevant': 8,
+  'Uncategorized': 9,
 };
 
 const getOpenedLinks = () => {
@@ -367,7 +369,7 @@ const NotificationConfigDialog = React.memo(
 
 const getTagColor = (tag) => {
   switch (tag) {
-    case 'Email Found':
+    case 'Email':
       return { 
         sx: { 
           backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#1b5e20' : '#4caf50',
@@ -415,6 +417,13 @@ const getTagColor = (tag) => {
           backgroundColor: 'transparent',
           borderColor: (theme) => theme.palette.mode === 'dark' ? '#f44336' : '#d32f2f',
           color: (theme) => theme.palette.mode === 'dark' ? '#f44336' : '#d32f2f'
+        }
+      };
+    case 'Uncategorized':
+      return { 
+        sx: { 
+          backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#424242' : '#9e9e9e',
+          color: '#fff'
         }
       };
     default:
@@ -511,7 +520,7 @@ const BidLinks = () => {
   const [visibleTags, setVisibleTags] = useState(() => {
     const stored = localStorage.getItem("visibleTags");
     return stored ? JSON.parse(stored) : STRICT_TAGS.reduce((acc, tag) => {
-      acc[tag] = true;
+      acc[tag] = tag === 'All' ? true : false; // Default to "All" selected, others unchecked
       return acc;
     }, {});
   });
@@ -673,8 +682,19 @@ const BidLinks = () => {
       // Strictly filtered jobs logic with tag visibility
       if (strictlyFilteredJobs) {
         const tag = link.final_details?.tag;
-        if (!tag || !STRICT_TAGS.includes(tag) || !visibleTags[tag]) {
-          return false;
+        // If "All" is selected, don't filter by tags
+        if (visibleTags['All']) {
+          // Don't filter by tags when "All" is selected
+        } else if (visibleTags['Uncategorized']) {
+          // If "Uncategorized" is selected, only show links without valid tags
+          if (tag && STRICT_TAGS.includes(tag)) {
+            return false;
+          }
+        } else {
+          // Filter by specific tags
+          if (!tag || !STRICT_TAGS.includes(tag) || !visibleTags[tag]) {
+            return false;
+          }
         }
       }
 
@@ -1465,7 +1485,7 @@ const BidLinks = () => {
     return (
       <Box sx={{ width: "100%" }}>
         <Paper
-          sx={{
+      sx={{
             borderRadius: 2,
             overflow: "hidden",
           }}
@@ -1512,8 +1532,8 @@ const BidLinks = () => {
                                 textDecoration: "underline",
                               },
                               "&:visited": {
-                                color: (theme) =>
-                                  theme.palette.mode === "dark"
+                                    color: (theme) =>
+                                      theme.palette.mode === "dark"
                                     ? "#e0b0ff" // Light purple for dark mode
                                     : "#551A8B", // Standard visited purple for light mode
                               },
@@ -1544,7 +1564,7 @@ const BidLinks = () => {
                           <Typography
                             variant="body2"
                             color="text.secondary"
-                            sx={{
+                              sx={{
                               mt: 1,
                               lineHeight: 1.6,
                             }}
@@ -2125,16 +2145,37 @@ const BidLinks = () => {
                     return false;
                   }
 
-                  // Apply all other filters
+                  // Apply confidence range filter
                   const confidence = link.confidence || 0;
                   if (confidence < confidenceRange[0] || confidence > confidenceRange[1]) {
                     return false;
                   }
 
+                  // Apply location filter
+                  if (locationFilter.length > 0 && !locationFilter.includes("all")) {
+                    const linkLocation = link.location || "Unknown";
+                    const matchesLocation = locationFilter.some(filter => {
+                      return linkLocation === filter;
+                    });
+                    if (!matchesLocation) return false;
+                  }
+
+                  // Apply user filter criteria
+                  if (showFilter === "mine" && link.created_by !== currentUserId) {
+                    return false;
+                  }
+
+                  // Apply behavior filtering with updated tag logic
                   if (strictlyFilteredJobs) {
                     const tag = link.final_details?.tag;
-                    if (!tag || !STRICT_TAGS.includes(tag) || !visibleTags[tag]) {
-                      return false;
+                    // If "All" is selected, don't filter by tags
+                    if (visibleTags['All']) {
+                      // Don't filter by tags when "All" is selected
+                    } else {
+                      // Filter by specific tags
+                      if (!tag || !STRICT_TAGS.includes(tag) || !visibleTags[tag]) {
+                        return false;
+                      }
                     }
                   }
 
@@ -2164,16 +2205,37 @@ const BidLinks = () => {
                     return false;
                   }
 
-                  // Apply all other filters
+                  // Apply confidence range filter
                   const confidence = link.confidence || 0;
                   if (confidence < confidenceRange[0] || confidence > confidenceRange[1]) {
                     return false;
                   }
 
+                  // Apply location filter
+                  if (locationFilter.length > 0 && !locationFilter.includes("all")) {
+                    const linkLocation = link.location || "Unknown";
+                    const matchesLocation = locationFilter.some(filter => {
+                      return linkLocation === filter;
+                    });
+                    if (!matchesLocation) return false;
+                  }
+
+                  // Apply user filter criteria
+                  if (showFilter === "mine" && link.created_by !== currentUserId) {
+                    return false;
+                  }
+
+                  // Apply behavior filtering with updated tag logic
                   if (strictlyFilteredJobs) {
                     const tag = link.final_details?.tag;
-                    if (!tag || !STRICT_TAGS.includes(tag) || !visibleTags[tag]) {
-                      return false;
+                    // If "All" is selected, don't filter by tags
+                    if (visibleTags['All']) {
+                      // Don't filter by tags when "All" is selected
+                    } else {
+                      // Filter by specific tags
+                      if (!tag || !STRICT_TAGS.includes(tag) || !visibleTags[tag]) {
+                        return false;
+                      }
                     }
                   }
 
@@ -2210,58 +2272,26 @@ const BidLinks = () => {
                 </Typography>
                 {categories
                   .filter((category) => hiddenCategories.includes(category))
-                  .map((category) => {
-                    const categoryCount = bidLinks.filter(link => {
-                      // Apply date filter
-                      if (queryDateLimit.length > 0) {
-                        const matchesDateLimit = queryDateLimit.some((limit) => {
-                          if (limit === -1) return true;
-                          if (limit === 0) return link.queryDateLimit == null;
-                          return link.queryDateLimit === limit;
-                        });
-                        if (!matchesDateLimit) return false;
-                      }
-
-                      // Apply category filter
-                      if (link.queryId?.category !== category) {
-                        return false;
-                      }
-
-                      // Apply all other filters
-                      const confidence = link.confidence || 0;
-                      if (confidence < confidenceRange[0] || confidence > confidenceRange[1]) {
-                        return false;
-                      }
-
-                      if (strictlyFilteredJobs) {
-                        const tag = link.final_details?.tag;
-                        if (!tag || !STRICT_TAGS.includes(tag) || !visibleTags[tag]) {
-                          return false;
-                        }
-                      }
-
-                      return true;
-                    }).length;
-
-                    return (
-                      <Box key={category} sx={{ display: "flex", alignItems: "center", gap: 1, opacity: 0.6 }}>
-                        <Checkbox
-                          checked={false}
-                          disabled
-                          size="small"
-                        />
-                        <Typography variant="body2" sx={{ flex: 1 }}>
-                          {category}
-                        </Typography>
-                        <Chip
-                          label={categoryCount}
-                          size="small"
-                          variant="outlined"
-                          sx={{ minWidth: 40, height: 20, fontSize: '0.75rem' }}
-                        />
-                      </Box>
-                    );
-                  })}
+                  .map((category) => (
+                    <ListItemButton
+                      key={category}
+                      sx={{ pr: 16, opacity: 0.6 }}
+                    >
+                      <ListItemIcon>
+                        <VisibilityOffIcon fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={category}
+                        primaryTypographyProps={{ variant: "body2" }}
+                      />
+                      <IconButton
+                        size="small"
+                        onClick={(event) => handleToggleCategoryVisibility(category, event)}
+                      >
+                        <VisibilityIcon fontSize="small" />
+                      </IconButton>
+                    </ListItemButton>
+                  ))}
               </>
             )}
           </Box>
@@ -2345,51 +2375,91 @@ const BidLinks = () => {
           </Box>
         )}
 
-        {/* Strict Filtering Section - Only show if team has 'special' role */}
+        {/* Behavior Filtering Section - Only show if team has 'special' role */}
         {teamInfo?.role?.includes('special') && renderSidebarSection(
-          "Strict Filtering",
+          "Behavior Filtering",
           expandedSections.strictFiltering,
           () => toggleSection("strictFiltering"),
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={strictlyFilteredJobs}
-                  onChange={(e) => {
-                    setStrictlyFilteredJobs(e.target.checked);
-                    localStorage.setItem("strictlyFilteredJobs", JSON.stringify(e.target.checked));
-                    setPage(0);
-                  }}
-                />
-              }
-              label="Strictly filtered jobs"
-            />
-            {strictlyFilteredJobs && (
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                <Typography variant="subtitle2" gutterBottom>
-                  Visible Tags
-                </Typography>
-                {STRICT_TAGS.map((tag) => (
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              {STRICT_TAGS.map((tag) => {
+                const tagCount = bidLinks.filter(link => {
+                  // Apply date filter
+                  if (queryDateLimit.length > 0) {
+                    const matchesDateLimit = queryDateLimit.some((limit) => {
+                      if (limit === -1) return true;
+                      if (limit === 0) return link.queryDateLimit == null;
+                      return link.queryDateLimit === limit;
+                    });
+                    if (!matchesDateLimit) return false;
+                  }
+
+                  // Apply category visibility filter
+                  if (hiddenCategories.includes(link.queryId?.category)) {
+                    return false;
+                  }
+
+                  // Apply category filter
+                  if (selectedCategory !== "all" && link.queryId?.category !== selectedCategory) {
+                    return false;
+                  }
+
+                  // Apply confidence range filter
+                  const confidence = link.confidence || 0;
+                  if (confidence < confidenceRange[0] || confidence > confidenceRange[1]) {
+                    return false;
+                  }
+
+                  // Apply location filter
+                  if (locationFilter.length > 0 && !locationFilter.includes("all")) {
+                    const linkLocation = link.location || "Unknown";
+                    const matchesLocation = locationFilter.some(filter => {
+                      return linkLocation === filter;
+                    });
+                    if (!matchesLocation) return false;
+                  }
+
+                  // Apply user filter criteria
+                  if (showFilter === "mine" && link.created_by !== currentUserId) {
+                    return false;
+                  }
+
+                  // Apply tag filter - special handling for "All" and "Uncategorized"
+                  if (tag === 'All') {
+                    // For "All", count all links (including uncategorized)
+                    return true;
+                  } else if (tag === 'Uncategorized') {
+                    // For "Uncategorized", count links that have no tag or an invalid tag
+                    const linkTag = link.final_details?.tag;
+                    return !linkTag || !STRICT_TAGS.includes(linkTag);
+                  } else {
+                    // For specific tags, count only links with that exact tag
+                    const linkTag = link.final_details?.tag;
+                    return linkTag === tag;
+                  }
+
+                  return true;
+                }).length;
+
+                return (
                   <Box key={tag} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <FormControlLabel
                       control={
                         <Checkbox
                           checked={visibleTags[tag]}
-                          onChange={(e) => {
-                            const newVisibleTags = {
-                              ...visibleTags,
-                              [tag]: e.target.checked
-                            };
-                            setVisibleTags(newVisibleTags);
-                            localStorage.setItem("visibleTags", JSON.stringify(newVisibleTags));
-                            setPage(0);
-                          }}
+                          onChange={() => handleTagFilterChange(tag)}
                         />
                       }
                       label={tag}
                       sx={{ flex: 1 }}
                     />
-                    {tag === 'Email Found' && (
+                    <Chip
+                      label={tagCount}
+                      size="small"
+                      variant="outlined"
+                      sx={{ minWidth: 40, height: 20, fontSize: '0.75rem' }}
+                    />
+                    {tag === 'Email' && (
                       <Button
                         size="small"
                         variant="outlined"
@@ -2399,9 +2469,9 @@ const BidLinks = () => {
                       </Button>
                     )}
                   </Box>
-                ))}
-              </Box>
-            )}
+                );
+              })}
+            </Box>
           </Box>
         )}
       </CardContent>
@@ -2462,11 +2532,22 @@ const BidLinks = () => {
         return false;
       }
 
-      // Check strict filtering
+      // Check behavior filtering
       if (strictlyFilteredJobs) {
         const tag = link.final_details?.tag;
-        if (!tag || !STRICT_TAGS.includes(tag) || !visibleTags[tag]) {
-          return false;
+        // If "All" is selected, don't filter by tags
+        if (visibleTags['All']) {
+          // Don't filter by tags when "All" is selected
+        } else if (visibleTags['Uncategorized']) {
+          // If "Uncategorized" is selected, only show links without valid tags
+          if (tag && STRICT_TAGS.includes(tag)) {
+            return false;
+          }
+        } else {
+          // Filter by specific tags
+          if (!tag || !STRICT_TAGS.includes(tag) || !visibleTags[tag]) {
+            return false;
+          }
         }
       }
 
@@ -2771,6 +2852,44 @@ const BidLinks = () => {
     });
 
     toast.info(`Opened ${visibleLinks.length} links`);
+  };
+
+  // Update the handleTagFilterChange function (around line 1833)
+  const handleTagFilterChange = (tag) => {
+    let newVisibleTags;
+    
+    if (tag === 'All') {
+      // If "All" is being selected, uncheck all others and check "All"
+      newVisibleTags = STRICT_TAGS.reduce((acc, t) => {
+        acc[t] = t === 'All';
+        return acc;
+      }, {});
+    } else {
+      // For any other tag, deselect "All" and handle the specific tag
+      if (visibleTags[tag]) {
+        // If this tag is currently selected, uncheck it
+        newVisibleTags = {
+          ...visibleTags,
+          'All': false,
+          [tag]: false
+        };
+        // If no tags are selected, select "All"
+        if (!Object.values(newVisibleTags).some(v => v)) {
+          newVisibleTags['All'] = true;
+        }
+      } else {
+        // If this tag is not selected, select it and deselect "All"
+        newVisibleTags = {
+          ...visibleTags,
+          'All': false,
+          [tag]: true
+        };
+      }
+    }
+    
+    setVisibleTags(newVisibleTags);
+    localStorage.setItem("visibleTags", JSON.stringify(newVisibleTags));
+    setPage(0);
   };
 
   return (
