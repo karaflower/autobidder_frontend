@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   Paper,
   Typography,
@@ -24,32 +24,32 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
-} from '@mui/material';
-import axios from 'axios';
-import EditIcon from '@mui/icons-material/Edit';
-import AddIcon from '@mui/icons-material/Add';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import SaveIcon from '@mui/icons-material/Save';
-import CancelIcon from '@mui/icons-material/Cancel';
-import * as pdfjsLib from 'pdfjs-dist';
-import CloseIcon from '@mui/icons-material/Close';
-import CustomizedResumes from './CustomizedResumes';
-import { useAuth } from '../context/AuthContext';
-import { toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import GoogleIcon from '@mui/icons-material/Google';
-import LinkIcon from '@mui/icons-material/Link';
-import LinkOffIcon from '@mui/icons-material/LinkOff';
+  MenuItem,
+} from "@mui/material";
+import axios from "axios";
+import EditIcon from "@mui/icons-material/Edit";
+import AddIcon from "@mui/icons-material/Add";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import SaveIcon from "@mui/icons-material/Save";
+import CancelIcon from "@mui/icons-material/Cancel";
+import * as pdfjsLib from "pdfjs-dist";
+import CloseIcon from "@mui/icons-material/Close";
+import CustomizedResumes from "./CustomizedResumes";
+import { useAuth } from "../context/AuthContext";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import GoogleIcon from "@mui/icons-material/Google";
+import LinkIcon from "@mui/icons-material/Link";
+import LinkOffIcon from "@mui/icons-material/LinkOff";
 
 // Set the worker source using a local path instead of CDN
-pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
 
 const Resume = () => {
   const [resumes, setResumes] = useState([]);
   const [selectedResumeIndex, setSelectedResumeIndex] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [editedResume, setEditedResume] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -58,14 +58,14 @@ const Resume = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [customizedResumesOpen, setCustomizedResumesOpen] = useState(false);
   const [autoEmailEnabled, setAutoEmailEnabled] = useState(false);
-  const [coverLetterTitle, setCoverLetterTitle] = useState('');
-  const [coverLetterContent, setCoverLetterContent] = useState('');
+  const [coverLetterTitle, setCoverLetterTitle] = useState("");
+  const [coverLetterContent, setCoverLetterContent] = useState("");
   const [savingAutoEmail, setSavingAutoEmail] = useState(false);
   const [savingAutoEmailSettings, setSavingAutoEmailSettings] = useState(false);
   const [gmailConnected, setGmailConnected] = useState(false);
-  const [gmailEmail, setGmailEmail] = useState('');
+  const [gmailEmail, setGmailEmail] = useState("");
   const [generatingAuthUrl, setGeneratingAuthUrl] = useState(false);
-  const [authUrl, setAuthUrl] = useState('');
+  const [authUrl, setAuthUrl] = useState("");
   const [showAuthDialog, setShowAuthDialog] = useState(false);
   const [removingGmail, setRemovingGmail] = useState(false);
   const [gmailTokenExpiryDate, setGmailTokenExpiryDate] = useState(null);
@@ -77,8 +77,10 @@ const Resume = () => {
   const { user } = useAuth();
 
   const fetchResumes = async () => {
-    try { 
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/resumes`);
+    try {
+      const response = await axios.get(
+        `${process.env.REACT_APP_API_URL}/resumes`
+      );
       if (Array.isArray(response.data) && response.data.length > 0) {
         const formattedResumes = response.data.map((resumeData) => {
           const content = resumeData.content;
@@ -87,20 +89,20 @@ const Resume = () => {
             company: exp.company,
             position: exp.position,
             duration: exp.duration,
-            description: exp.description
+            description: exp.description,
           }));
 
           const educationEntries = content.education.map((edu, index) => ({
             id: index + 1,
             institution: edu.institution,
             degree: edu.degree,
-            year: edu.year
+            year: edu.year,
           }));
 
           const skillEntries = content.skillset.map((skill, index) => ({
             id: index + 1,
             category: skill.category,
-            skills: skill.skills
+            skills: skill.skills,
           }));
 
           return {
@@ -111,35 +113,37 @@ const Resume = () => {
             education: educationEntries,
             experience: experienceEntries,
             skillset: skillEntries,
-            additional_info: content.additional_info || '',
+            additional_info: content.additional_info || "",
             path: resumeData.path,
             auto_email_application: resumeData.auto_email_application || false,
-            cover_letter_title: resumeData.cover_letter?.title || '',
-            cover_letter_content: resumeData.cover_letter?.content || '',
-            email_send_frequency_days: resumeData.email_send_frequency_days || 1.5,
-            gmail_credentials_setup: resumeData.gmail_credentials_setup || false,
-            gmail_email: resumeData.gmail_email || '',
+            cover_letter_title: resumeData.cover_letter?.title || "",
+            cover_letter_content: resumeData.cover_letter?.content || "",
+            email_send_frequency_days:
+              resumeData.email_send_frequency_days || 1.5,
+            gmail_credentials_setup:
+              resumeData.gmail_credentials_setup || false,
+            gmail_email: resumeData.gmail_email || "",
             gmail_status: resumeData.gmail_status || {
               connected: false,
-              email: '',
+              email: "",
               hasToken: false,
               tokenExpiryDate: null,
-              isNearExpiry: false
+              isNearExpiry: false,
             },
             gmail_cleanup_status: resumeData.gmail_cleanup_status || {
               gmail_auto_cleanup: false,
-            }
+            },
           };
         });
 
         setResumes(formattedResumes);
       } else {
-        setError('No resume data found');
+        setError("No resume data found");
       }
       setLoading(false);
     } catch (err) {
       console.log(err);
-      setError('Failed to fetch resumes');
+      setError("Failed to fetch resumes");
       setLoading(false);
     }
   };
@@ -150,32 +154,35 @@ const Resume = () => {
 
   const handleSave = async () => {
     if (!editedResume) return;
-    
+
     try {
       const formData = new FormData();
-      formData.append('owner', editedResume.owner);
-      formData.append('content', JSON.stringify({
-        personal_info: editedResume.personal_info,
-        profile: editedResume.profile,
-        education: editedResume.education,
-        experience: editedResume.experience,
-        summarized_experience: editedResume.summarized_experience,
-        skillset: editedResume.skillset,
-        additional_info: editedResume.additional_info
-      }));
+      formData.append("owner", editedResume.owner);
+      formData.append(
+        "content",
+        JSON.stringify({
+          personal_info: editedResume.personal_info,
+          profile: editedResume.profile,
+          education: editedResume.education,
+          experience: editedResume.experience,
+          summarized_experience: editedResume.summarized_experience,
+          skillset: editedResume.skillset,
+          additional_info: editedResume.additional_info,
+        })
+      );
 
       if (fileToUpload) {
-        formData.append('resume', fileToUpload);
+        formData.append("resume", fileToUpload);
       }
 
       // If it's a new resume (has temporary ID)
-      if (editedResume._id.startsWith('temp-')) {
+      if (editedResume._id.startsWith("temp-")) {
         const response = await axios.post(
           `${process.env.REACT_APP_API_URL}/resumes`,
           formData,
           {
             headers: {
-              'Content-Type': 'multipart/form-data',
+              "Content-Type": "multipart/form-data",
             },
           }
         );
@@ -188,21 +195,21 @@ const Resume = () => {
           formData,
           {
             headers: {
-              'Content-Type': 'multipart/form-data',
+              "Content-Type": "multipart/form-data",
             },
           }
         );
       }
-      
+
       const updatedResumes = [...resumes];
       updatedResumes[selectedResumeIndex] = editedResume;
       setResumes(updatedResumes);
       setIsEditing(false);
       setFileToUpload(null);
-      setError('');
+      setError("");
       await fetchResumes();
     } catch (err) {
-      setError('Failed to save resume');
+      setError("Failed to save resume");
     }
   };
 
@@ -213,12 +220,12 @@ const Resume = () => {
 
   const handleFieldChange = (section, field, value) => {
     if (!editedResume) return;
-    
-    if (field === '') {
+
+    if (field === "") {
       // Direct update for non-nested fields like 'profile'
       setEditedResume({
         ...editedResume,
-        [section]: value
+        [section]: value,
       });
     } else {
       // Nested update for fields like personal_info.name
@@ -226,57 +233,57 @@ const Resume = () => {
         ...editedResume,
         [section]: {
           ...editedResume[section],
-          [field]: value
-        }
+          [field]: value,
+        },
       });
     }
   };
 
   const handleExperienceChange = (id, field, value) => {
     if (!editedResume) return;
-    
+
     setEditedResume({
       ...editedResume,
-      experience: editedResume.experience.map(exp => 
+      experience: editedResume.experience.map((exp) =>
         exp.id === id ? { ...exp, [field]: value } : exp
-      )
+      ),
     });
   };
 
   const handleEducationChange = (id, field, value) => {
     if (!editedResume) return;
-    
+
     setEditedResume({
       ...editedResume,
-      education: editedResume.education.map(edu => 
+      education: editedResume.education.map((edu) =>
         edu.id === id ? { ...edu, [field]: value } : edu
-      )
+      ),
     });
   };
 
   const handleSkillChange = (id, field, value) => {
     if (!editedResume) return;
-    
+
     setEditedResume({
       ...editedResume,
-      skillset: editedResume.skillset.map(skill => 
+      skillset: editedResume.skillset.map((skill) =>
         skill.id === id ? { ...skill, [field]: value } : skill
-      )
+      ),
     });
   };
 
   const handleAddSkill = () => {
     if (!editedResume) return;
-    
+
     const newSkill = {
       id: editedResume.skillset.length + 1,
-      category: '',
-      skills: ''
+      category: "",
+      skills: "",
     };
 
     setEditedResume({
       ...editedResume,
-      skillset: [...editedResume.skillset, newSkill]
+      skillset: [...editedResume.skillset, newSkill],
     });
   };
 
@@ -285,26 +292,28 @@ const Resume = () => {
       _id: `temp-${Date.now()}`, // Temporary ID for local state
       owner: user._id,
       personal_info: {
-        name: '',
-        title: '',
-        email: '',
-        phone_number: '',
-        location: '',
-        linkedin: ''
+        name: "",
+        title: "",
+        email: "",
+        phone_number: "",
+        location: "",
+        linkedin: "",
       },
-      profile: '',
-      education: [{
-        id: 1,
-        institution: '',
-        degree: "",
-        year: ''
-      }],
+      profile: "",
+      education: [
+        {
+          id: 1,
+          institution: "",
+          degree: "",
+          year: "",
+        },
+      ],
       experience: [],
       summarized_experience: [],
       skillset: [],
-      additional_info: '',
+      additional_info: "",
       gmail_credentials_setup: false,
-      gmail_email: ''
+      gmail_email: "",
     };
 
     setResumes([...resumes, emptyResume]);
@@ -320,19 +329,23 @@ const Resume = () => {
 
   const handleDeleteConfirm = async () => {
     if (!resumeToDelete) return;
-    
+
     try {
-      await axios.delete(`${process.env.REACT_APP_API_URL}/resumes/${resumeToDelete.id}`);
-      const updatedResumes = resumes.filter((_, i) => i !== resumeToDelete.index);
+      await axios.delete(
+        `${process.env.REACT_APP_API_URL}/resumes/${resumeToDelete.id}`
+      );
+      const updatedResumes = resumes.filter(
+        (_, i) => i !== resumeToDelete.index
+      );
       setResumes(updatedResumes);
-      
+
       if (resumeToDelete.index === selectedResumeIndex) {
         setSelectedResumeIndex(Math.min(0, updatedResumes.length - 1));
       } else if (resumeToDelete.index < selectedResumeIndex) {
         setSelectedResumeIndex(selectedResumeIndex - 1);
       }
     } catch (err) {
-      setError('Failed to delete resume');
+      setError("Failed to delete resume");
     } finally {
       setDeleteDialogOpen(false);
       setResumeToDelete(null);
@@ -341,43 +354,45 @@ const Resume = () => {
 
   const handleAddExperience = () => {
     if (!editedResume) return;
-    
+
     const newExperience = {
       id: editedResume.experience.length + 1,
-      company: '',
-      position: '',
-      duration: '',
-      description: ''
+      company: "",
+      position: "",
+      duration: "",
+      description: "",
     };
 
     setEditedResume({
       ...editedResume,
-      experience: [...editedResume.experience, newExperience]
+      experience: [...editedResume.experience, newExperience],
     });
   };
 
   const handleRemoveSkill = (id) => {
     if (!editedResume) return;
-    
+
     setEditedResume({
       ...editedResume,
-      skillset: editedResume.skillset.filter(skill => skill.id !== id)
+      skillset: editedResume.skillset.filter((skill) => skill.id !== id),
     });
   };
 
   const handleRemoveExperience = (id) => {
     if (!editedResume) return;
-    
+
     setEditedResume({
       ...editedResume,
-      experience: editedResume.experience.filter(exp => exp.id !== id)
+      experience: editedResume.experience.filter((exp) => exp.id !== id),
     });
   };
 
   const handleCancel = () => {
-    if (editedResume?._id.startsWith('temp-')) {
+    if (editedResume?._id.startsWith("temp-")) {
       // Remove the temporary resume from the list
-      const updatedResumes = resumes.filter((_, index) => index !== selectedResumeIndex);
+      const updatedResumes = resumes.filter(
+        (_, index) => index !== selectedResumeIndex
+      );
       setResumes(updatedResumes);
       setSelectedResumeIndex(Math.max(0, updatedResumes.length - 1));
     }
@@ -390,30 +405,30 @@ const Resume = () => {
     if (file) {
       setFileToUpload(file);
       setIsAnalyzing(true);
-      
+
       try {
         // Convert file to array buffer
         const arrayBuffer = await file.arrayBuffer();
-        
+
         // Load the PDF document
         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        let fullText = '';
+        let fullText = "";
 
         // Extract text from each page
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
           const textContent = await page.getTextContent();
-          const pageText = textContent.items.map(item => item.str).join(' ');
-          fullText += pageText + '\n';
+          const pageText = textContent.items.map((item) => item.str).join(" ");
+          fullText += pageText + "\n";
         }
 
         // Send the extracted text to backend for analysis
         const response = await axios.post(
           `${process.env.REACT_APP_API_URL}/analyze`,
-          { type: 'extractResumeInfo', data: { resumeText: fullText } },
+          { type: "extractResumeInfo", data: { resumeText: fullText } },
           {
             headers: {
-              'Content-Type': 'application/json',
+              "Content-Type": "application/json",
             },
           }
         );
@@ -421,15 +436,24 @@ const Resume = () => {
         // Update the edited resume with the analyzed data
         if (response.data) {
           const analyzedResume = response.data;
-          setEditedResume(prev => ({
+          setEditedResume((prev) => ({
             ...prev,
             personal_info: {
-              name: analyzedResume.personal_info.name || prev.personal_info.name,
-              title: analyzedResume.personal_info.title || prev.personal_info.title,
-              email: analyzedResume.personal_info.email || prev.personal_info.email,
-              phone_number: analyzedResume.personal_info.phone_number || prev.personal_info.phone_number,
-              location: analyzedResume.personal_info.location || prev.personal_info.location,
-              linkedin: analyzedResume.personal_info.linkedin || prev.personal_info.linkedin,
+              name:
+                analyzedResume.personal_info.name || prev.personal_info.name,
+              title:
+                analyzedResume.personal_info.title || prev.personal_info.title,
+              email:
+                analyzedResume.personal_info.email || prev.personal_info.email,
+              phone_number:
+                analyzedResume.personal_info.phone_number ||
+                prev.personal_info.phone_number,
+              location:
+                analyzedResume.personal_info.location ||
+                prev.personal_info.location,
+              linkedin:
+                analyzedResume.personal_info.linkedin ||
+                prev.personal_info.linkedin,
             },
             profile: analyzedResume.profile || prev.profile,
             experience: analyzedResume.experience.map((exp, index) => ({
@@ -437,33 +461,34 @@ const Resume = () => {
               company: exp.company,
               position: exp.position,
               duration: exp.duration,
-              description: exp.description
+              description: exp.description,
             })),
-            summarized_experience: analyzedResume.summarized_experience.map((exp, index) => ({
-              id: index + 1,
-              company: exp.company,
-              position: exp.position,
-              duration: exp.duration,
-              description: exp.description
-            })),
+            summarized_experience: analyzedResume.summarized_experience.map(
+              (exp, index) => ({
+                id: index + 1,
+                company: exp.company,
+                position: exp.position,
+                duration: exp.duration,
+                description: exp.description,
+              })
+            ),
             education: analyzedResume.education.map((edu, index) => ({
               id: index + 1,
               institution: edu.institution,
               degree: edu.degree,
-              year: edu.year
+              year: edu.year,
             })),
             skillset: analyzedResume.skillset.map((skill, index) => ({
               id: index + 1,
               category: skill.category,
-              skills: skill.skills
+              skills: skill.skills,
             })),
-            additional_info: prev.additional_info || ''
+            additional_info: prev.additional_info || "",
           }));
         }
-
       } catch (error) {
-        console.error('Error processing PDF:', error);
-        setError('Failed to process resume file');
+        console.error("Error processing PDF:", error);
+        setError("Failed to process resume file");
       } finally {
         setIsAnalyzing(false);
       }
@@ -472,7 +497,7 @@ const Resume = () => {
 
   const handleAutoEmailToggle = async (checked) => {
     if (!selectedResume) return;
-    
+
     setSavingAutoEmail(true);
     try {
       const response = await axios.put(
@@ -480,23 +505,23 @@ const Resume = () => {
         { auto_email_application: checked },
         {
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
         }
       );
-      
+
       // Update the local resume data
       const updatedResumes = [...resumes];
       updatedResumes[selectedResumeIndex] = {
         ...updatedResumes[selectedResumeIndex],
-        auto_email_application: checked
+        auto_email_application: checked,
       };
       setResumes(updatedResumes);
-      
+
       setAutoEmailEnabled(checked);
-      setError('');
+      setError("");
     } catch (err) {
-      setError('Failed to update auto email application status');
+      setError("Failed to update auto email application status");
       // Revert the toggle if the API call failed
       setAutoEmailEnabled(!checked);
     } finally {
@@ -506,38 +531,38 @@ const Resume = () => {
 
   const handleSaveAutoEmailSettings = async () => {
     if (!selectedResume) return;
-    
+
     setSavingAutoEmailSettings(true);
     try {
       await axios.put(
         `${process.env.REACT_APP_API_URL}/resumes/${selectedResume._id}/auto-email-settings`,
-        { 
+        {
           cover_letter_title: coverLetterTitle,
           cover_letter_content: coverLetterContent,
-          email_send_frequency_days: emailSendFrequencyDays
+          email_send_frequency_days: emailSendFrequencyDays,
         },
         {
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
         }
       );
-      
+
       // Update the local resume data
       const updatedResumes = [...resumes];
       updatedResumes[selectedResumeIndex] = {
         ...updatedResumes[selectedResumeIndex],
         cover_letter_title: coverLetterTitle,
         cover_letter_content: coverLetterContent,
-        email_send_frequency_days: emailSendFrequencyDays
+        email_send_frequency_days: emailSendFrequencyDays,
       };
       setResumes(updatedResumes);
-      
-      setError('');
-      toast.success('Settings saved successfully!');
+
+      setError("");
+      toast.success("Settings saved successfully!");
     } catch (err) {
-      setError('Failed to save automatic email application settings');
-      toast.error('Failed to save automatic email application settings');
+      setError("Failed to save automatic email application settings");
+      toast.error("Failed to save automatic email application settings");
     } finally {
       setSavingAutoEmailSettings(false);
     }
@@ -545,18 +570,18 @@ const Resume = () => {
 
   const handleGenerateAuthUrl = async () => {
     if (!selectedResume) return;
-    
+
     setGeneratingAuthUrl(true);
     try {
       const response = await axios.get(
         `${process.env.REACT_APP_API_URL}/auth/gmail/url/${selectedResume._id}`
       );
-      
+
       setAuthUrl(response.data.authUrl);
       setShowAuthDialog(true);
     } catch (error) {
-      console.error('Error generating auth URL:', error);
-      toast.error('Failed to generate Gmail authorization URL');
+      console.error("Error generating auth URL:", error);
+      toast.error("Failed to generate Gmail authorization URL");
     } finally {
       setGeneratingAuthUrl(false);
     }
@@ -564,20 +589,20 @@ const Resume = () => {
 
   const handleRemoveGmailCredentials = async () => {
     if (!selectedResume) return;
-    
+
     setRemovingGmail(true);
     try {
       await axios.delete(
         `${process.env.REACT_APP_API_URL}/resumes/${selectedResume._id}/gmail-credentials`
       );
-      
+
       // Refresh the resume data from server to get updated Gmail status
       await fetchResumes();
-      
-      toast.success('Gmail credentials removed successfully');
+
+      toast.success("Gmail credentials removed successfully");
     } catch (error) {
-      console.error('Error removing Gmail credentials:', error);
-      toast.error('Failed to remove Gmail credentials');
+      console.error("Error removing Gmail credentials:", error);
+      toast.error("Failed to remove Gmail credentials");
     } finally {
       setRemovingGmail(false);
     }
@@ -585,39 +610,43 @@ const Resume = () => {
 
   const handleRefreshGmailStatus = async () => {
     if (!selectedResume) return;
-    
+
     try {
       await fetchResumes();
-      toast.success('Gmail status refreshed');
+      toast.success("Gmail status refreshed");
     } catch (error) {
-      console.error('Error refreshing Gmail status:', error);
-      toast.error('Failed to refresh Gmail status');
+      console.error("Error refreshing Gmail status:", error);
+      toast.error("Failed to refresh Gmail status");
     }
   };
 
   // Add a function to check if token is about to expire
   const isTokenNearExpiry = () => {
     if (!gmailTokenExpiryDate) return false;
-    
+
     const now = new Date();
     const oneDayInMs = 24 * 60 * 60 * 1000;
-    return (gmailTokenExpiryDate - now) <= oneDayInMs;
+    return gmailTokenExpiryDate - now <= oneDayInMs;
   };
 
   useEffect(() => {
     const currentResume = resumes[selectedResumeIndex];
     if (currentResume) {
       setAutoEmailEnabled(!!currentResume.auto_email_application);
-      setCoverLetterTitle(currentResume.cover_letter_title || '');
-      setCoverLetterContent(currentResume.cover_letter_content || '');
+      setCoverLetterTitle(currentResume.cover_letter_title || "");
+      setCoverLetterContent(currentResume.cover_letter_content || "");
       setEmailSendFrequencyDays(currentResume.email_send_frequency_days || 1.5);
-      
+
       if (currentResume.gmail_status) {
         setGmailConnected(currentResume.gmail_status.connected);
         setGmailEmail(currentResume.gmail_status.email);
-        setGmailTokenExpiryDate(currentResume.gmail_status.tokenExpiryDate ? new Date(currentResume.gmail_status.tokenExpiryDate) : null);
+        setGmailTokenExpiryDate(
+          currentResume.gmail_status.tokenExpiryDate
+            ? new Date(currentResume.gmail_status.tokenExpiryDate)
+            : null
+        );
       }
-      
+
       if (currentResume.gmail_cleanup_status) {
         setGmailCleanup(currentResume.gmail_cleanup_status.gmail_auto_cleanup);
       }
@@ -626,7 +655,7 @@ const Resume = () => {
 
   const handleGmailCleanupToggle = async (checked) => {
     if (!selectedResume) return;
-    
+
     setSavingGmailCleanup(true);
     try {
       await axios.put(
@@ -634,26 +663,26 @@ const Resume = () => {
         { enabled: checked },
         {
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
         }
       );
-      
+
       // Update the local resume data
       const updatedResumes = [...resumes];
       updatedResumes[selectedResumeIndex] = {
         ...updatedResumes[selectedResumeIndex],
         gmail_cleanup_status: {
           ...updatedResumes[selectedResumeIndex].gmail_cleanup_status,
-          gmail_auto_cleanup: checked
-        }
+          gmail_auto_cleanup: checked,
+        },
       };
       setResumes(updatedResumes);
-      
+
       setGmailCleanup(checked);
-      setCleanupError('');
+      setCleanupError("");
     } catch (err) {
-      setCleanupError('Failed to update Gmail cleanup setting');
+      setCleanupError("Failed to update Gmail cleanup setting");
       // Revert the toggle if the API call failed
       setGmailCleanup(!checked);
     } finally {
@@ -663,7 +692,12 @@ const Resume = () => {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="200px"
+      >
         <CircularProgress />
       </Box>
     );
@@ -673,17 +707,19 @@ const Resume = () => {
   const displayedResume = isEditing ? editedResume : selectedResume;
 
   return (
-    <Box sx={{ display: 'flex', gap: 2, p: 2, maxWidth: 1200, mx: 'auto' }}>
+    <Box sx={{ display: "flex", gap: 2, p: 2, maxWidth: 1200, mx: "auto" }}>
       {/* Left sidebar with resume list */}
       <Paper sx={{ width: 300, p: 2 }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+        <Box
+          display="flex"
+          justifyContent="space-between"
+          alignItems="center"
+          mb={2}
+        >
           <Typography variant="h6">Resumes</Typography>
-          <Button
-            variant="contained"
-            size="small"
-            onClick={createNewResume}
-          >
-            <AddIcon />Add
+          <Button variant="contained" size="small" onClick={createNewResume}>
+            <AddIcon />
+            Add
           </Button>
         </Box>
         {resumes.length === 0 ? (
@@ -693,12 +729,14 @@ const Resume = () => {
         ) : (
           <List>
             {resumes.map((resume, index) => (
-              <ListItemButton 
+              <ListItemButton
                 key={index}
                 selected={index === selectedResumeIndex}
                 onClick={() => setSelectedResumeIndex(index)}
               >
-                <ListItemText primary={resume.personal_info?.name || 'Untitled Resume'} />
+                <ListItemText
+                  primary={resume.personal_info?.name || "Untitled Resume"}
+                />
               </ListItemButton>
             ))}
           </List>
@@ -721,7 +759,12 @@ const Resume = () => {
                 {selectedResume?.path && (
                   <Button
                     variant="outlined"
-                    onClick={() => window.open(`${process.env.REACT_APP_API_URL}/resumefiles/${selectedResume.path}`, '_blank')}
+                    onClick={() =>
+                      window.open(
+                        `${process.env.REACT_APP_API_URL}/resumefiles/${selectedResume.path}`,
+                        "_blank"
+                      )
+                    }
                     sx={{ mr: 1 }}
                   >
                     View Resume File
@@ -739,7 +782,9 @@ const Resume = () => {
                   startIcon={<CancelIcon />}
                   variant="outlined"
                   color="error"
-                  onClick={() => handleDeleteClick(selectedResume._id, selectedResumeIndex)}
+                  onClick={() =>
+                    handleDeleteClick(selectedResume._id, selectedResumeIndex)
+                  }
                 >
                   Delete
                 </Button>
@@ -750,18 +795,24 @@ const Resume = () => {
                   type="file"
                   accept=".pdf,.doc,.docx"
                   onChange={handleFileUpload}
-                  style={{ display: 'none' }}
+                  style={{ display: "none" }}
                   id="resume-file-input"
                 />
                 <label htmlFor="resume-file-input">
                   <Button
                     variant="outlined"
                     component="span"
-                    startIcon={isAnalyzing ? <CircularProgress size={20} /> : <AddIcon />}
+                    startIcon={
+                      isAnalyzing ? <CircularProgress size={20} /> : <AddIcon />
+                    }
                     sx={{ mr: 1 }}
                     disabled={isAnalyzing}
                   >
-                    {isAnalyzing ? 'Analyzing Resume...' : (fileToUpload ? fileToUpload.name : 'Upload Resume File')}
+                    {isAnalyzing
+                      ? "Analyzing Resume..."
+                      : fileToUpload
+                      ? fileToUpload.name
+                      : "Upload Resume File"}
                   </Button>
                 </label>
                 <Button
@@ -790,42 +841,66 @@ const Resume = () => {
                   fullWidth
                   label="Name"
                   value={displayedResume.personal_info.name}
-                  onChange={(e) => handleFieldChange('personal_info', 'name', e.target.value)}
+                  onChange={(e) =>
+                    handleFieldChange("personal_info", "name", e.target.value)
+                  }
                   sx={{ mb: 2 }}
                 />
                 <TextField
                   fullWidth
                   label="Title"
                   value={displayedResume.personal_info.title}
-                  onChange={(e) => handleFieldChange('personal_info', 'title', e.target.value)}
+                  onChange={(e) =>
+                    handleFieldChange("personal_info", "title", e.target.value)
+                  }
                   sx={{ mb: 2 }}
                 />
                 <TextField
                   fullWidth
                   label="Email"
                   value={displayedResume.personal_info.email}
-                  onChange={(e) => handleFieldChange('personal_info', 'email', e.target.value)}
+                  onChange={(e) =>
+                    handleFieldChange("personal_info", "email", e.target.value)
+                  }
                   sx={{ mb: 2 }}
                 />
                 <TextField
                   fullWidth
                   label="Phone"
                   value={displayedResume.personal_info.phone_number}
-                  onChange={(e) => handleFieldChange('personal_info', 'phone_number', e.target.value)}
+                  onChange={(e) =>
+                    handleFieldChange(
+                      "personal_info",
+                      "phone_number",
+                      e.target.value
+                    )
+                  }
                   sx={{ mb: 2 }}
                 />
                 <TextField
                   fullWidth
                   label="Location"
                   value={displayedResume.personal_info.location}
-                  onChange={(e) => handleFieldChange('personal_info', 'location', e.target.value)}
+                  onChange={(e) =>
+                    handleFieldChange(
+                      "personal_info",
+                      "location",
+                      e.target.value
+                    )
+                  }
                   sx={{ mb: 2 }}
                 />
                 <TextField
                   fullWidth
                   label="LinkedIn"
                   value={displayedResume.personal_info.linkedin}
-                  onChange={(e) => handleFieldChange('personal_info', 'linkedin', e.target.value)}
+                  onChange={(e) =>
+                    handleFieldChange(
+                      "personal_info",
+                      "linkedin",
+                      e.target.value
+                    )
+                  }
                   sx={{ mb: 2 }}
                 />
               </>
@@ -837,10 +912,18 @@ const Resume = () => {
                 <Typography variant="h6" gutterBottom color="text.secondary">
                   {displayedResume.personal_info.title}
                 </Typography>
-                <Typography variant="body1">{displayedResume.personal_info.email}</Typography>
-                <Typography variant="body1">{displayedResume.personal_info.phone_number}</Typography>
-                <Typography variant="body1">{displayedResume.personal_info.location}</Typography>
-                <Typography variant="body1">{displayedResume.personal_info.linkedin}</Typography>
+                <Typography variant="body1">
+                  {displayedResume.personal_info.email}
+                </Typography>
+                <Typography variant="body1">
+                  {displayedResume.personal_info.phone_number}
+                </Typography>
+                <Typography variant="body1">
+                  {displayedResume.personal_info.location}
+                </Typography>
+                <Typography variant="body1">
+                  {displayedResume.personal_info.linkedin}
+                </Typography>
               </>
             )}
           </Box>
@@ -858,7 +941,9 @@ const Resume = () => {
                 maxRows={Infinity}
                 label="Profile"
                 value={displayedResume.profile}
-                onChange={(e) => handleFieldChange('profile', '', e.target.value)}
+                onChange={(e) =>
+                  handleFieldChange("profile", "", e.target.value)
+                }
                 sx={{ mt: 2 }}
               />
             ) : (
@@ -877,9 +962,9 @@ const Resume = () => {
               {displayedResume.experience.map((exp) => (
                 <ListItem key={exp.id}>
                   {isEditing ? (
-                    <Box sx={{ width: '100%' }}>
+                    <Box sx={{ width: "100%" }}>
                       <Box display="flex" justifyContent="flex-end" mb={1}>
-                        <IconButton 
+                        <IconButton
                           onClick={() => handleRemoveExperience(exp.id)}
                           color="error"
                           size="small"
@@ -891,21 +976,39 @@ const Resume = () => {
                         fullWidth
                         label="Company"
                         value={exp.company}
-                        onChange={(e) => handleExperienceChange(exp.id, 'company', e.target.value)}
+                        onChange={(e) =>
+                          handleExperienceChange(
+                            exp.id,
+                            "company",
+                            e.target.value
+                          )
+                        }
                         sx={{ mb: 2 }}
                       />
                       <TextField
                         fullWidth
                         label="Position"
                         value={exp.position}
-                        onChange={(e) => handleExperienceChange(exp.id, 'position', e.target.value)}
+                        onChange={(e) =>
+                          handleExperienceChange(
+                            exp.id,
+                            "position",
+                            e.target.value
+                          )
+                        }
                         sx={{ mb: 2 }}
                       />
                       <TextField
                         fullWidth
                         label="Duration"
                         value={exp.duration}
-                        onChange={(e) => handleExperienceChange(exp.id, 'duration', e.target.value)}
+                        onChange={(e) =>
+                          handleExperienceChange(
+                            exp.id,
+                            "duration",
+                            e.target.value
+                          )
+                        }
                         sx={{ mb: 2 }}
                       />
                       <TextField
@@ -915,7 +1018,13 @@ const Resume = () => {
                         maxRows={Infinity}
                         label="Description"
                         value={exp.description}
-                        onChange={(e) => handleExperienceChange(exp.id, 'description', e.target.value)}
+                        onChange={(e) =>
+                          handleExperienceChange(
+                            exp.id,
+                            "description",
+                            e.target.value
+                          )
+                        }
                       />
                     </Box>
                   ) : (
@@ -923,11 +1032,15 @@ const Resume = () => {
                       primary={`${exp.position} at ${exp.company}`}
                       secondary={
                         <>
-                          <Typography component="span" variant="body2" color="text.primary">
+                          <Typography
+                            component="span"
+                            variant="body2"
+                            color="text.primary"
+                          >
                             {exp.duration}
                           </Typography>
                           <br />
-                          {exp.description.split('\n').map((line, index) => (
+                          {exp.description.split("\n").map((line, index) => (
                             <React.Fragment key={index}>
                               {line}
                               <br />
@@ -964,26 +1077,40 @@ const Resume = () => {
               {displayedResume.education.map((edu) => (
                 <ListItem key={edu.id}>
                   {isEditing ? (
-                    <Box sx={{ width: '100%' }}>
+                    <Box sx={{ width: "100%" }}>
                       <TextField
                         fullWidth
                         label="Institution"
                         value={edu.institution}
-                        onChange={(e) => handleEducationChange(edu.id, 'institution', e.target.value)}
+                        onChange={(e) =>
+                          handleEducationChange(
+                            edu.id,
+                            "institution",
+                            e.target.value
+                          )
+                        }
                         sx={{ mb: 2 }}
                       />
                       <TextField
                         fullWidth
                         label="Degree"
                         value={edu.degree}
-                        onChange={(e) => handleEducationChange(edu.id, 'degree', e.target.value)}
+                        onChange={(e) =>
+                          handleEducationChange(
+                            edu.id,
+                            "degree",
+                            e.target.value
+                          )
+                        }
                         sx={{ mb: 2 }}
                       />
                       <TextField
                         fullWidth
                         label="Year"
                         value={edu.year}
-                        onChange={(e) => handleEducationChange(edu.id, 'year', e.target.value)}
+                        onChange={(e) =>
+                          handleEducationChange(edu.id, "year", e.target.value)
+                        }
                       />
                     </Box>
                   ) : (
@@ -998,7 +1125,11 @@ const Resume = () => {
           </Box>
 
           <Box>
-            <Box display="flex" alignItems="center" justifyContent="space-between">
+            <Box
+              display="flex"
+              alignItems="center"
+              justifyContent="space-between"
+            >
               <Typography variant="h5" gutterBottom>
                 Skills
               </Typography>
@@ -1013,57 +1144,70 @@ const Resume = () => {
                 </Button>
               )}
             </Box>
-            <Divider/>
+            <Divider />
             <List>
               {displayedResume.skillset.map((skill) => (
                 <ListItem key={skill.id}>
                   {isEditing ? (
-                    <Box sx={{ width: '100%' }}>
+                    <Box sx={{ width: "100%" }}>
                       <Box display="flex" gap={2}>
                         <TextField
                           label="Category"
                           value={skill.category}
-                          onChange={(e) => handleSkillChange(skill.id, 'category', e.target.value)}
-                          sx={{ width: '30%' }}
+                          onChange={(e) =>
+                            handleSkillChange(
+                              skill.id,
+                              "category",
+                              e.target.value
+                            )
+                          }
+                          sx={{ width: "30%" }}
                         />
                         <TextField
                           label="Skills (comma-separated)"
                           value={skill.skills}
-                          onChange={(e) => handleSkillChange(skill.id, 'skills', e.target.value)}
-                          sx={{ width: '70%' }}
+                          onChange={(e) =>
+                            handleSkillChange(
+                              skill.id,
+                              "skills",
+                              e.target.value
+                            )
+                          }
+                          sx={{ width: "70%" }}
                         />
-                        <IconButton 
+                        <IconButton
                           onClick={() => handleRemoveSkill(skill.id)}
                           color="error"
                           size="small"
-                          sx={{ height: '100%', alignSelf: 'center' }}
+                          sx={{ height: "100%", alignSelf: "center" }}
                         >
                           <CancelIcon />
                         </IconButton>
                       </Box>
                     </Box>
                   ) : (
-                    <Box sx={{ width: '100%' }}>
+                    <Box sx={{ width: "100%" }}>
                       <Typography variant="h6" gutterBottom>
                         {skill.category}
                       </Typography>
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                        {skill.skills && skill.skills.split(', ').map((item, index) => (
-                          <Typography
-                            key={index}
-                            component="span"
-                            sx={{
-                              display: 'inline-block',
-                              bgcolor: 'primary.main',
-                              color: 'white',
-                              px: 1,
-                              py: 0.5,
-                              borderRadius: 1,
-                            }}
-                          >
-                            {item}
-                          </Typography>
-                        ))}
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                        {skill.skills &&
+                          skill.skills.split(", ").map((item, index) => (
+                            <Typography
+                              key={index}
+                              component="span"
+                              sx={{
+                                display: "inline-block",
+                                bgcolor: "primary.main",
+                                color: "white",
+                                px: 1,
+                                py: 0.5,
+                                borderRadius: 1,
+                              }}
+                            >
+                              {item}
+                            </Typography>
+                          ))}
                       </Box>
                     </Box>
                   )}
@@ -1084,28 +1228,143 @@ const Resume = () => {
                 minRows={4}
                 maxRows={Infinity}
                 label="Additional Information"
-                value={displayedResume.additional_info || ''}
-                onChange={(e) => handleFieldChange('additional_info', '', e.target.value)}
+                value={displayedResume.additional_info || ""}
+                onChange={(e) =>
+                  handleFieldChange("additional_info", "", e.target.value)
+                }
                 sx={{ mt: 2 }}
                 placeholder="Add any additional information, certifications, awards, or other relevant details"
               />
             ) : (
               displayedResume.additional_info && (
                 <Typography variant="body1" sx={{ mt: 2 }}>
-                  {displayedResume.additional_info.split('\n').map((line, index) => (
-                    <React.Fragment key={index}>
-                      {line}
-                      <br />
-                    </React.Fragment>
-                  ))}
+                  {displayedResume.additional_info
+                    .split("\n")
+                    .map((line, index) => (
+                      <React.Fragment key={index}>
+                        {line}
+                        <br />
+                      </React.Fragment>
+                    ))}
                 </Typography>
               )
             )}
           </Box>
 
+          {/* Gmail API Integration Section - Always visible */}
+          <Box sx={{ mt: 3, mb: 4 }}>
+            <Box
+              display="flex"
+              alignItems="center"
+              justifyContent="space-between"
+            >
+              <Typography variant="h6" gutterBottom>
+                Gmail API Integration
+              </Typography>
+              <Chip
+                label={gmailConnected ? "Connected" : "Not Connected"}
+                color={gmailConnected ? "success" : "default"}
+                sx={{
+                  backgroundColor: gmailConnected ? "success.main" : "default",
+                }}
+                icon={gmailConnected ? <LinkIcon /> : <LinkOffIcon />}
+              />
+            </Box>
+            <Divider />
+
+            {gmailConnected ? (
+              <Box sx={{ mt: 2 }}>
+                <Alert severity="success" sx={{ mb: 2 }}>
+                  <Typography variant="body2">
+                    <strong>Connected to:</strong> {gmailEmail}
+                  </Typography>
+                  {gmailTokenExpiryDate && (
+                    <Typography variant="body2" sx={{ mt: 1 }}>
+                      <strong>Token expires:</strong>{" "}
+                      {gmailTokenExpiryDate.toLocaleString()}
+                    </Typography>
+                  )}
+                </Alert>
+
+                {isTokenNearExpiry() && (
+                  <Alert severity="warning" sx={{ mb: 2 }}>
+                    <Typography variant="body2">
+                      Your Gmail connection will expire soon. Please reconnect
+                      your Gmail account to ensure uninterrupted service.
+                    </Typography>
+                  </Alert>
+                )}
+
+                <Box sx={{ display: "flex", gap: 2 }}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<LinkOffIcon />}
+                    onClick={handleRemoveGmailCredentials}
+                    disabled={removingGmail}
+                  >
+                    {removingGmail ? "Removing..." : "Disconnect Gmail"}
+                  </Button>
+                  <Button variant="outlined" onClick={handleRefreshGmailStatus}>
+                    Refresh Status
+                  </Button>
+                  {isTokenNearExpiry() && (
+                    <Button
+                      variant="contained"
+                      color="warning"
+                      startIcon={<GoogleIcon />}
+                      onClick={handleGenerateAuthUrl}
+                    >
+                      Reconnect Gmail
+                    </Button>
+                  )}
+                </Box>
+              </Box>
+            ) : (
+              <Box sx={{ mt: 2 }}>
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  <Typography variant="body2">
+                    Connect your Gmail account to use Gmail API for sending
+                    emails. This provides better reliability and includes
+                    automatic PDF attachments.
+                  </Typography>
+                </Alert>
+
+                <Box sx={{ display: "flex", gap: 2 }}>
+                  <Button
+                    variant="contained"
+                    startIcon={<GoogleIcon />}
+                    onClick={handleGenerateAuthUrl}
+                    disabled={generatingAuthUrl}
+                  >
+                    {generatingAuthUrl
+                      ? "Generating..."
+                      : "Connect Gmail Account"}
+                  </Button>
+                  <Button variant="outlined" onClick={handleRefreshGmailStatus}>
+                    Refresh Status
+                  </Button>
+                </Box>
+
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mt: 2 }}
+                >
+                  <strong>Note:</strong> The Gmail account email must match your
+                  resume email address:{" "}
+                  <strong>{selectedResume?.personal_info?.email}</strong>
+                </Typography>
+              </Box>
+            )}
+          </Box>
+
           {/* Automatic Email Applications Section */}
           <Box mb={4}>
-            <Box display="flex" alignItems="center" justifyContent="space-between">
+            <Box
+              display="flex"
+              alignItems="center"
+              justifyContent="space-between"
+            >
               <Typography variant="h5" gutterBottom>
                 Automatic Email Applications (beta testing version)
               </Typography>
@@ -1122,114 +1381,22 @@ const Resume = () => {
               />
             </Box>
             <Divider />
+
             {autoEmailEnabled && (
               <>
-                {/* Gmail API Integration Section */}
-                <Box sx={{ mt: 3, mb: 4 }}>
-                  <Box display="flex" alignItems="center" justifyContent="space-between">
-                    <Typography variant="h6" gutterBottom>
-                      Gmail API Integration
-                    </Typography>
-                    <Chip
-                      label={gmailConnected ? "Connected" : "Not Connected"}
-                      color={gmailConnected ? "success" : "default"}
-                      icon={gmailConnected ? <LinkIcon /> : <LinkOffIcon />}
-                    />
-                  </Box>
-                  <Divider />
-                  
-                  {gmailConnected ? (
-                    <Box sx={{ mt: 2 }}>
-                      <Alert severity="success" sx={{ mb: 2 }}>
-                        <Typography variant="body2">
-                          <strong>Connected to:</strong> {gmailEmail}
-                        </Typography>
-                        {gmailTokenExpiryDate && (
-                          <Typography variant="body2" sx={{ mt: 1 }}>
-                            <strong>Token expires:</strong> {gmailTokenExpiryDate.toLocaleString()}
-                          </Typography>
-                        )}
-                      </Alert>
-                      
-                      {isTokenNearExpiry() && (
-                        <Alert severity="warning" sx={{ mb: 2 }}>
-                          <Typography variant="body2">
-                            Your Gmail connection will expire soon. Please reconnect your Gmail account to ensure uninterrupted service.
-                          </Typography>
-                        </Alert>
-                      )}
-                      
-                      <Box sx={{ display: 'flex', gap: 2 }}>
-                        <Button
-                          variant="outlined"
-                          startIcon={<LinkOffIcon />}
-                          onClick={handleRemoveGmailCredentials}
-                          disabled={removingGmail}
-                        >
-                          {removingGmail ? 'Removing...' : 'Disconnect Gmail'}
-                        </Button>
-                        <Button
-                          variant="outlined"
-                          onClick={handleRefreshGmailStatus}
-                        >
-                          Refresh Status
-                        </Button>
-                        {isTokenNearExpiry() && (
-                          <Button
-                            variant="contained"
-                            color="warning"
-                            startIcon={<GoogleIcon />}
-                            onClick={handleGenerateAuthUrl}
-                          >
-                            Reconnect Gmail
-                          </Button>
-                        )}
-                      </Box>
-                    </Box>
-                  ) : (
-                    <Box sx={{ mt: 2 }}>
-                      <Alert severity="info" sx={{ mb: 2 }}>
-                        <Typography variant="body2">
-                          Connect your Gmail account to use Gmail API for sending emails. 
-                          This provides better reliability and includes automatic PDF attachments.
-                        </Typography>
-                      </Alert>
-                      
-                      <Box sx={{ display: 'flex', gap: 2 }}>
-                        <Button
-                          variant="contained"
-                          startIcon={<GoogleIcon />}
-                          onClick={handleGenerateAuthUrl}
-                          disabled={generatingAuthUrl}
-                        >
-                          {generatingAuthUrl ? 'Generating...' : 'Connect Gmail Account'}
-                        </Button>
-                        <Button
-                          variant="outlined"
-                          onClick={handleRefreshGmailStatus}
-                        >
-                          Refresh Status
-                        </Button>
-                      </Box>
-                      
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                        <strong>Note:</strong> The Gmail account email must match your resume email address: <strong>{selectedResume?.personal_info?.email}</strong>
-                      </Typography>
-                    </Box>
-                  )}
-                </Box>
-
                 {/* Email Frequency Section */}
                 <Box sx={{ mt: 3 }}>
                   <Typography variant="h6" gutterBottom>
                     Email Sending Frequency
                   </Typography>
-                  
+
                   <FormControl fullWidth sx={{ mb: 3 }}>
                     <InputLabel>Send every * days</InputLabel>
                     <Select
                       value={emailSendFrequencyDays}
-                      onChange={(e) => setEmailSendFrequencyDays(e.target.value)}
+                      onChange={(e) =>
+                        setEmailSendFrequencyDays(e.target.value)
+                      }
                       label="Send every * days"
                     >
                       <MenuItem value={1.5}>1.5 days</MenuItem>
@@ -1241,12 +1408,20 @@ const Resume = () => {
                       <MenuItem value={7}>7 days</MenuItem>
                     </Select>
                   </FormControl>
-                  
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                    <strong>Note:</strong> 
-                    • 1.5-2 days: Emails will be sent within 12 hours of the scheduled time<br/>
-                    • 3-4 days: Emails will be sent within 24 hours of the scheduled time<br/>
-                    • 5-7 days: Emails will be sent within 48 hours of the scheduled time
+
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 3 }}
+                  >
+                    <strong>Note:</strong>
+                    • 1.5-2 days: Emails will be sent within 12 hours of the
+                    scheduled time
+                    <br />
+                    • 3-4 days: Emails will be sent within 24 hours of the
+                    scheduled time
+                    <br />• 5-7 days: Emails will be sent within 48 hours of the
+                    scheduled time
                   </Typography>
                 </Box>
 
@@ -1255,7 +1430,7 @@ const Resume = () => {
                   <Typography variant="h6" gutterBottom>
                     Cover Letter
                   </Typography>
-                  
+
                   <TextField
                     fullWidth
                     label="Cover Letter Title"
@@ -1264,7 +1439,7 @@ const Resume = () => {
                     placeholder="e.g., Application for Software Engineer Position"
                     sx={{ mb: 3 }}
                   />
-                  
+
                   <TextField
                     fullWidth
                     multiline
@@ -1277,14 +1452,22 @@ const Resume = () => {
                     sx={{ mb: 3 }}
                   />
 
-                  <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
                     <Button
                       variant="contained"
                       onClick={handleSaveAutoEmailSettings}
                       disabled={savingAutoEmailSettings}
-                      startIcon={savingAutoEmailSettings ? <CircularProgress size={20} /> : <SaveIcon />}
+                      startIcon={
+                        savingAutoEmailSettings ? (
+                          <CircularProgress size={20} />
+                        ) : (
+                          <SaveIcon />
+                        )
+                      }
                     >
-                      {savingAutoEmailSettings ? 'Saving...' : 'Save All Settings'}
+                      {savingAutoEmailSettings
+                        ? "Saving..."
+                        : "Save All Settings"}
                     </Button>
                   </Box>
                 </Box>
@@ -1294,7 +1477,11 @@ const Resume = () => {
 
           {/* Automatic Gmail Management Section */}
           <Box mb={4}>
-            <Box display="flex" alignItems="center" justifyContent="space-between">
+            <Box
+              display="flex"
+              alignItems="center"
+              justifyContent="space-between"
+            >
               <Typography variant="h5" gutterBottom>
                 Automatic Gmail Management
               </Typography>
@@ -1314,9 +1501,7 @@ const Resume = () => {
             {cleanupError && (
               <Box sx={{ mt: 2 }}>
                 <Alert severity="error">
-                  <Typography variant="body2">
-                    {cleanupError}
-                  </Typography>
+                  <Typography variant="body2">{cleanupError}</Typography>
                 </Alert>
               </Box>
             )}
@@ -1330,10 +1515,12 @@ const Resume = () => {
             fullWidth
           >
             <DialogTitle>
-              <Box display="flex" justifyContent="space-between" alignItems="center">
-                <Typography variant="h6">
-                  Customized Resumes
-                </Typography>
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+              >
+                <Typography variant="h6">Customized Resumes</Typography>
                 <IconButton onClick={() => setCustomizedResumesOpen(false)}>
                   <CloseIcon />
                 </IconButton>
@@ -1359,7 +1546,8 @@ const Resume = () => {
         <DialogTitle>Confirm Delete</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to delete this resume? This action cannot be undone.
+            Are you sure you want to delete this resume? This action cannot be
+            undone.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -1371,8 +1559,8 @@ const Resume = () => {
       </Dialog>
 
       {/* Modify the Auth URL Dialog */}
-      <Dialog 
-        open={showAuthDialog} 
+      <Dialog
+        open={showAuthDialog}
         onClose={() => setShowAuthDialog(false)}
         maxWidth="md"
         fullWidth
@@ -1385,19 +1573,23 @@ const Resume = () => {
         </DialogTitle>
         <DialogContent>
           <Typography variant="body1" gutterBottom>
-            To use Gmail API for sending emails, you need to authorize this application to access your Gmail account.
+            To use Gmail API for sending emails, you need to authorize this
+            application to access your Gmail account.
           </Typography>
-          
+
           <Alert severity="info" sx={{ mb: 2 }}>
             <Typography variant="body2">
-              <strong>Important:</strong> Please use the Gmail account that matches your resume email address: <strong>{selectedResume?.personal_info?.email}</strong>
+              <strong>Important:</strong> Please use the Gmail account that
+              matches your resume email address:{" "}
+              <strong>{selectedResume?.personal_info?.email}</strong>
             </Typography>
           </Alert>
-          
+
           <Typography variant="body2" color="text.secondary" gutterBottom>
-            Copy the authorization URL below and open it in the browser profile where you're signed in with your Gmail account.
+            Copy the authorization URL below and open it in the browser profile
+            where you're signed in with your Gmail account.
           </Typography>
-          
+
           <Box sx={{ mt: 2 }}>
             <TextField
               fullWidth
@@ -1409,10 +1601,14 @@ const Resume = () => {
                   <IconButton
                     onClick={() => {
                       navigator.clipboard.writeText(authUrl);
-                      toast.success('URL copied to clipboard!');
+                      toast.success("URL copied to clipboard!");
                     }}
                     size="small"
-                    sx={{ ml: 1, color: 'primary.main', '&:hover': { color: 'primary.dark' } }}
+                    sx={{
+                      ml: 1,
+                      color: "primary.main",
+                      "&:hover": { color: "primary.dark" },
+                    }}
                   >
                     <ContentCopyIcon />
                   </IconButton>
@@ -1420,20 +1616,25 @@ const Resume = () => {
               }}
             />
           </Box>
-          
+
           <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-            After authorization, return to this page and click "Refresh Status" to see the updated connection status.
+            After authorization, return to this page and click "Refresh Status"
+            to see the updated connection status.
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={async () => {
-            setShowAuthDialog(false);
-            await handleRefreshGmailStatus();
-          }}>Close</Button>
+          <Button
+            onClick={async () => {
+              setShowAuthDialog(false);
+              await handleRefreshGmailStatus();
+            }}
+          >
+            Close
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>
   );
 };
 
-export default Resume; 
+export default Resume;
