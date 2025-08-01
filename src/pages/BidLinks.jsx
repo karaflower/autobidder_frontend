@@ -65,6 +65,7 @@ import MoreVertIcon from "@mui/icons-material/MoreVert";
 import Slider from "@mui/material/Slider";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import { useAuth } from "../context/AuthContext";
 
 const OPENED_LINKS_STORAGE_KEY = "openedBidLinks";
 const MAX_STORED_LINKS = 10000;
@@ -427,6 +428,7 @@ const getTagColor = (tag) => {
 };
 
 const BidLinks = () => {
+  const { user } = useAuth();
   const [bidLinks, setBidLinks] = useState([]);
   const [currentUserId, setCurrentUserId] = useState("user123");
   const [users, setUsers] = useState({});
@@ -452,6 +454,7 @@ const BidLinks = () => {
     return stored ? parseInt(stored, 10) : 50;
   });
   const [teamMembers, setTeamMembers] = useState({});
+  const [teamInfo, setTeamInfo] = useState(null); // Add team info state
   const [queryDateLimit, setQueryDateLimit] = useState(() => {
     const stored = localStorage.getItem("queryDateLimit");
     if (stored) {
@@ -1084,8 +1087,22 @@ const BidLinks = () => {
     }
   };
 
+  // Add new function to fetch team information
+  const fetchTeamInfo = async () => {
+    try {
+      const response = await axios.get(
+        `${process.env.REACT_APP_API_URL}/teams/my-team-info`
+      );
+      setTeamInfo(response.data.team);
+    } catch (error) {
+      console.error("Failed to fetch team info:", error);
+      // Don't show error toast as this is not critical
+    }
+  };
+
   useEffect(() => {
     fetchTeamMembers();
+    fetchTeamInfo(); // Add this call
   }, []);
 
   // Add this useEffect to scroll to top when page changes
@@ -1964,8 +1981,8 @@ const BidLinks = () => {
           </TextField>
         )}
 
-        {/* Location Filter Section */}
-        {renderSidebarSection(
+        {/* Location Filter Section - Only show if team has 'special' role */}
+        {teamInfo?.role?.includes('special') && renderSidebarSection(
           "Location",
           expandedSections.location,
           () => toggleSection("location"),
@@ -2148,8 +2165,8 @@ const BidLinks = () => {
           </Box>
         )}
 
-        {/* Strict Filtering Section */}
-        {renderSidebarSection(
+        {/* Strict Filtering Section - Only show if team has 'special' role */}
+        {teamInfo?.role?.includes('special') && renderSidebarSection(
           "Strict Filtering",
           expandedSections.strictFiltering,
           () => toggleSection("strictFiltering"),
