@@ -68,21 +68,33 @@ import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { useAuth } from "../context/AuthContext";
 import RefreshIcon from "@mui/icons-material/Refresh";
-
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import NotificationsIcon from "@mui/icons-material/Notifications";
 const OPENED_LINKS_STORAGE_KEY = "openedBidLinks";
 const MAX_STORED_LINKS = 10000;
 const LINK_EXPIRY_DAYS = 30;
-const STRICT_TAGS = ['All', 'Email', 'Remote Job', 'Non Remote Job', 'Other Relevant', 'Login Required', 'Verification Required', 'Expired', 'Irrelevant', 'Uncategorized'];
+const STRICT_TAGS = [
+  "All",
+  "Email Found",
+  "Remote Job",
+  "Non Remote Job",
+  "Other Relevant",
+  "Login Required",
+  "Verification Required",
+  "Expired",
+  "Irrelevant",
+  "Uncategorized",
+];
 const TAG_PRIORITY = {
-  'Email': 1,
-  'Remote Job': 2,
-  'Non Remote Job': 3,
-  'Login Required': 4,
-  'Other Relevant': 5,
-  'Verification Required': 6,
-  'Expired': 7,
-  'Irrelevant': 8,
-  'Uncategorized': 9,
+  "Email Found": 1,
+  "Remote Job": 2,
+  "Non Remote Job": 3,
+  "Login Required": 4,
+  "Other Relevant": 5,
+  "Verification Required": 6,
+  Expired: 7,
+  Irrelevant: 8,
+  Uncategorized: 9,
 };
 
 const getOpenedLinks = () => {
@@ -369,70 +381,81 @@ const NotificationConfigDialog = React.memo(
 
 const getTagColor = (tag) => {
   switch (tag) {
-    case 'Email':
-      return { 
-        sx: { 
-          backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#1b5e20' : '#4caf50',
-          color: '#fff'
-        }
+    case "Email Found":
+      return {
+        sx: {
+          backgroundColor: (theme) =>
+            theme.palette.mode === "dark" ? "#1b5e20" : "#4caf50",
+          color: "#fff",
+        },
       };
-    case 'Remote Job':
-      return { 
-        sx: { 
-          backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#1565c0' : '#1976d2',
-          color: '#fff'
-        }
+    case "Remote Job":
+      return {
+        sx: {
+          backgroundColor: (theme) =>
+            theme.palette.mode === "dark" ? "#1565c0" : "#1976d2",
+          color: "#fff",
+        },
       };
-    case 'Non Remote Job':
-      return { 
-        sx: { 
-          backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#e65100' : '#ff9800',
-          color: '#fff'
-        }
+    case "Non Remote Job":
+      return {
+        sx: {
+          backgroundColor: (theme) =>
+            theme.palette.mode === "dark" ? "#e65100" : "#ff9800",
+          color: "#fff",
+        },
       };
-    case 'Verification Required':
-      return { 
-        sx: { 
-          backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#b71c1c' : '#f44336',
-          color: '#fff'
-        }
+    case "Verification Required":
+      return {
+        sx: {
+          backgroundColor: (theme) =>
+            theme.palette.mode === "dark" ? "#b71c1c" : "#f44336",
+          color: "#fff",
+        },
       };
-    case 'Login Required':
-      return { 
-        sx: { 
-          backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#b71c1c' : '#f44336',
-          color: '#fff'
-        }
+    case "Login Required":
+      return {
+        sx: {
+          backgroundColor: (theme) =>
+            theme.palette.mode === "dark" ? "#b71c1c" : "#f44336",
+          color: "#fff",
+        },
       };
-    case 'Other Relevant':
-      return { 
-        sx: { 
-          backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#01579b' : '#03a9f4',
-          color: '#fff'
-        }
+    case "Other Relevant":
+      return {
+        sx: {
+          backgroundColor: (theme) =>
+            theme.palette.mode === "dark" ? "#01579b" : "#03a9f4",
+          color: "#fff",
+        },
       };
-    case 'Irrelevant':
-      return { 
-        sx: { 
-          backgroundColor: 'transparent',
-          borderColor: (theme) => theme.palette.mode === 'dark' ? '#f44336' : '#d32f2f',
-          color: (theme) => theme.palette.mode === 'dark' ? '#f44336' : '#d32f2f'
-        }
+    case "Irrelevant":
+      return {
+        sx: {
+          backgroundColor: "transparent",
+          borderColor: (theme) =>
+            theme.palette.mode === "dark" ? "#f44336" : "#d32f2f",
+          color: (theme) =>
+            theme.palette.mode === "dark" ? "#f44336" : "#d32f2f",
+        },
       };
-    case 'Uncategorized':
-      return { 
-        sx: { 
-          backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#424242' : '#9e9e9e',
-          color: '#fff'
-        }
+    case "Uncategorized":
+      return {
+        sx: {
+          backgroundColor: (theme) =>
+            theme.palette.mode === "dark" ? "#424242" : "#9e9e9e",
+          color: "#fff",
+        },
       };
     default:
-      return { 
-        sx: { 
-          backgroundColor: 'transparent',
-          borderColor: (theme) => theme.palette.mode === 'dark' ? '#757575' : '#9e9e9e',
-          color: (theme) => theme.palette.mode === 'dark' ? '#757575' : '#9e9e9e'
-        }
+      return {
+        sx: {
+          backgroundColor: "transparent",
+          borderColor: (theme) =>
+            theme.palette.mode === "dark" ? "#757575" : "#9e9e9e",
+          color: (theme) =>
+            theme.palette.mode === "dark" ? "#757575" : "#9e9e9e",
+        },
       };
   }
 };
@@ -442,10 +465,6 @@ const BidLinks = () => {
   const [bidLinks, setBidLinks] = useState([]);
   const [currentUserId, setCurrentUserId] = useState("user123");
   const [users, setUsers] = useState({});
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const today = new Date();
-    return today.toLocaleDateString("en-CA");
-  });
   const [showFilter, setShowFilter] = useState(() => {
     const stored = localStorage.getItem("showFilter");
     return stored ? JSON.parse(stored) : "all";
@@ -519,17 +538,18 @@ const BidLinks = () => {
   // Add new state for tag visibility
   const [visibleTags, setVisibleTags] = useState(() => {
     const stored = localStorage.getItem("visibleTags");
-    return stored ? JSON.parse(stored) : STRICT_TAGS.reduce((acc, tag) => {
-      acc[tag] = tag === 'All' ? true : false; // Default to "All" selected, others unchecked
-      return acc;
-    }, {});
+    return stored
+      ? JSON.parse(stored)
+      : STRICT_TAGS.reduce((acc, tag) => {
+          acc[tag] = tag === "All" ? true : false; // Default to "All" selected, others unchecked
+          return acc;
+        }, {});
   });
 
   // Add new state for sidebar sections
   const [expandedSections, setExpandedSections] = useState({
-    dateFilter: true,
-    timeRange: true,
-    categoryFilter: true, // Add category filter section
+    dateTimeFilter: true, // Replace dateFilter and timeRange with dateTimeFilter
+    categoryFilter: true,
     search: true,
     actions: true,
     confidence: true,
@@ -558,6 +578,25 @@ const BidLinks = () => {
   const [sidebarVisible, setSidebarVisible] = useState(() => {
     const stored = localStorage.getItem("sidebarVisible");
     return stored ? JSON.parse(stored) : false; // Change default to false
+  });
+
+  // Update the state to use single date instead of date range
+  const [dateTimeFilter, setDateTimeFilter] = useState(() => {
+    const stored = localStorage.getItem("dateTimeFilter");
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch {
+        return {
+          selectedDate: new Date().toLocaleDateString("en-CA"),
+          timeRange: [-1], // Default to "All"
+        };
+      }
+    }
+    return {
+      selectedDate: new Date().toLocaleDateString("en-CA"),
+      timeRange: [-1], // Default to "All"
+    };
   });
 
   const getRelativeTimeString = (date) => {
@@ -597,19 +636,19 @@ const BidLinks = () => {
   };
 
   const getQueriesForCategory = (category) => {
-    const dateLimits = Array.isArray(queryDateLimit)
-      ? queryDateLimit
-      : [queryDateLimit];
+    const timeLimits = Array.isArray(dateTimeFilter.timeRange)
+      ? dateTimeFilter.timeRange
+      : [dateTimeFilter.timeRange];
     const queries = bidLinks
       .filter((link) => {
-        // First apply date filter
-        if (dateLimits.length > 0) {
-          const matchesDateLimit = dateLimits.some((limit) => {
+        // First apply time range filter
+        if (timeLimits.length > 0) {
+          const matchesTimeLimit = timeLimits.some((limit) => {
             if (limit === -1) return true;
             if (limit === 0) return link.queryDateLimit == null;
             return link.queryDateLimit === limit;
           });
-          if (!matchesDateLimit) return false;
+          if (!matchesTimeLimit) return false;
         }
 
         // Then apply category filter
@@ -631,17 +670,17 @@ const BidLinks = () => {
         return false;
       }
 
-      // Date limit filter
-      const dateLimits = Array.isArray(queryDateLimit)
-        ? queryDateLimit
-        : [queryDateLimit];
-      if (dateLimits.length > 0) {
-        const matchesDateLimit = dateLimits.some((limit) => {
+      // Time range filter
+      const timeLimits = Array.isArray(dateTimeFilter.timeRange)
+        ? dateTimeFilter.timeRange
+        : [dateTimeFilter.timeRange];
+      if (timeLimits.length > 0) {
+        const matchesTimeLimit = timeLimits.some((limit) => {
           if (limit === -1) return true;
           if (limit === 0) return link.queryDateLimit == null;
           return link.queryDateLimit === limit;
         });
-        if (!matchesDateLimit) return false;
+        if (!matchesTimeLimit) return false;
       }
 
       // Category filter
@@ -666,11 +705,11 @@ const BidLinks = () => {
       // Location filter
       if (locationFilter.length > 0 && !locationFilter.includes("all")) {
         const linkLocation = link.location || "Unknown";
-        
-        const matchesLocation = locationFilter.some(filter => {
+
+        const matchesLocation = locationFilter.some((filter) => {
           return linkLocation === filter;
         });
-        
+
         if (!matchesLocation) return false;
       }
 
@@ -683,9 +722,9 @@ const BidLinks = () => {
       if (strictlyFilteredJobs) {
         const tag = link.final_details?.tag;
         // If "All" is selected, don't filter by tags
-        if (visibleTags['All']) {
+        if (visibleTags["All"]) {
           // Don't filter by tags when "All" is selected
-        } else if (visibleTags['Uncategorized']) {
+        } else if (visibleTags["Uncategorized"]) {
           // If "Uncategorized" is selected, only show links without valid tags
           if (tag && STRICT_TAGS.includes(tag)) {
             return false;
@@ -701,70 +740,81 @@ const BidLinks = () => {
       return true;
     };
 
-    let filtered = bidLinks.filter(filterLink);
+    // Filter the links first
+    const filtered = bidLinks.filter(filterLink);
 
-    // Sort the filtered results
-    filtered.sort((a, b) => {
-      // If strictly filtered jobs is enabled, sort by tag priority first
-      if (strictlyFilteredJobs) {
-        const tagA = a.final_details?.tag || '';
-        const tagB = b.final_details?.tag || '';
-        const priorityA = TAG_PRIORITY[tagA] || 999;
-        const priorityB = TAG_PRIORITY[tagB] || 999;
-        
-        if (priorityA !== priorityB) {
-          return priorityA - priorityB;
-        }
-      }
+    // Then apply sorting
+    const sorted = filtered.sort((a, b) => {
+      let comparison = 0;
 
-      // Then apply the regular sorting
       if (sortBy === "confidence") {
-        const confA = a.confidence || 0;
-        const confB = b.confidence || 0;
-        return sortOrder === "desc" ? confB - confA : confA - confB;
-      } else {
-        return sortOrder === "desc"
-          ? new Date(b.created_at) - new Date(a.created_at)
-          : new Date(a.created_at) - new Date(b.created_at);
+        const confidenceA = a.confidence || 0;
+        const confidenceB = b.confidence || 0;
+        comparison = confidenceA - confidenceB;
+      } else if (sortBy === "date") {
+        const dateA = new Date(a.created_at);
+        const dateB = new Date(b.created_at);
+        comparison = dateA - dateB;
       }
+
+      // If primary sort values are equal, apply secondary sorting by behavior (tag priority)
+      if (comparison === 0) {
+        const tagA = a.final_details?.tag;
+        const tagB = b.final_details?.tag;
+        
+        // Get priority values, defaulting to lowest priority for uncategorized items
+        const priorityA = TAG_PRIORITY[tagA] || TAG_PRIORITY["Uncategorized"];
+        const priorityB = TAG_PRIORITY[tagB] || TAG_PRIORITY["Uncategorized"];
+        
+        // Lower priority number = higher priority (1 is highest, 9 is lowest)
+        comparison = priorityB - priorityA;
+      }
+
+      // Apply sort order
+      return sortOrder === "desc" ? -comparison : comparison;
     });
 
-    return filtered;
+    return sorted;
   }, [
     bidLinks,
-    showFilter,
-    currentUserId,
     selectedCategory,
-    queryDateLimit,
     selectedQueries,
     confidenceRange,
-    sortBy,
-    sortOrder,
-    hiddenCategories,
+    locationFilter,
+    showFilter,
+    currentUserId,
     strictlyFilteredJobs,
     visibleTags,
-    locationFilter, // Add locationFilter to dependencies
+    hiddenCategories,
+    dateTimeFilter.timeRange,
+    sortBy, // Add sorting dependencies
+    sortOrder, // Add sorting dependencies
   ]);
 
   // Calculate location counts
   const locationCounts = useMemo(() => {
     const counts = {};
-    locationOptions.forEach(option => {
+    locationOptions.forEach((option) => {
       if (option.value === "all") {
         counts[option.value] = bidLinks.length;
       } else {
-        counts[option.value] = bidLinks.filter(link => 
-          link.location === option.value
+        counts[option.value] = bidLinks.filter(
+          (link) => link.location === option.value
         ).length;
       }
     });
     return counts;
   }, [bidLinks]);
 
-  // Add these useEffects to reset page when category, viewMode, or queryDateLimit changes
+  // Add these useEffects to reset page when category, viewMode, or dateTimeFilter changes
   useEffect(() => {
     setPage(0);
-  }, [selectedCategory, viewMode, queryDateLimit, selectedDate]);
+  }, [
+    selectedCategory,
+    viewMode,
+    dateTimeFilter.timeRange,
+    dateTimeFilter.selectedDate,
+  ]);
 
   // Function to handle notification toggle
   const handleNotificationToggle = async (event) => {
@@ -878,9 +928,9 @@ const BidLinks = () => {
       setIsReloadingBids(true);
 
       // Convert selectedDate to local timezone's 00:00:00 to 23:59:59
-      const fromDate = new Date(selectedDate);
+      const fromDate = new Date(dateTimeFilter.selectedDate);
       fromDate.setHours(0, 0, 0, 0);
-      const toDate = new Date(selectedDate);
+      const toDate = new Date(dateTimeFilter.selectedDate);
       toDate.setHours(23, 59, 59, 999);
 
       // Convert to GMT+0
@@ -936,7 +986,7 @@ const BidLinks = () => {
     }, 30 * 60 * 1000); // 30 minutes in milliseconds
 
     return () => clearInterval(intervalId);
-  }, [selectedDate]); // Re-run when selectedDate changes
+  }, [dateTimeFilter.selectedDate]); // Re-run when selected date changes
 
   useEffect(() => {
     // Extract unique categories from bidLinks
@@ -976,9 +1026,9 @@ const BidLinks = () => {
         .filter((word) => word.length > 0); // Filter out empty strings
 
       // Process each blacklist entry
-      const processedBlacklists = blacklistArray.map(entry => {
+      const processedBlacklists = blacklistArray.map((entry) => {
         // Check if it's a company blacklist
-        if (entry.toLowerCase().startsWith('company:')) {
+        if (entry.toLowerCase().startsWith("company:")) {
           // Keep the exact format for company blacklists
           return entry.trim();
         }
@@ -1059,13 +1109,13 @@ const BidLinks = () => {
         showBlacklisted: false,
       });
 
-      params.append('confidenceMin', confidenceRange[0].toString());
-      params.append('confidenceMax', confidenceRange[1].toString());
+      params.append("confidenceMin", confidenceRange[0].toString());
+      params.append("confidenceMax", confidenceRange[1].toString());
 
       // Add strict filtering parameters
       if (strictlyFilteredJobs) {
-        params.append('strictlyFilteredJobs', 'true');
-        params.append('visibleTags', JSON.stringify(visibleTags));
+        params.append("strictlyFilteredJobs", "true");
+        params.append("visibleTags", JSON.stringify(visibleTags));
       }
 
       const response = await axios.get(
@@ -1342,16 +1392,20 @@ const BidLinks = () => {
               <ListItemText
                 primary="Location"
                 secondary={
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Chip 
-                      label={link.location || "Anonymous"} 
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Chip
+                      label={link.location || "Anonymous"}
                       size="small"
                       color={
-                        link.location === 'USA' ? 'primary' :
-                        link.location === 'Europe' ? 'secondary' :
-                        link.location === 'Asia' ? 'warning' :
-                        link.location === 'Africa' ? 'success' :
-                        'default'
+                        link.location === "USA"
+                          ? "primary"
+                          : link.location === "Europe"
+                          ? "secondary"
+                          : link.location === "Asia"
+                          ? "warning"
+                          : link.location === "Africa"
+                          ? "success"
+                          : "default"
                       }
                       variant="outlined"
                     />
@@ -1485,7 +1539,7 @@ const BidLinks = () => {
     return (
       <Box sx={{ width: "100%" }}>
         <Paper
-      sx={{
+          sx={{
             borderRadius: 2,
             overflow: "hidden",
           }}
@@ -1498,7 +1552,10 @@ const BidLinks = () => {
                   .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                   .map((link, index) => {
                     const fullIndex = page * rowsPerPage + index + 1;
-                    const displayUrl = strictlyFilteredJobs && link.final_details?.finalUrl ? link.final_details.finalUrl : link.url;
+                    const displayUrl =
+                      strictlyFilteredJobs && link.final_details?.finalUrl
+                        ? link.final_details.finalUrl
+                        : link.url;
                     return (
                       <TableRow
                         hover
@@ -1532,8 +1589,8 @@ const BidLinks = () => {
                                 textDecoration: "underline",
                               },
                               "&:visited": {
-                                    color: (theme) =>
-                                      theme.palette.mode === "dark"
+                                color: (theme) =>
+                                  theme.palette.mode === "dark"
                                     ? "#e0b0ff" // Light purple for dark mode
                                     : "#551A8B", // Standard visited purple for light mode
                               },
@@ -1558,13 +1615,16 @@ const BidLinks = () => {
                             <Chip
                               label={link.final_details.tag}
                               size="small"
-                              sx={{ ml: 1, ...getTagColor(link.final_details.tag).sx }}
+                              sx={{
+                                ml: 1,
+                                ...getTagColor(link.final_details.tag).sx,
+                              }}
                             />
                           )}
                           <Typography
                             variant="body2"
                             color="text.secondary"
-                              sx={{
+                            sx={{
                               mt: 1,
                               lineHeight: 1.6,
                             }}
@@ -1833,23 +1893,23 @@ const BidLinks = () => {
     } else if (locationFilter.includes("all")) {
       newLocationFilter = [location];
     } else if (locationFilter.includes(location)) {
-      newLocationFilter = locationFilter.filter(l => l !== location);
+      newLocationFilter = locationFilter.filter((l) => l !== location);
       if (newLocationFilter.length === 0) {
         newLocationFilter = ["all"];
       }
     } else {
       newLocationFilter = [...locationFilter, location];
     }
-    
+
     setLocationFilter(newLocationFilter);
     localStorage.setItem("locationFilter", JSON.stringify(newLocationFilter));
     setPage(0);
   };
 
   const toggleSection = (section) => {
-    setExpandedSections(prev => ({
+    setExpandedSections((prev) => ({
       ...prev,
-      [section]: !prev[section]
+      [section]: !prev[section],
     }));
   };
 
@@ -1857,28 +1917,35 @@ const BidLinks = () => {
     <Box sx={{ mb: 2 }}>
       <Box
         sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
           p: 2,
-          cursor: 'pointer',
-          backgroundColor: 'background.paper',
+          cursor: "pointer",
+          backgroundColor: "background.paper",
           borderRadius: 1,
-          border: '1px solid',
-          borderColor: 'divider',
-          '&:hover': {
-            backgroundColor: 'action.hover',
+          border: "1px solid",
+          borderColor: "divider",
+          "&:hover": {
+            backgroundColor: "action.hover",
           },
         }}
         onClick={onToggle}
       >
-        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'cyan' }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: "cyan" }}>
           {title}
         </Typography>
         {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
       </Box>
       {isExpanded && (
-        <Box sx={{ p: 2, backgroundColor: 'background.paper', borderRadius: 1, mt: 1 }}>
+        <Box
+          sx={{
+            p: 2,
+            backgroundColor: "background.paper",
+            borderRadius: 1,
+            mt: 1,
+          }}
+        >
           {children}
         </Box>
       )}
@@ -1889,7 +1956,7 @@ const BidLinks = () => {
     <Card
       sx={{
         width: 320,
-        height: "calc(100vh - 80px)",
+        height: "calc(100vh - 60px)",
         position: "sticky",
         top: 20,
         display: "flex",
@@ -1898,9 +1965,16 @@ const BidLinks = () => {
       }}
     >
       <CardContent sx={{ p: 2, height: "100%", overflow: "auto" }}>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 3 }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            mb: 3,
+          }}
+        >
           <Typography variant="h6" sx={{ fontWeight: 600 }}>
-            Filters & Actions
+            Filters
           </Typography>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Tooltip title="Reload links">
@@ -1918,7 +1992,10 @@ const BidLinks = () => {
               onClick={() => {
                 const newVisible = !sidebarVisible;
                 setSidebarVisible(newVisible);
-                localStorage.setItem("sidebarVisible", JSON.stringify(newVisible));
+                localStorage.setItem(
+                  "sidebarVisible",
+                  JSON.stringify(newVisible)
+                );
               }}
               sx={{ ml: 1 }}
             >
@@ -1927,188 +2004,166 @@ const BidLinks = () => {
           </Box>
         </Box>
 
-        {/* Date Filter Section */}
+        {/* Date and Time Filter Section */}
         {renderSidebarSection(
-          "Date Filter",
-          expandedSections.dateFilter,
-          () => toggleSection("dateFilter"),
-          <TextField
-            variant="standard"
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            size="small"
-            fullWidth
-          />
-        )}
-
-        {/* Time Range Section */}
-        {renderSidebarSection(
-          "Time Range",
-          expandedSections.timeRange,
-          () => toggleSection("timeRange"),
-          <TextField
-            select
-            SelectProps={{
-              multiple: true,
-              value: Array.isArray(queryDateLimit) ? queryDateLimit : [queryDateLimit],
-              onChange: (e) => {
-                const values = e.target.value;
-                let newValues = [...values];
-
-                const wasAllSelected = queryDateLimit.includes(-1);
-                const isAllSelected = values.includes(-1);
-
-                if (isAllSelected && !wasAllSelected) {
-                  newValues = [-1];
-                } else if (values.some((v) => [0, 1, 7, 30, 365].includes(v))) {
-                  newValues = newValues.filter((v) => v !== -1);
-                } else if (values.includes(-1)) {
-                  newValues = [-1];
-                }
-
-                if (newValues.length === 0) {
-                  newValues = [-1];
-                }
-
-                setQueryDateLimit(newValues);
-                localStorage.setItem("queryDateLimit", JSON.stringify(newValues));
-              },
-              renderValue: (selected) => {
-                if (!selected || selected.length === 0) return "Select time ranges";
-                return selected
-                  .map((value) => {
-                    switch (value) {
-                      case -1: return "All";
-                      case 0: return "Any time";
-                      case 1: return "Past 24 hours";
-                      case 7: return "Past week";
-                      case 30: return "Past month";
-                      case 365: return "Past year";
-                      default: return `${value} days`;
-                    }
-                  })
-                  .join(", ");
-              },
-            }}
-            variant="standard"
-            size="small"
-            fullWidth
-          >
-            <MenuItem value={-1}>All</MenuItem>
-            <MenuItem value={0}>Any time</MenuItem>
-            <MenuItem value={1}>Past 24 hours</MenuItem>
-            <MenuItem value={7}>Past week</MenuItem>
-            <MenuItem value={30}>Past month</MenuItem>
-            <MenuItem value={365}>Past year</MenuItem>
-          </TextField>
-        )}
-
-        {/* Location Filter Section - Only show if team has 'special' role */}
-        {teamInfo?.role?.includes('special') && renderSidebarSection(
-          "Location",
-          expandedSections.location,
-          () => toggleSection("location"),
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            {locationOptions.map((option) => (
-              <Box key={option.value} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Checkbox
-                  checked={locationFilter.includes(option.value)}
-                  onChange={() => handleLocationFilterChange(option.value)}
-                  size="small"
-                />
-                <Typography variant="body2" sx={{ flex: 1 }}>
-                  {option.label}
-                </Typography>
-                <Chip
-                  label={locationCounts[option.value] || 0}
-                  size="small"
-                  variant="outlined"
-                  sx={{ minWidth: 40, height: 20, fontSize: '0.75rem' }}
-                />
-              </Box>
-            ))}
-          </Box>
-        )}
-
-        {/* Search & Actions Section */}
-        {renderSidebarSection(
-          "Search & Actions",
-          expandedSections.search,
-          () => toggleSection("search"),
+          "Date and Time Filter",
+          expandedSections.dateTimeFilter,
+          () => toggleSection("dateTimeFilter"),
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            {/* Search Box at the top */}
-            <TextField
-              size="small"
-              onKeyDown={async (e) => {
-                if (e.key === "Enter") {
-                  await handleGlobalSearch(e.target.value);
-                  e.target.value = "";
-                }
-              }}
-              placeholder="Enter Search Term..."
-              fullWidth
-              variant="standard"
-              InputProps={{
-                endAdornment: isSearchInputLoading && (
-                  <CircularProgress size={20} />
-                ),
-              }}
-            />
-            
-            {/* Actions below search */}
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              <Button
-                variant="outlined"
-                onClick={handleOpenAllLinks}
-                size="small"
-                fullWidth
-              >
-                Open All ({Math.min(rowsPerPage, filteredBidLinks.length - page * rowsPerPage)})
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => {
-                  const allLinks = filteredBidLinks.map((link) => 
-                    strictlyFilteredJobs && link.final_details?.finalUrl ? link.final_details.finalUrl : link.url
+            {/* Single Date Selection */}
+            <Box>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
+                Date
+              </Typography>
+              <TextField
+                variant="standard"
+                type="date"
+                value={dateTimeFilter.selectedDate}
+                onChange={(e) => {
+                  const newFilter = {
+                    ...dateTimeFilter,
+                    selectedDate: e.target.value,
+                  };
+                  setDateTimeFilter(newFilter);
+                  localStorage.setItem(
+                    "dateTimeFilter",
+                    JSON.stringify(newFilter)
                   );
-                  navigator.clipboard.writeText(allLinks.join("\n"));
-                  toast.success(`Copied ${allLinks.length} links to clipboard`);
                 }}
                 size="small"
                 fullWidth
-              >
-                Copy All ({filteredBidLinks.length})
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={generateChartData}
-                startIcon={<BarChartIcon />}
+              />
+            </Box>
+
+            {/* Time Range */}
+            <Box>
+              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
+                Time Range
+              </Typography>
+              <TextField
+                select
+                SelectProps={{
+                  multiple: true,
+                  value: Array.isArray(dateTimeFilter.timeRange)
+                    ? dateTimeFilter.timeRange
+                    : [dateTimeFilter.timeRange],
+                  onChange: (e) => {
+                    const values = e.target.value;
+                    let newValues = [...values];
+
+                    const wasAllSelected =
+                      dateTimeFilter.timeRange.includes(-1);
+                    const isAllSelected = values.includes(-1);
+
+                    if (isAllSelected && !wasAllSelected) {
+                      newValues = [-1];
+                    } else if (
+                      values.some((v) => [0, 1, 7, 30, 365].includes(v))
+                    ) {
+                      newValues = newValues.filter((v) => v !== -1);
+                    } else if (values.includes(-1)) {
+                      newValues = [-1];
+                    }
+
+                    if (newValues.length === 0) {
+                      newValues = [-1];
+                    }
+
+                    const newFilter = {
+                      ...dateTimeFilter,
+                      timeRange: newValues,
+                    };
+                    setDateTimeFilter(newFilter);
+                    localStorage.setItem(
+                      "dateTimeFilter",
+                      JSON.stringify(newFilter)
+                    );
+                  },
+                  renderValue: (selected) => {
+                    if (!selected || selected.length === 0)
+                      return "Select time ranges";
+                    return selected
+                      .map((value) => {
+                        switch (value) {
+                          case -1:
+                            return "All";
+                          case 0:
+                            return "Any time";
+                          case 1:
+                            return "Past 24 hours";
+                          case 7:
+                            return "Past week";
+                          case 30:
+                            return "Past month";
+                          case 365:
+                            return "Past year";
+                          default:
+                            return `${value} days`;
+                        }
+                      })
+                      .join(", ");
+                  },
+                }}
+                variant="standard"
                 size="small"
                 fullWidth
               >
-                Links Stats
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => setOpenBlacklistDialog(true)}
-                startIcon={<DoNotTouchIcon />}
-                size="small"
-                fullWidth
-              >
-                Blacklists
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={() => setOpenNotificationConfig(true)}
-                size="small"
-                fullWidth
-              >
-                Configure Notifications
-              </Button>
+                <MenuItem value={-1}>All</MenuItem>
+                <MenuItem value={0}>Any time</MenuItem>
+                <MenuItem value={1}>Past 24 hours</MenuItem>
+                <MenuItem value={7}>Past week</MenuItem>
+                <MenuItem value={30}>Past month</MenuItem>
+                <MenuItem value={365}>Past year</MenuItem>
+              </TextField>
             </Box>
           </Box>
         )}
+
+        {/* Location Filter Section - Only show if team has 'special' role */}
+        {teamInfo?.role?.includes("special") &&
+          renderSidebarSection(
+            "Location",
+            expandedSections.location,
+            () => toggleSection("location"),
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              {locationOptions.map((option) => (
+                <Box
+                  key={option.value}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    p: 1,
+                    borderRadius: 1,
+                    cursor: "pointer",
+                    backgroundColor: locationFilter.includes(option.value)
+                      ? "action.selected"
+                      : "transparent",
+                    "&:hover": {
+                      backgroundColor: "action.hover",
+                    },
+                    transition: "background-color 0.2s",
+                  }}
+                  onClick={() => handleLocationFilterChange(option.value)}
+                >
+                  <Checkbox
+                    checked={locationFilter.includes(option.value)}
+                    size="small"
+                    sx={{ pointerEvents: "none" }}
+                  />
+                  <Typography variant="body2" sx={{ flex: 1 }}>
+                    {option.label}
+                  </Typography>
+                  <Chip
+                    label={locationCounts[option.value] || 0}
+                    size="small"
+                    variant="outlined"
+                    sx={{ minWidth: 40, height: 20, fontSize: "0.75rem" }}
+                  />
+                </Box>
+              ))}
+            </Box>
+          )}
 
         {/* Category Filter Section */}
         {renderSidebarSection(
@@ -2116,88 +2171,125 @@ const BidLinks = () => {
           expandedSections.categoryFilter,
           () => toggleSection("categoryFilter"),
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                p: 1,
+                borderRadius: 1,
+                cursor: "pointer",
+                backgroundColor:
+                  selectedCategory === "all"
+                    ? "action.selected"
+                    : "transparent",
+                "&:hover": {
+                  backgroundColor: "action.hover",
+                },
+                transition: "background-color 0.2s",
+              }}
+              onClick={() => {
+                setSelectedCategory("all");
+                setPage(0);
+              }}
+            >
               <Checkbox
                 checked={selectedCategory === "all"}
-                onChange={() => {
-                  setSelectedCategory("all");
-                  setPage(0);
-                }}
                 size="small"
+                sx={{ pointerEvents: "none" }}
               />
               <Typography variant="body2" sx={{ flex: 1 }}>
                 All Categories
               </Typography>
               <Chip
-                label={bidLinks.filter(link => {
-                  // Apply date filter
-                  if (queryDateLimit.length > 0) {
-                    const matchesDateLimit = queryDateLimit.some((limit) => {
-                      if (limit === -1) return true;
-                      if (limit === 0) return link.queryDateLimit == null;
-                      return link.queryDateLimit === limit;
-                    });
-                    if (!matchesDateLimit) return false;
-                  }
+                label={
+                  bidLinks.filter((link) => {
+                    // Apply date filter
+                    if (dateTimeFilter.timeRange.length > 0) {
+                      const matchesTimeLimit = dateTimeFilter.timeRange.some(
+                        (limit) => {
+                          if (limit === -1) return true;
+                          if (limit === 0) return link.queryDateLimit == null;
+                          return link.queryDateLimit === limit;
+                        }
+                      );
+                      if (!matchesTimeLimit) return false;
+                    }
 
-                  // Apply category visibility filter
-                  if (hiddenCategories.includes(link.queryId?.category)) {
-                    return false;
-                  }
+                    // Apply category visibility filter
+                    if (hiddenCategories.includes(link.queryId?.category)) {
+                      return false;
+                    }
 
-                  // Apply confidence range filter
-                  const confidence = link.confidence || 0;
-                  if (confidence < confidenceRange[0] || confidence > confidenceRange[1]) {
-                    return false;
-                  }
+                    // Apply confidence range filter
+                    const confidence = link.confidence || 0;
+                    if (
+                      confidence < confidenceRange[0] ||
+                      confidence > confidenceRange[1]
+                    ) {
+                      return false;
+                    }
 
-                  // Apply location filter
-                  if (locationFilter.length > 0 && !locationFilter.includes("all")) {
-                    const linkLocation = link.location || "Unknown";
-                    const matchesLocation = locationFilter.some(filter => {
-                      return linkLocation === filter;
-                    });
-                    if (!matchesLocation) return false;
-                  }
+                    // Apply location filter
+                    if (
+                      locationFilter.length > 0 &&
+                      !locationFilter.includes("all")
+                    ) {
+                      const linkLocation = link.location || "Unknown";
+                      const matchesLocation = locationFilter.some((filter) => {
+                        return linkLocation === filter;
+                      });
+                      if (!matchesLocation) return false;
+                    }
 
-                  // Apply user filter criteria
-                  if (showFilter === "mine" && link.created_by !== currentUserId) {
-                    return false;
-                  }
+                    // Apply user filter criteria
+                    if (
+                      showFilter === "mine" &&
+                      link.created_by !== currentUserId
+                    ) {
+                      return false;
+                    }
 
-                  // Apply behavior filtering with updated tag logic
-                  if (strictlyFilteredJobs) {
-                    const tag = link.final_details?.tag;
-                    // If "All" is selected, don't filter by tags
-                    if (visibleTags['All']) {
-                      // Don't filter by tags when "All" is selected
-                    } else {
-                      // Filter by specific tags
-                      if (!tag || !STRICT_TAGS.includes(tag) || !visibleTags[tag]) {
-                        return false;
+                    // Apply behavior filtering with updated tag logic
+                    if (strictlyFilteredJobs) {
+                      const tag = link.final_details?.tag;
+                      // If "All" is selected, don't filter by tags
+                      if (visibleTags["All"]) {
+                        // Don't filter by tags when "All" is selected
+                      } else {
+                        // Filter by specific tags
+                        if (
+                          !tag ||
+                          !STRICT_TAGS.includes(tag) ||
+                          !visibleTags[tag]
+                        ) {
+                          return false;
+                        }
                       }
                     }
-                  }
 
-                  return true;
-                }).length}
+                    return true;
+                  }).length
+                }
                 size="small"
                 variant="outlined"
-                sx={{ minWidth: 40, height: 20, fontSize: '0.75rem' }}
+                sx={{ minWidth: 40, height: 20, fontSize: "0.75rem" }}
               />
             </Box>
             {categories
               .filter((category) => !hiddenCategories.includes(category))
               .map((category) => {
-                const categoryCount = bidLinks.filter(link => {
+                const categoryCount = bidLinks.filter((link) => {
                   // Apply date filter
-                  if (queryDateLimit.length > 0) {
-                    const matchesDateLimit = queryDateLimit.some((limit) => {
-                      if (limit === -1) return true;
-                      if (limit === 0) return link.queryDateLimit == null;
-                      return link.queryDateLimit === limit;
-                    });
-                    if (!matchesDateLimit) return false;
+                  if (dateTimeFilter.timeRange.length > 0) {
+                    const matchesTimeLimit = dateTimeFilter.timeRange.some(
+                      (limit) => {
+                        if (limit === -1) return true;
+                        if (limit === 0) return link.queryDateLimit == null;
+                        return link.queryDateLimit === limit;
+                      }
+                    );
+                    if (!matchesTimeLimit) return false;
                   }
 
                   // Apply category filter
@@ -2207,21 +2299,30 @@ const BidLinks = () => {
 
                   // Apply confidence range filter
                   const confidence = link.confidence || 0;
-                  if (confidence < confidenceRange[0] || confidence > confidenceRange[1]) {
+                  if (
+                    confidence < confidenceRange[0] ||
+                    confidence > confidenceRange[1]
+                  ) {
                     return false;
                   }
 
                   // Apply location filter
-                  if (locationFilter.length > 0 && !locationFilter.includes("all")) {
+                  if (
+                    locationFilter.length > 0 &&
+                    !locationFilter.includes("all")
+                  ) {
                     const linkLocation = link.location || "Unknown";
-                    const matchesLocation = locationFilter.some(filter => {
+                    const matchesLocation = locationFilter.some((filter) => {
                       return linkLocation === filter;
                     });
                     if (!matchesLocation) return false;
                   }
 
                   // Apply user filter criteria
-                  if (showFilter === "mine" && link.created_by !== currentUserId) {
+                  if (
+                    showFilter === "mine" &&
+                    link.created_by !== currentUserId
+                  ) {
                     return false;
                   }
 
@@ -2229,11 +2330,15 @@ const BidLinks = () => {
                   if (strictlyFilteredJobs) {
                     const tag = link.final_details?.tag;
                     // If "All" is selected, don't filter by tags
-                    if (visibleTags['All']) {
+                    if (visibleTags["All"]) {
                       // Don't filter by tags when "All" is selected
                     } else {
                       // Filter by specific tags
-                      if (!tag || !STRICT_TAGS.includes(tag) || !visibleTags[tag]) {
+                      if (
+                        !tag ||
+                        !STRICT_TAGS.includes(tag) ||
+                        !visibleTags[tag]
+                      ) {
                         return false;
                       }
                     }
@@ -2243,14 +2348,33 @@ const BidLinks = () => {
                 }).length;
 
                 return (
-                  <Box key={category} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Box
+                    key={category}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      p: 1,
+                      borderRadius: 1,
+                      cursor: "pointer",
+                      backgroundColor:
+                        selectedCategory === category
+                          ? "action.selected"
+                          : "transparent",
+                      "&:hover": {
+                        backgroundColor: "action.hover",
+                      },
+                      transition: "background-color 0.2s",
+                    }}
+                    onClick={() => {
+                      setSelectedCategory(category);
+                      setPage(0);
+                    }}
+                  >
                     <Checkbox
                       checked={selectedCategory === category}
-                      onChange={() => {
-                        setSelectedCategory(category);
-                        setPage(0);
-                      }}
                       size="small"
+                      sx={{ pointerEvents: "none" }}
                     />
                     <Typography variant="body2" sx={{ flex: 1 }}>
                       {category}
@@ -2259,7 +2383,7 @@ const BidLinks = () => {
                       label={categoryCount}
                       size="small"
                       variant="outlined"
-                      sx={{ minWidth: 40, height: 20, fontSize: '0.75rem' }}
+                      sx={{ minWidth: 40, height: 20, fontSize: "0.75rem" }}
                     />
                   </Box>
                 );
@@ -2267,7 +2391,11 @@ const BidLinks = () => {
             {hiddenCategories.length > 0 && (
               <>
                 <Divider sx={{ my: 1 }} />
-                <Typography variant="caption" color="text.secondary" sx={{ px: 1 }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ px: 1 }}
+                >
                   Hidden Categories
                 </Typography>
                 {categories
@@ -2286,7 +2414,9 @@ const BidLinks = () => {
                       />
                       <IconButton
                         size="small"
-                        onClick={(event) => handleToggleCategoryVisibility(category, event)}
+                        onClick={(event) =>
+                          handleToggleCategoryVisibility(category, event)
+                        }
                       >
                         <VisibilityIcon fontSize="small" />
                       </IconButton>
@@ -2376,104 +2506,140 @@ const BidLinks = () => {
         )}
 
         {/* Behavior Filtering Section - Only show if team has 'special' role */}
-        {teamInfo?.role?.includes('special') && renderSidebarSection(
-          "Behavior Filtering",
-          expandedSections.strictFiltering,
-          () => toggleSection("strictFiltering"),
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              {STRICT_TAGS.map((tag) => {
-                const tagCount = bidLinks.filter(link => {
-                  // Apply date filter
-                  if (queryDateLimit.length > 0) {
-                    const matchesDateLimit = queryDateLimit.some((limit) => {
-                      if (limit === -1) return true;
-                      if (limit === 0) return link.queryDateLimit == null;
-                      return link.queryDateLimit === limit;
-                    });
-                    if (!matchesDateLimit) return false;
-                  }
+        {teamInfo?.role?.includes("special") &&
+          renderSidebarSection(
+            "Behavior Filtering",
+            expandedSections.strictFiltering,
+            () => toggleSection("strictFiltering"),
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                {STRICT_TAGS.map((tag) => {
+                  const tagCount = bidLinks.filter((link) => {
+                    // Apply date filter
+                    if (dateTimeFilter.timeRange.length > 0) {
+                      const matchesTimeLimit = dateTimeFilter.timeRange.some(
+                        (limit) => {
+                          if (limit === -1) return true;
+                          if (limit === 0) return link.queryDateLimit == null;
+                          return link.queryDateLimit === limit;
+                        }
+                      );
+                      if (!matchesTimeLimit) return false;
+                    }
 
-                  // Apply category visibility filter
-                  if (hiddenCategories.includes(link.queryId?.category)) {
-                    return false;
-                  }
+                    // Apply category visibility filter
+                    if (hiddenCategories.includes(link.queryId?.category)) {
+                      return false;
+                    }
 
-                  // Apply category filter
-                  if (selectedCategory !== "all" && link.queryId?.category !== selectedCategory) {
-                    return false;
-                  }
+                    // Apply category filter
+                    if (
+                      selectedCategory !== "all" &&
+                      link.queryId?.category !== selectedCategory
+                    ) {
+                      return false;
+                    }
 
-                  // Apply confidence range filter
-                  const confidence = link.confidence || 0;
-                  if (confidence < confidenceRange[0] || confidence > confidenceRange[1]) {
-                    return false;
-                  }
+                    // Apply confidence range filter
+                    const confidence = link.confidence || 0;
+                    if (
+                      confidence < confidenceRange[0] ||
+                      confidence > confidenceRange[1]
+                    ) {
+                      return false;
+                    }
 
-                  // Apply location filter
-                  if (locationFilter.length > 0 && !locationFilter.includes("all")) {
-                    const linkLocation = link.location || "Unknown";
-                    const matchesLocation = locationFilter.some(filter => {
-                      return linkLocation === filter;
-                    });
-                    if (!matchesLocation) return false;
-                  }
+                    // Apply location filter
+                    if (
+                      locationFilter.length > 0 &&
+                      !locationFilter.includes("all")
+                    ) {
+                      const linkLocation = link.location || "Unknown";
+                      const matchesLocation = locationFilter.some((filter) => {
+                        return linkLocation === filter;
+                      });
+                      if (!matchesLocation) return false;
+                    }
 
-                  // Apply user filter criteria
-                  if (showFilter === "mine" && link.created_by !== currentUserId) {
-                    return false;
-                  }
+                    // Apply user filter criteria
+                    if (
+                      showFilter === "mine" &&
+                      link.created_by !== currentUserId
+                    ) {
+                      return false;
+                    }
 
-                  // Apply tag filter - special handling for "All" and "Uncategorized"
-                  if (tag === 'All') {
-                    // For "All", count all links (including uncategorized)
-                    return true;
-                  } else if (tag === 'Uncategorized') {
-                    // For "Uncategorized", count links that have no tag or an invalid tag
-                    const linkTag = link.final_details?.tag;
-                    return !linkTag || !STRICT_TAGS.includes(linkTag);
-                  } else {
-                    // For specific tags, count only links with that exact tag
-                    const linkTag = link.final_details?.tag;
-                    return linkTag === tag;
-                  }
+                    // Apply tag filter - special handling for "All" and "Uncategorized"
+                    if (tag === "All") {
+                      // For "All", count all links (including uncategorized)
+                      return true;
+                    } else if (tag === "Uncategorized") {
+                      // For "Uncategorized", count links that have no tag or an invalid tag
+                      const linkTag = link.final_details?.tag;
+                      return !linkTag || !STRICT_TAGS.includes(linkTag);
+                    } else {
+                      // For specific tags, count only links with that exact tag
+                      const linkTag = link.final_details?.tag;
+                      return linkTag === tag;
+                    }
+                  }).length;
 
-                  return true;
-                }).length;
-
-                return (
-                  <Box key={tag} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={visibleTags[tag]}
-                          onChange={() => handleTagFilterChange(tag)}
-                        />
-                      }
-                      label={tag}
-                      sx={{ flex: 1 }}
-                    />
-                    <Chip
-                      label={tagCount}
-                      size="small"
-                      variant="outlined"
-                      sx={{ minWidth: 40, height: 20, fontSize: '0.75rem' }}
-                    />
-                    {tag === 'Email' && (
-                      <Button
+                  return (
+                    <Box
+                      key={tag}
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1,
+                        p: 1,
+                        borderRadius: 1,
+                        cursor: "pointer",
+                        backgroundColor: visibleTags[tag]
+                          ? "action.selected"
+                          : "transparent",
+                        "&:hover": {
+                          backgroundColor: "action.hover",
+                        },
+                        transition: "background-color 0.2s",
+                      }}
+                      onClick={() => handleTagFilterChange(tag)}
+                    >
+                      <Checkbox
+                        checked={visibleTags[tag]}
+                        size="small"
+                        sx={{ pointerEvents: "none" }}
+                      />
+                      <Typography variant="body2" sx={{ flex: 1 }}>
+                        {tag === "Email Found"
+                          ? "Email"
+                          : tag === "Verification Required"
+                          ? "Captcha Check"
+                          : tag}
+                      </Typography>
+                      {tag === "Email Found" && (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            extractEmails();
+                          }}
+                        >
+                          Extract
+                        </Button>
+                      )}
+                      <Chip
+                        label={tagCount}
                         size="small"
                         variant="outlined"
-                        onClick={extractEmails}
-                      >
-                        Get Emails
-                      </Button>
-                    )}
-                  </Box>
-                );
-              })}
+                        sx={{ minWidth: 40, height: 20, fontSize: "0.75rem" }}
+                      />
+                    </Box>
+                  );
+                })}
+              </Box>
             </Box>
-          </Box>
-        )}
+          )}
       </CardContent>
     </Card>
   );
@@ -2488,9 +2654,9 @@ const BidLinks = () => {
       }}
       sx={{
         position: "absolute",
-        left: 20,
-        top: 20,
-        zIndex: 1000,
+        left: 0,
+        top: 60,
+        zIndex: 1001, // Increased from 1000 to be above the headbar
         backgroundColor: "background.paper",
         border: "1px solid",
         borderColor: "divider",
@@ -2536,9 +2702,9 @@ const BidLinks = () => {
       if (strictlyFilteredJobs) {
         const tag = link.final_details?.tag;
         // If "All" is selected, don't filter by tags
-        if (visibleTags['All']) {
+        if (visibleTags["All"]) {
           // Don't filter by tags when "All" is selected
-        } else if (visibleTags['Uncategorized']) {
+        } else if (visibleTags["Uncategorized"]) {
           // If "Uncategorized" is selected, only show links without valid tags
           if (tag && STRICT_TAGS.includes(tag)) {
             return false;
@@ -2557,17 +2723,20 @@ const BidLinks = () => {
     // Calculate total links for current category with all filters
     const totalQueryLinks = bidLinks.filter((link) => {
       // First apply date filter
-      if (queryDateLimit.length > 0) {
-        const matchesDateLimit = queryDateLimit.some((limit) => {
+      if (dateTimeFilter.timeRange.length > 0) {
+        const matchesTimeLimit = dateTimeFilter.timeRange.some((limit) => {
           if (limit === -1) return true;
           if (limit === 0) return link.queryDateLimit == null;
           return link.queryDateLimit === limit;
         });
-        if (!matchesDateLimit) return false;
+        if (!matchesTimeLimit) return false;
       }
 
       // Then apply category filter
-      if (selectedCategory !== "all" && link.queryId?.category !== selectedCategory) {
+      if (
+        selectedCategory !== "all" &&
+        link.queryId?.category !== selectedCategory
+      ) {
         return false;
       }
 
@@ -2649,13 +2818,15 @@ const BidLinks = () => {
                     secondary={`${
                       bidLinks.filter((link) => {
                         // Apply date filter
-                        if (queryDateLimit.length > 0) {
-                          const matchesDateLimit = queryDateLimit.some((limit) => {
-                            if (limit === -1) return true;
-                            if (limit === 0) return link.queryDateLimit == null;
-                            return link.queryDateLimit === limit;
-                          });
-                          if (!matchesDateLimit) return false;
+                        if (dateTimeFilter.timeRange.length > 0) {
+                          const matchesTimeLimit =
+                            dateTimeFilter.timeRange.some((limit) => {
+                              if (limit === -1) return true;
+                              if (limit === 0)
+                                return link.queryDateLimit == null;
+                              return link.queryDateLimit === limit;
+                            });
+                          if (!matchesTimeLimit) return false;
                         }
 
                         // Apply category visibility filter
@@ -2686,8 +2857,8 @@ const BidLinks = () => {
                     const categoryCount = bidLinks.filter(
                       (link) =>
                         link.queryId?.category === category &&
-                        (queryDateLimit.length === 0 ||
-                          queryDateLimit.some((limit) => {
+                        (dateTimeFilter.timeRange.length === 0 ||
+                          dateTimeFilter.timeRange.some((limit) => {
                             if (limit === -1) return true;
                             if (limit === 0) return link.queryDateLimit == null;
                             return link.queryDateLimit === limit;
@@ -2787,8 +2958,8 @@ const BidLinks = () => {
                   const queryCount = bidLinks.filter(
                     (link) =>
                       link.queryId?.link === query &&
-                      (queryDateLimit.length === 0 ||
-                        queryDateLimit.some((limit) => {
+                      (dateTimeFilter.timeRange.length === 0 ||
+                        dateTimeFilter.timeRange.some((limit) => {
                           if (limit === -1) return true;
                           if (limit === 0) return link.queryDateLimit == null;
                           return link.queryDateLimit === limit;
@@ -2821,17 +2992,20 @@ const BidLinks = () => {
   };
 
   const extractEmails = () => {
-    const emails = filteredBidLinks
-      .filter(link => link.final_details?.applicationMethods?.applicationEmail)
-      .map(link => link.final_details.applicationMethods.applicationEmail);
+    // Use original bidLinks instead of filteredBidLinks to get emails from non-filtered links
+    const emails = bidLinks
+      .filter(
+        (link) => link.final_details?.applicationMethods?.applicationEmail
+      )
+      .map((link) => link.final_details.applicationMethods.applicationEmail);
 
     if (emails.length === 0) {
-      toast.info('No emails found in the current filtered results');
+      toast.info("No emails found in the original bid links");
       return;
     }
 
     // Join emails with commas
-    const emailList = emails.join(', ');
+    const emailList = emails.join(", ");
 
     // Copy to clipboard
     navigator.clipboard.writeText(emailList);
@@ -2841,7 +3015,11 @@ const BidLinks = () => {
   const handleOpenAllLinks = () => {
     const visibleLinks = filteredBidLinks
       .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-      .map((link) => strictlyFilteredJobs && link.final_details?.finalUrl ? link.final_details.finalUrl : link.url);
+      .map((link) =>
+        strictlyFilteredJobs && link.final_details?.finalUrl
+          ? link.final_details.finalUrl
+          : link.url
+      );
 
     // Save opened links to localStorage and update state
     const updatedLinks = addOpenedLinks(visibleLinks);
@@ -2857,11 +3035,11 @@ const BidLinks = () => {
   // Update the handleTagFilterChange function (around line 1833)
   const handleTagFilterChange = (tag) => {
     let newVisibleTags;
-    
-    if (tag === 'All') {
+
+    if (tag === "All") {
       // If "All" is being selected, uncheck all others and check "All"
       newVisibleTags = STRICT_TAGS.reduce((acc, t) => {
-        acc[t] = t === 'All';
+        acc[t] = t === "All";
         return acc;
       }, {});
     } else {
@@ -2870,24 +3048,25 @@ const BidLinks = () => {
         // If this tag is currently selected, uncheck it
         newVisibleTags = {
           ...visibleTags,
-          'All': false,
-          [tag]: false
+          All: false,
+          [tag]: false,
         };
         // If no tags are selected, select "All"
-        if (!Object.values(newVisibleTags).some(v => v)) {
-          newVisibleTags['All'] = true;
+        if (!Object.values(newVisibleTags).some((v) => v)) {
+          newVisibleTags["All"] = true;
         }
       } else {
         // If this tag is not selected, select it and deselect "All"
         newVisibleTags = {
           ...visibleTags,
-          'All': false,
-          [tag]: true
+          All: false,
+          [tag]: true,
         };
       }
     }
-    
-    setVisibleTags(newVisibleTags);
+
+    // Force a clean state update
+    setVisibleTags({ ...newVisibleTags });
     localStorage.setItem("visibleTags", JSON.stringify(newVisibleTags));
     setPage(0);
   };
@@ -2897,24 +3076,125 @@ const BidLinks = () => {
       {sidebarVisible && renderSidebar()}
       <Box sx={{ flex: 1, position: "relative" }}>
         {!sidebarVisible && renderSidebarToggle()}
-        <Grid container spacing={2}>
-          <Grid item xs={12}>
-            {isReloadingBids ? (
-              <Grid
-                item
-                xs={12}
-                sx={{ display: "flex", justifyContent: "center", p: 4 }}
-              >
-                <CircularProgress />
-              </Grid>
-            ) : (
-              <FilteredBidLinks
-                filteredBidLinks={filteredBidLinks}
-                users={users}
-              />
+
+        {/* Headbar */}
+        <Box
+          sx={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 1000,
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+            p: 2,
+            backgroundColor: "background.paper",
+            borderRadius: 2,
+            boxShadow: 2,
+            flexWrap: "wrap",
+            borderBottom: 1,
+            borderColor: "divider",
+          }}
+        >
+          {/* Search Box */}
+          <TextField
+            size="small"
+            onKeyDown={async (e) => {
+              if (e.key === "Enter") {
+                await handleGlobalSearch(e.target.value);
+                e.target.value = "";
+              }
+            }}
+            placeholder="Enter Search Term..."
+            sx={{ minWidth: "100px", flex: 1, borderRadius: 2 }}
+            variant="standard"
+            InputProps={{
+              endAdornment: isSearchInputLoading && (
+                <CircularProgress size={20} />
+              ),
+            }}
+          />
+          <Button
+            variant="outlined"
+            onClick={handleOpenAllLinks}
+            size="small"
+            startIcon={<VisibilityIcon />}
+          >
+            Open All (
+            {Math.min(
+              rowsPerPage,
+              filteredBidLinks.length - page * rowsPerPage
             )}
+            )
+          </Button>
+
+          <Button
+            variant="outlined"
+            onClick={() => {
+              const allLinks = filteredBidLinks.map((link) =>
+                strictlyFilteredJobs && link.final_details?.finalUrl
+                  ? link.final_details.finalUrl
+                  : link.url
+              );
+              navigator.clipboard.writeText(allLinks.join("\n"));
+              toast.success(`Copied ${allLinks.length} links to clipboard`);
+            }}
+            size="small"
+            startIcon={<ContentCopyIcon />}
+          >
+            Copy All ({filteredBidLinks.length})
+          </Button>
+
+          <Button
+            variant="outlined"
+            onClick={generateChartData}
+            startIcon={<BarChartIcon />}
+            size="small"
+          >
+            Links Stats
+          </Button>
+
+          <Button
+            variant="outlined"
+            onClick={() => setOpenBlacklistDialog(true)}
+            startIcon={<DoNotTouchIcon />}
+            size="small"
+          >
+            Blacklists
+          </Button>
+
+          <Button
+            variant="outlined"
+            onClick={() => setOpenNotificationConfig(true)}
+            startIcon={<NotificationsIcon />}
+            size="small"
+          >
+            Notifications
+          </Button>
+        </Box>
+
+        {/* Add top margin to content to account for absolute positioned headbar */}
+        <Box sx={{ mt: 10 }}>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              {isReloadingBids ? (
+                <Grid
+                  item
+                  xs={12}
+                  sx={{ display: "flex", justifyContent: "center", p: 4 }}
+                >
+                  <CircularProgress />
+                </Grid>
+              ) : (
+                <FilteredBidLinks
+                  filteredBidLinks={filteredBidLinks}
+                  users={users}
+                />
+              )}
+            </Grid>
           </Grid>
-        </Grid>
+        </Box>
 
         {renderBlacklistPanel()}
         <ChartDialog />
@@ -2997,7 +3277,9 @@ const BidLinks = () => {
                                 <Chip
                                   label={link.final_details.tag}
                                   size="small"
-                                  sx={{ ...getTagColor(link.final_details.tag).sx }}
+                                  sx={{
+                                    ...getTagColor(link.final_details.tag).sx,
+                                  }}
                                 />
                               )}
                             </Box>
@@ -3067,4 +3349,3 @@ const BidLinks = () => {
 };
 
 export default BidLinks;
-
