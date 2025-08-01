@@ -520,6 +520,7 @@ const BidLinks = () => {
   const [expandedSections, setExpandedSections] = useState({
     dateFilter: true,
     timeRange: true,
+    categoryFilter: true, // Add category filter section
     search: true,
     actions: true,
     confidence: true,
@@ -2010,159 +2011,336 @@ const BidLinks = () => {
           </Box>
         )}
 
-        {/* Search Section */}
+        {/* Search & Actions Section */}
         {renderSidebarSection(
-          "Search",
+          "Search & Actions",
           expandedSections.search,
           () => toggleSection("search"),
-          <TextField
-            size="small"
-            onKeyDown={async (e) => {
-              if (e.key === "Enter") {
-                await handleGlobalSearch(e.target.value);
-                e.target.value = "";
-              }
-            }}
-            placeholder="Enter Search Term..."
-            fullWidth
-            variant="standard"
-            InputProps={{
-              endAdornment: isSearchInputLoading && (
-                <CircularProgress size={20} />
-              ),
-            }}
-          />
-        )}
-
-        {/* Actions Section */}
-        {renderSidebarSection(
-          "Actions",
-          expandedSections.actions,
-          () => toggleSection("actions"),
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <Button
-              variant="outlined"
-              onClick={handleOpenAllLinks}
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {/* Search Box at the top */}
+            <TextField
               size="small"
-              fullWidth
-            >
-              Open All ({Math.min(rowsPerPage, filteredBidLinks.length - page * rowsPerPage)})
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={() => {
-                const allLinks = filteredBidLinks.map((link) => 
-                  strictlyFilteredJobs && link.final_details?.finalUrl ? link.final_details.finalUrl : link.url
-                );
-                navigator.clipboard.writeText(allLinks.join("\n"));
-                toast.success(`Copied ${allLinks.length} links to clipboard`);
+              onKeyDown={async (e) => {
+                if (e.key === "Enter") {
+                  await handleGlobalSearch(e.target.value);
+                  e.target.value = "";
+                }
               }}
-              size="small"
+              placeholder="Enter Search Term..."
               fullWidth
-            >
-              Copy All ({filteredBidLinks.length})
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={generateChartData}
-              startIcon={<BarChartIcon />}
-              size="small"
-              fullWidth
-            >
-              Links Stats
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={() => setOpenBlacklistDialog(true)}
-              startIcon={<DoNotTouchIcon />}
-              size="small"
-              fullWidth
-            >
-              Blacklists
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={() => setOpenNotificationConfig(true)}
-              size="small"
-              fullWidth
-            >
-              Configure Notifications
-            </Button>
+              variant="standard"
+              InputProps={{
+                endAdornment: isSearchInputLoading && (
+                  <CircularProgress size={20} />
+                ),
+              }}
+            />
+            
+            {/* Actions below search */}
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <Button
+                variant="outlined"
+                onClick={handleOpenAllLinks}
+                size="small"
+                fullWidth
+              >
+                Open All ({Math.min(rowsPerPage, filteredBidLinks.length - page * rowsPerPage)})
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  const allLinks = filteredBidLinks.map((link) => 
+                    strictlyFilteredJobs && link.final_details?.finalUrl ? link.final_details.finalUrl : link.url
+                  );
+                  navigator.clipboard.writeText(allLinks.join("\n"));
+                  toast.success(`Copied ${allLinks.length} links to clipboard`);
+                }}
+                size="small"
+                fullWidth
+              >
+                Copy All ({filteredBidLinks.length})
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={generateChartData}
+                startIcon={<BarChartIcon />}
+                size="small"
+                fullWidth
+              >
+                Links Stats
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => setOpenBlacklistDialog(true)}
+                startIcon={<DoNotTouchIcon />}
+                size="small"
+                fullWidth
+              >
+                Blacklists
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => setOpenNotificationConfig(true)}
+                size="small"
+                fullWidth
+              >
+                Configure Notifications
+              </Button>
+            </Box>
           </Box>
         )}
 
-        {/* Confidence Range Section */}
+        {/* Category Filter Section */}
         {renderSidebarSection(
-          "Confidence Range",
+          "Category Filter",
+          expandedSections.categoryFilter,
+          () => toggleSection("categoryFilter"),
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Checkbox
+                checked={selectedCategory === "all"}
+                onChange={() => {
+                  setSelectedCategory("all");
+                  setPage(0);
+                }}
+                size="small"
+              />
+              <Typography variant="body2" sx={{ flex: 1 }}>
+                All Categories
+              </Typography>
+              <Chip
+                label={bidLinks.filter(link => {
+                  // Apply date filter
+                  if (queryDateLimit.length > 0) {
+                    const matchesDateLimit = queryDateLimit.some((limit) => {
+                      if (limit === -1) return true;
+                      if (limit === 0) return link.queryDateLimit == null;
+                      return link.queryDateLimit === limit;
+                    });
+                    if (!matchesDateLimit) return false;
+                  }
+
+                  // Apply category visibility filter
+                  if (hiddenCategories.includes(link.queryId?.category)) {
+                    return false;
+                  }
+
+                  // Apply all other filters
+                  const confidence = link.confidence || 0;
+                  if (confidence < confidenceRange[0] || confidence > confidenceRange[1]) {
+                    return false;
+                  }
+
+                  if (strictlyFilteredJobs) {
+                    const tag = link.final_details?.tag;
+                    if (!tag || !STRICT_TAGS.includes(tag) || !visibleTags[tag]) {
+                      return false;
+                    }
+                  }
+
+                  return true;
+                }).length}
+                size="small"
+                variant="outlined"
+                sx={{ minWidth: 40, height: 20, fontSize: '0.75rem' }}
+              />
+            </Box>
+            {categories
+              .filter((category) => !hiddenCategories.includes(category))
+              .map((category) => {
+                const categoryCount = bidLinks.filter(link => {
+                  // Apply date filter
+                  if (queryDateLimit.length > 0) {
+                    const matchesDateLimit = queryDateLimit.some((limit) => {
+                      if (limit === -1) return true;
+                      if (limit === 0) return link.queryDateLimit == null;
+                      return link.queryDateLimit === limit;
+                    });
+                    if (!matchesDateLimit) return false;
+                  }
+
+                  // Apply category filter
+                  if (link.queryId?.category !== category) {
+                    return false;
+                  }
+
+                  // Apply all other filters
+                  const confidence = link.confidence || 0;
+                  if (confidence < confidenceRange[0] || confidence > confidenceRange[1]) {
+                    return false;
+                  }
+
+                  if (strictlyFilteredJobs) {
+                    const tag = link.final_details?.tag;
+                    if (!tag || !STRICT_TAGS.includes(tag) || !visibleTags[tag]) {
+                      return false;
+                    }
+                  }
+
+                  return true;
+                }).length;
+
+                return (
+                  <Box key={category} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Checkbox
+                      checked={selectedCategory === category}
+                      onChange={() => {
+                        setSelectedCategory(category);
+                        setPage(0);
+                      }}
+                      size="small"
+                    />
+                    <Typography variant="body2" sx={{ flex: 1 }}>
+                      {category}
+                    </Typography>
+                    <Chip
+                      label={categoryCount}
+                      size="small"
+                      variant="outlined"
+                      sx={{ minWidth: 40, height: 20, fontSize: '0.75rem' }}
+                    />
+                  </Box>
+                );
+              })}
+            {hiddenCategories.length > 0 && (
+              <>
+                <Divider sx={{ my: 1 }} />
+                <Typography variant="caption" color="text.secondary" sx={{ px: 1 }}>
+                  Hidden Categories
+                </Typography>
+                {categories
+                  .filter((category) => hiddenCategories.includes(category))
+                  .map((category) => {
+                    const categoryCount = bidLinks.filter(link => {
+                      // Apply date filter
+                      if (queryDateLimit.length > 0) {
+                        const matchesDateLimit = queryDateLimit.some((limit) => {
+                          if (limit === -1) return true;
+                          if (limit === 0) return link.queryDateLimit == null;
+                          return link.queryDateLimit === limit;
+                        });
+                        if (!matchesDateLimit) return false;
+                      }
+
+                      // Apply category filter
+                      if (link.queryId?.category !== category) {
+                        return false;
+                      }
+
+                      // Apply all other filters
+                      const confidence = link.confidence || 0;
+                      if (confidence < confidenceRange[0] || confidence > confidenceRange[1]) {
+                        return false;
+                      }
+
+                      if (strictlyFilteredJobs) {
+                        const tag = link.final_details?.tag;
+                        if (!tag || !STRICT_TAGS.includes(tag) || !visibleTags[tag]) {
+                          return false;
+                        }
+                      }
+
+                      return true;
+                    }).length;
+
+                    return (
+                      <Box key={category} sx={{ display: "flex", alignItems: "center", gap: 1, opacity: 0.6 }}>
+                        <Checkbox
+                          checked={false}
+                          disabled
+                          size="small"
+                        />
+                        <Typography variant="body2" sx={{ flex: 1 }}>
+                          {category}
+                        </Typography>
+                        <Chip
+                          label={categoryCount}
+                          size="small"
+                          variant="outlined"
+                          sx={{ minWidth: 40, height: 20, fontSize: '0.75rem' }}
+                        />
+                      </Box>
+                    );
+                  })}
+              </>
+            )}
+          </Box>
+        )}
+
+        {/* Confidence Range & Sorting Section */}
+        {renderSidebarSection(
+          "Confidence & Sorting",
           expandedSections.confidence,
           () => toggleSection("confidence"),
-          <Box>
-            <Slider
-              value={confidenceRange}
-              onChange={(event, newValue) => {
-                setConfidenceRange(newValue);
-                setPage(0);
-              }}
-              valueLabelDisplay="auto"
-              valueLabelFormat={(value) => `${Math.round(value * 100)}%`}
-              min={0.3}
-              max={1}
-              step={0.1}
-              marks={[
-                { value: 0.3, label: "30%" },
-                { value: 0.6, label: "60%" },
-                { value: 1, label: "100%" },
-              ]}
-            />
-          </Box>
-        )}
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            {/* Confidence Range */}
+            <Box sx={{ width: "90%" }}>
+              <Typography variant="subtitle2" gutterBottom>
+                Confidence Range
+              </Typography>
+              <Slider
+                sx={{ marginLeft: 2, marginRight: 2 }}
+                value={confidenceRange}
+                onChange={(event, newValue) => {
+                  setConfidenceRange(newValue);
+                  setPage(0);
+                }}
+                valueLabelDisplay="auto"
+                valueLabelFormat={(value) => `${Math.round(value * 100)}%`}
+                min={0.3}
+                max={1}
+                step={0.1}
+                marks={[
+                  { value: 0.3, label: "30%" },
+                  { value: 0.6, label: "60%" },
+                  { value: 1, label: "100%" },
+                ]}
+              />
+            </Box>
 
-        {/* Sorting Section */}
-        {renderSidebarSection(
-          "Sorting",
-          expandedSections.sorting,
-          () => toggleSection("sorting"),
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <TextField
-              select
-              variant="standard"
-              size="small"
-              value={sortBy}
-              onChange={(e) => {
-                setSortBy(e.target.value);
-                setPage(0);
-              }}
-              label="Sort by"
-              fullWidth
-            >
-              <MenuItem value="confidence">Confidence</MenuItem>
-              <MenuItem value="date">Date</MenuItem>
-            </TextField>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <Button
-                variant={sortOrder === "desc" ? "contained" : "outlined"}
-                onClick={() => {
-                  setSortOrder("desc");
+            {/* Sorting */}
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <TextField
+                select
+                variant="standard"
+                size="small"
+                value={sortBy}
+                onChange={(e) => {
+                  setSortBy(e.target.value);
                   setPage(0);
                 }}
-                size="small"
-                startIcon={<ArrowDownwardIcon />}
+                label="Sort by"
                 fullWidth
               >
-                Desc
-              </Button>
-              <Button
-                variant={sortOrder === "asc" ? "contained" : "outlined"}
-                onClick={() => {
-                  setSortOrder("asc");
-                  setPage(0);
-                }}
-                size="small"
-                startIcon={<ArrowUpwardIcon />}
-                fullWidth
-              >
-                Asc
-              </Button>
+                <MenuItem value="confidence">Confidence</MenuItem>
+                <MenuItem value="date">Date</MenuItem>
+              </TextField>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Button
+                  variant={sortOrder === "desc" ? "contained" : "outlined"}
+                  onClick={() => {
+                    setSortOrder("desc");
+                    setPage(0);
+                  }}
+                  size="small"
+                  startIcon={<ArrowDownwardIcon />}
+                  fullWidth
+                >
+                  Desc
+                </Button>
+                <Button
+                  variant={sortOrder === "asc" ? "contained" : "outlined"}
+                  onClick={() => {
+                    setSortOrder("asc");
+                    setPage(0);
+                  }}
+                  size="small"
+                  startIcon={<ArrowUpwardIcon />}
+                  fullWidth
+                >
+                  Asc
+                </Button>
+              </Box>
             </Box>
           </Box>
         )}
