@@ -663,83 +663,157 @@ const BidLinks = () => {
     return Array.from(queries);
   };
 
-  const filteredBidLinks = useMemo(() => {
-    const filterLink = (link) => {
-      // Add hidden category filter
-      if (hiddenCategories.includes(link.queryId?.category)) {
-        return false;
-      }
+  // 1. Create a centralized filtering function
+  const applyBehaviorFilter = (link) => {
+    if (!strictlyFilteredJobs) {
+      return true; // No filtering when strictlyFilteredJobs is false
+    }
 
-      // Time range filter
-      const timeLimits = Array.isArray(dateTimeFilter.timeRange)
-        ? dateTimeFilter.timeRange
-        : [dateTimeFilter.timeRange];
-      if (timeLimits.length > 0) {
-        const matchesTimeLimit = timeLimits.some((limit) => {
-          if (limit === -1) return true;
-          if (limit === 0) return link.queryDateLimit == null;
-          return link.queryDateLimit === limit;
-        });
-        if (!matchesTimeLimit) return false;
-      }
-
-      // Category filter
-      if (
-        selectedCategory !== "all" &&
-        link.queryId?.category !== selectedCategory
-      ) {
-        return false;
-      }
-
-      // Query filter - only apply if specific queries are selected
-      if (selectedQueries.length > 0) {
-        if (!selectedQueries.includes(link.queryId?.link)) return false;
-      }
-
-      // Confidence range filter
-      const confidence = link.confidence || 0;
-      if (confidence < confidenceRange[0] || confidence > confidenceRange[1]) {
-        return false;
-      }
-
-      // Location filter
-      if (locationFilter.length > 0 && !locationFilter.includes("all")) {
-        const linkLocation = link.location || "Unknown";
-
-        const matchesLocation = locationFilter.some((filter) => {
-          return linkLocation === filter;
-        });
-
-        if (!matchesLocation) return false;
-      }
-
-      // User filter criteria
-      if (showFilter === "mine" && link.created_by !== currentUserId) {
-        return false;
-      }
-
-      // Strictly filtered jobs logic with tag visibility
-      if (strictlyFilteredJobs) {
-        const tag = link.final_details?.tag;
-        // If "All" is selected, don't filter by tags
-        if (visibleTags["All"]) {
-          // Don't filter by tags when "All" is selected
-        } else if (visibleTags["Uncategorized"]) {
-          // If "Uncategorized" is selected, only show links without valid tags
-          if (tag && STRICT_TAGS.includes(tag)) {
-            return false;
-          }
-        } else {
-          // Filter by specific tags
-          if (!tag || !STRICT_TAGS.includes(tag) || !visibleTags[tag]) {
-            return false;
-          }
-        }
-      }
-
+    const tag = link.final_details?.tag;
+    
+    // If "All" is selected, show everything
+    if (visibleTags["All"]) {
       return true;
-    };
+    }
+    
+    // If "Uncategorized" is selected, only show links without valid tags
+    if (visibleTags["Uncategorized"]) {
+      return !tag || !STRICT_TAGS.includes(tag);
+    }
+    
+    // Filter by specific tags - must have a valid tag and it must be visible
+    return tag && STRICT_TAGS.includes(tag) && visibleTags[tag];
+  };
 
+  // 2. Simplify the handleTagFilterChange function
+  const handleTagFilterChange = (tag) => {
+    let newVisibleTags;
+
+    if (tag === "All") {
+      // Select only "All" and turn OFF strictlyFilteredJobs
+      newVisibleTags = STRICT_TAGS.reduce((acc, t) => {
+        acc[t] = t === "All";
+        return acc;
+      }, {});
+      
+      // Turn OFF strictlyFilteredJobs when "All" is selected
+      setStrictlyFilteredJobs(false);
+      localStorage.setItem("strictlyFilteredJobs", JSON.stringify(false));
+    } else if (tag === "Uncategorized") {
+      // Select only "Uncategorized" and turn ON strictlyFilteredJobs
+      newVisibleTags = STRICT_TAGS.reduce((acc, t) => {
+        acc[t] = t === "Uncategorized";
+        return acc;
+      }, {});
+      
+      // Turn ON strictlyFilteredJobs when "Uncategorized" is selected
+      setStrictlyFilteredJobs(true);
+      localStorage.setItem("strictlyFilteredJobs", JSON.stringify(true));
+    } else {
+      // For specific tags, deselect "All" and toggle the specific tag
+      const isCurrentlySelected = visibleTags[tag];
+      
+      if (isCurrentlySelected) {
+        // Deselect this tag, if no tags selected, select "All"
+        newVisibleTags = {
+          ...visibleTags,
+          All: false,
+          [tag]: false,
+        };
+        
+        // If no tags are selected, default to "All" and turn OFF strictlyFilteredJobs
+        if (!Object.values(newVisibleTags).some(v => v)) {
+          newVisibleTags["All"] = true;
+          setStrictlyFilteredJobs(false);
+          localStorage.setItem("strictlyFilteredJobs", JSON.stringify(false));
+        } else {
+          // Keep strictlyFilteredJobs ON when specific tags are selected
+          setStrictlyFilteredJobs(true);
+          localStorage.setItem("strictlyFilteredJobs", JSON.stringify(true));
+        }
+      } else {
+        // Select this tag and deselect "All"
+        newVisibleTags = {
+          ...visibleTags,
+          All: false,
+          [tag]: true,
+        };
+        
+        // Turn ON strictlyFilteredJobs when specific tags are selected
+        setStrictlyFilteredJobs(true);
+        localStorage.setItem("strictlyFilteredJobs", JSON.stringify(true));
+      }
+    }
+
+    setVisibleTags(newVisibleTags);
+    localStorage.setItem("visibleTags", JSON.stringify(newVisibleTags));
+    setPage(0);
+  };
+
+  // 3. Update the filterLink function to use centralized logic
+  const filterLink = (link) => {
+    // Add hidden category filter
+    if (hiddenCategories.includes(link.queryId?.category)) {
+      return false;
+    }
+
+    // Time range filter
+    const timeLimits = Array.isArray(dateTimeFilter.timeRange)
+      ? dateTimeFilter.timeRange
+      : [dateTimeFilter.timeRange];
+    if (timeLimits.length > 0) {
+      const matchesTimeLimit = timeLimits.some((limit) => {
+        if (limit === -1) return true;
+        if (limit === 0) return link.queryDateLimit == null;
+        return link.queryDateLimit === limit;
+      });
+      if (!matchesTimeLimit) return false;
+    }
+
+    // Category filter
+    if (
+      selectedCategory !== "all" &&
+      link.queryId?.category !== selectedCategory
+    ) {
+      return false;
+    }
+
+    // Query filter - only apply if specific queries are selected
+    if (selectedQueries.length > 0) {
+      if (!selectedQueries.includes(link.queryId?.link)) return false;
+    }
+
+    // Confidence range filter
+    const confidence = link.confidence || 0;
+    if (confidence < confidenceRange[0] || confidence > confidenceRange[1]) {
+      return false;
+    }
+
+    // Location filter
+    if (locationFilter.length > 0 && !locationFilter.includes("all")) {
+      const linkLocation = link.location || "Unknown";
+
+      const matchesLocation = locationFilter.some((filter) => {
+        return linkLocation === filter;
+      });
+
+      if (!matchesLocation) return false;
+    }
+
+    // User filter criteria
+    if (showFilter === "mine" && link.created_by !== currentUserId) {
+      return false;
+    }
+
+    // Apply behavior filtering using centralized function
+    if (!applyBehaviorFilter(link)) {
+      return false;
+    }
+
+    return true;
+  };
+
+  const filteredBidLinks = useMemo(() => {
     // Filter the links first
     const filtered = bidLinks.filter(filterLink);
 
@@ -2253,25 +2327,8 @@ const BidLinks = () => {
                       return false;
                     }
 
-                    // Apply behavior filtering with updated tag logic
-                    if (strictlyFilteredJobs) {
-                      const tag = link.final_details?.tag;
-                      // If "All" is selected, don't filter by tags
-                      if (visibleTags["All"]) {
-                        // Don't filter by tags when "All" is selected
-                      } else {
-                        // Filter by specific tags
-                        if (
-                          !tag ||
-                          !STRICT_TAGS.includes(tag) ||
-                          !visibleTags[tag]
-                        ) {
-                          return false;
-                        }
-                      }
-                    }
-
-                    return true;
+                    // Apply behavior filtering using centralized function
+                    return applyBehaviorFilter(link);
                   }).length
                 }
                 size="small"
@@ -2329,25 +2386,8 @@ const BidLinks = () => {
                     return false;
                   }
 
-                  // Apply behavior filtering with updated tag logic
-                  if (strictlyFilteredJobs) {
-                    const tag = link.final_details?.tag;
-                    // If "All" is selected, don't filter by tags
-                    if (visibleTags["All"]) {
-                      // Don't filter by tags when "All" is selected
-                    } else {
-                      // Filter by specific tags
-                      if (
-                        !tag ||
-                        !STRICT_TAGS.includes(tag) ||
-                        !visibleTags[tag]
-                      ) {
-                        return false;
-                      }
-                    }
-                  }
-
-                  return true;
+                  // Apply behavior filtering using centralized function
+                  return applyBehaviorFilter(link);
                 }).length;
 
                 return (
@@ -2693,7 +2733,7 @@ const BidLinks = () => {
   const renderLeftPanel = () => {
     const queries = getQueriesForCategory(selectedCategory);
 
-    // Helper function to check if a link passes all filters
+    // 4. Update the passesAllFilters function
     const passesAllFilters = (link) => {
       // Check confidence range
       const confidence = link.confidence || 0;
@@ -2701,26 +2741,8 @@ const BidLinks = () => {
         return false;
       }
 
-      // Check behavior filtering
-      if (strictlyFilteredJobs) {
-        const tag = link.final_details?.tag;
-        // If "All" is selected, don't filter by tags
-        if (visibleTags["All"]) {
-          // Don't filter by tags when "All" is selected
-        } else if (visibleTags["Uncategorized"]) {
-          // If "Uncategorized" is selected, only show links without valid tags
-          if (tag && STRICT_TAGS.includes(tag)) {
-            return false;
-          }
-        } else {
-          // Filter by specific tags
-          if (!tag || !STRICT_TAGS.includes(tag) || !visibleTags[tag]) {
-            return false;
-          }
-        }
-      }
-
-      return true;
+      // Apply behavior filtering using centralized function
+      return applyBehaviorFilter(link);
     };
 
     // Calculate total links for current category with all filters
@@ -3033,45 +3055,6 @@ const BidLinks = () => {
     });
 
     toast.info(`Opened ${visibleLinks.length} links`);
-  };
-
-  // Update the handleTagFilterChange function (around line 1833)
-  const handleTagFilterChange = (tag) => {
-    let newVisibleTags;
-
-    if (tag === "All") {
-      // If "All" is being selected, uncheck all others and check "All"
-      newVisibleTags = STRICT_TAGS.reduce((acc, t) => {
-        acc[t] = t === "All";
-        return acc;
-      }, {});
-    } else {
-      // For any other tag, deselect "All" and handle the specific tag
-      if (visibleTags[tag]) {
-        // If this tag is currently selected, uncheck it
-        newVisibleTags = {
-          ...visibleTags,
-          All: false,
-          [tag]: false,
-        };
-        // If no tags are selected, select "All"
-        if (!Object.values(newVisibleTags).some((v) => v)) {
-          newVisibleTags["All"] = true;
-        }
-      } else {
-        // If this tag is not selected, select it and deselect "All"
-        newVisibleTags = {
-          ...visibleTags,
-          All: false,
-          [tag]: true,
-        };
-      }
-    }
-
-    // Force a clean state update
-    setVisibleTags({ ...newVisibleTags });
-    localStorage.setItem("visibleTags", JSON.stringify(newVisibleTags));
-    setPage(0);
   };
 
   return (
