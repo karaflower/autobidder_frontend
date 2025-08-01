@@ -33,6 +33,10 @@ import {
   MenuItem,
   Menu,
   Chip,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Divider,
 } from "@mui/material";
 import axios from "axios";
 import { toast } from "react-toastify";
@@ -45,6 +49,8 @@ import InfoIcon from "@mui/icons-material/Info";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import SegmentIcon from "@mui/icons-material/Segment";
 import BarChartIcon from "@mui/icons-material/BarChart";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import {
   LineChart,
   Line,
@@ -57,6 +63,8 @@ import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import Slider from "@mui/material/Slider";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 
 const OPENED_LINKS_STORAGE_KEY = "openedBidLinks";
 const MAX_STORED_LINKS = 10000;
@@ -504,6 +512,39 @@ const BidLinks = () => {
     }, {});
   });
 
+  // Add new state for sidebar sections
+  const [expandedSections, setExpandedSections] = useState({
+    dateFilter: true,
+    timeRange: true,
+    search: true,
+    actions: true,
+    confidence: true,
+    sorting: true,
+    strictFiltering: true,
+    location: true,
+  });
+
+  // Add location filter state
+  const [locationFilter, setLocationFilter] = useState(() => {
+    const stored = localStorage.getItem("locationFilter");
+    return stored ? JSON.parse(stored) : [];
+  });
+
+  // Add location options
+  const locationOptions = [
+    { value: "all", label: "Anywhere", count: 0 },
+    { value: "USA", label: "USA", count: 0 },
+    { value: "Europe", label: "Europe", count: 0 },
+    { value: "Asia", label: "Asia", count: 0 },
+    { value: "Africa", label: "Africa", count: 0 },
+  ];
+
+  // Add new state for sidebar visibility
+  const [sidebarVisible, setSidebarVisible] = useState(() => {
+    const stored = localStorage.getItem("sidebarVisible");
+    return stored ? JSON.parse(stored) : true;
+  });
+
   const getRelativeTimeString = (date) => {
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
@@ -607,6 +648,22 @@ const BidLinks = () => {
         return false;
       }
 
+      // Location filter
+      if (locationFilter.length > 0 && !locationFilter.includes("all")) {
+        const linkLocation = link.location || "Unknown";
+        const isRemote = linkLocation.toLowerCase().includes("remote") || 
+                        linkLocation.toLowerCase().includes("anywhere");
+        const isOnSite = !isRemote && linkLocation !== "Unknown";
+        
+        const matchesLocation = locationFilter.some(filter => {
+          if (filter === "Remote") return isRemote;
+          if (filter === "On-site") return isOnSite;
+          return linkLocation === filter;
+        });
+        
+        if (!matchesLocation) return false;
+      }
+
       // User filter criteria
       if (showFilter === "mine" && link.created_by !== currentUserId) {
         return false;
@@ -631,7 +688,7 @@ const BidLinks = () => {
       if (strictlyFilteredJobs) {
         const tagA = a.final_details?.tag || '';
         const tagB = b.final_details?.tag || '';
-        const priorityA = TAG_PRIORITY[tagA] || 999; // Default high number for unknown tags
+        const priorityA = TAG_PRIORITY[tagA] || 999;
         const priorityB = TAG_PRIORITY[tagB] || 999;
         
         if (priorityA !== priorityB) {
@@ -645,7 +702,6 @@ const BidLinks = () => {
         const confB = b.confidence || 0;
         return sortOrder === "desc" ? confB - confA : confA - confB;
       } else {
-        // Default date sorting
         return sortOrder === "desc"
           ? new Date(b.created_at) - new Date(a.created_at)
           : new Date(a.created_at) - new Date(b.created_at);
@@ -665,8 +721,37 @@ const BidLinks = () => {
     sortOrder,
     hiddenCategories,
     strictlyFilteredJobs,
-    visibleTags, // Add visibleTags to dependencies
+    visibleTags,
+    locationFilter, // Add locationFilter to dependencies
   ]);
+
+  // Calculate location counts
+  const locationCounts = useMemo(() => {
+    const counts = {};
+    locationOptions.forEach(option => {
+      if (option.value === "all") {
+        counts[option.value] = bidLinks.length;
+      } else if (option.value === "Remote") {
+        counts[option.value] = bidLinks.filter(link => {
+          const location = link.location || "";
+          return location.toLowerCase().includes("remote") || 
+                 location.toLowerCase().includes("anywhere");
+        }).length;
+      } else if (option.value === "On-site") {
+        counts[option.value] = bidLinks.filter(link => {
+          const location = link.location || "";
+          return !location.toLowerCase().includes("remote") && 
+                 !location.toLowerCase().includes("anywhere") &&
+                 location !== "Unknown";
+        }).length;
+      } else {
+        counts[option.value] = bidLinks.filter(link => 
+          link.location === option.value
+        ).length;
+      }
+    });
+    return counts;
+  }, [bidLinks]);
 
   // Add these useEffects to reset page when category, viewMode, or queryDateLimit changes
   useEffect(() => {
@@ -1224,6 +1309,28 @@ const BidLinks = () => {
                 secondary={link.company || "N/A"}
               />
             </ListItem>
+            {/* Add Location field */}
+            <ListItem>
+              <ListItemText
+                primary="Location"
+                secondary={
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Chip 
+                      label={link.location || "Anonymous"} 
+                      size="small"
+                      color={
+                        link.location === 'USA' ? 'primary' :
+                        link.location === 'Europe' ? 'secondary' :
+                        link.location === 'Asia' ? 'warning' :
+                        link.location === 'Africa' ? 'success' :
+                        'default'
+                      }
+                      variant="outlined"
+                    />
+                  </Box>
+                }
+              />
+            </ListItem>
             <ListItem>
               <ListItemText
                 primary="Description"
@@ -1691,410 +1798,443 @@ const BidLinks = () => {
     localStorage.setItem("notificationConfig", JSON.stringify(newConfig));
   };
 
-  const renderSettingsBar = () => {
-    // Helper function to check if a link passes all filters
-    const passesAllFilters = (link) => {
-      // Check confidence range
-      const confidence = link.confidence || 0;
-      if (confidence < confidenceRange[0] || confidence > confidenceRange[1]) {
-          return false;
-        }
-
-      // Check strict filtering
-      if (strictlyFilteredJobs) {
-      const tag = link.final_details?.tag;
-        if (!tag || !STRICT_TAGS.includes(tag) || !visibleTags[tag]) {
-        return false;
+  const handleLocationFilterChange = (location) => {
+    let newLocationFilter;
+    if (location === "all") {
+      newLocationFilter = ["all"];
+    } else if (locationFilter.includes("all")) {
+      newLocationFilter = [location];
+    } else if (locationFilter.includes(location)) {
+      newLocationFilter = locationFilter.filter(l => l !== location);
+      if (newLocationFilter.length === 0) {
+        newLocationFilter = ["all"];
       }
-      }
+    } else {
+      newLocationFilter = [...locationFilter, location];
+    }
+    
+    setLocationFilter(newLocationFilter);
+    localStorage.setItem("locationFilter", JSON.stringify(newLocationFilter));
+    setPage(0);
+  };
 
-      return true;
-    };
+  const toggleSection = (section) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+  };
 
-    // Update the count calculation to consider all filters
-    const getCountForDateLimit = (limit) => {
-      return bidLinks.filter((link) => {
-        // First apply date filter
-        if (limit === -1) {
-          // No date filter
-        } else if (limit === 0) {
-          if (link.queryDateLimit != null) return false;
-        } else if (link.queryDateLimit !== limit) {
-          return false;
-        }
-
-        // Then apply category filter
-        if (selectedCategory !== "all" && link.queryId?.category !== selectedCategory) {
-          return false;
-        }
-
-        // Then apply query filter if in query mode with selected queries
-        if (viewMode === "queries" && selectedQueries.length > 0) {
-          if (!selectedQueries.includes(link.queryId?.link)) return false;
-        }
-
-        // Finally apply all other filters
-        return passesAllFilters(link);
-      }).length;
-    };
-
-    const handleOpenAllLinks = () => {
-      const visibleLinks = filteredBidLinks
-        .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-        .map((link) => strictlyFilteredJobs && link.final_details?.finalUrl ? link.final_details.finalUrl : link.url);
-
-      // Save opened links to localStorage and update state
-      const updatedLinks = addOpenedLinks(visibleLinks);
-      setOpenedLinks(updatedLinks);
-
-      visibleLinks.forEach((url) => {
-        window.open(url, "_blank");
-      });
-
-      toast.info(`Opened ${visibleLinks.length} links`);
-    };
-
-    const renderSettingsMenu = () => (
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
-        PaperProps={{
-          sx: {
-            width: 300,
-            p: 2,
+  const renderSidebarSection = (title, isExpanded, onToggle, children) => (
+    <Box sx={{ mb: 2 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          p: 2,
+          cursor: 'pointer',
+          backgroundColor: 'background.paper',
+          borderRadius: 1,
+          border: '1px solid',
+          borderColor: 'divider',
+          '&:hover': {
+            backgroundColor: 'action.hover',
           },
         }}
+        onClick={onToggle}
       >
-        <Typography variant="subtitle2" gutterBottom>
-          Confidence Range
+        <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'cyan' }}>
+          {title}
         </Typography>
-        <Box sx={{ px: 2, pb: 2 }}>
-          <Slider
-            value={confidenceRange}
-            onChange={(event, newValue) => {
-              setConfidenceRange(newValue);
-              setPage(0);
-            }}
-            valueLabelDisplay="auto"
-            valueLabelFormat={(value) => `${Math.round(value * 100)}%`}
-            min={0.3}  // Changed from 0 to 0.3
-            max={1}
-            step={0.1}
-            marks={[
-              { value: 0.3, label: "30%" },  // Changed from 0 to 0.3
-              { value: 0.6, label: "60%" },  // Added middle mark
-              { value: 1, label: "100%" },
-            ]}
-          />
+        {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+      </Box>
+      {isExpanded && (
+        <Box sx={{ p: 2, backgroundColor: 'background.paper', borderRadius: 1, mt: 1 }}>
+          {children}
         </Box>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 2, mb: 2 }}>
-          <TextField
-            select
-            variant="standard"
-            size="small"
-            value={sortBy}
-            onChange={(e) => {
-              setSortBy(e.target.value);
-              setPage(0);
-            }}
-            label="Sort by"
-            fullWidth
-          >
-            <MenuItem value="confidence">Confidence</MenuItem>
-            <MenuItem value="date">Date</MenuItem>
-          </TextField>
+      )}
+    </Box>
+  );
+
+  const renderSidebar = () => (
+    <Card
+      sx={{
+        width: 320,
+        height: "calc(100vh - 80px)",
+        position: "sticky",
+        top: 20,
+        display: "flex",
+        flexDirection: "column",
+        overflow: "auto",
+      }}
+    >
+      <CardContent sx={{ p: 2, height: "100%", overflow: "auto" }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 3 }}>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            Filters & Actions
+          </Typography>
           <IconButton
-            onClick={() => {
-              setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-              setPage(0);
-            }}
             size="small"
+            onClick={() => {
+              const newVisible = !sidebarVisible;
+              setSidebarVisible(newVisible);
+              localStorage.setItem("sidebarVisible", JSON.stringify(newVisible));
+            }}
+            sx={{ ml: 1 }}
           >
-            {sortOrder === "desc" ? (
-              <Tooltip title="Sort Descending">
-                <ArrowDownwardIcon />
-              </Tooltip>
-            ) : (
-              <Tooltip title="Sort Ascending">
-                <ArrowUpwardIcon />
-              </Tooltip>
-            )}
+            <ChevronLeftIcon />
           </IconButton>
         </Box>
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={strictlyFilteredJobs}
-              onChange={(e) => {
-                setStrictlyFilteredJobs(e.target.checked);
-                localStorage.setItem("strictlyFilteredJobs", JSON.stringify(e.target.checked));
-                setPage(0);
-              }}
-            />
-          }
-          label="Strictly filtered jobs"
-          sx={{ mb: 2 }}
-        />
-        {strictlyFilteredJobs && (
-          <Box sx={{ pl: 2, mb: 2, display: "flex", flexDirection: "column", gap: 1 }}>
-            <Typography variant="subtitle2" gutterBottom>
-              Visible Tags
-            </Typography>
-            {STRICT_TAGS.map((tag) => (
-              <Box key={tag} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={visibleTags[tag]}
-                      onChange={(e) => {
-                        const newVisibleTags = {
-                          ...visibleTags,
-                          [tag]: e.target.checked
-                        };
-                        setVisibleTags(newVisibleTags);
-                        localStorage.setItem("visibleTags", JSON.stringify(newVisibleTags));
-                        setPage(0);
-                      }}
-                    />
-                  }
-                  label={tag}
+
+        {/* Date Filter Section */}
+        {renderSidebarSection(
+          "Date Filter",
+          expandedSections.dateFilter,
+          () => toggleSection("dateFilter"),
+          <TextField
+            variant="standard"
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            size="small"
+            fullWidth
+          />
+        )}
+
+        {/* Time Range Section */}
+        {renderSidebarSection(
+          "Time Range",
+          expandedSections.timeRange,
+          () => toggleSection("timeRange"),
+          <TextField
+            select
+            SelectProps={{
+              multiple: true,
+              value: Array.isArray(queryDateLimit) ? queryDateLimit : [queryDateLimit],
+              onChange: (e) => {
+                const values = e.target.value;
+                let newValues = [...values];
+
+                const wasAllSelected = queryDateLimit.includes(-1);
+                const isAllSelected = values.includes(-1);
+
+                if (isAllSelected && !wasAllSelected) {
+                  newValues = [-1];
+                } else if (values.some((v) => [0, 1, 7, 30, 365].includes(v))) {
+                  newValues = newValues.filter((v) => v !== -1);
+                } else if (values.includes(-1)) {
+                  newValues = [-1];
+                }
+
+                if (newValues.length === 0) {
+                  newValues = [-1];
+                }
+
+                setQueryDateLimit(newValues);
+                localStorage.setItem("queryDateLimit", JSON.stringify(newValues));
+              },
+              renderValue: (selected) => {
+                if (!selected || selected.length === 0) return "Select time ranges";
+                return selected
+                  .map((value) => {
+                    switch (value) {
+                      case -1: return "All";
+                      case 0: return "Any time";
+                      case 1: return "Past 24 hours";
+                      case 7: return "Past week";
+                      case 30: return "Past month";
+                      case 365: return "Past year";
+                      default: return `${value} days`;
+                    }
+                  })
+                  .join(", ");
+              },
+            }}
+            variant="standard"
+            size="small"
+            fullWidth
+          >
+            <MenuItem value={-1}>All</MenuItem>
+            <MenuItem value={0}>Any time</MenuItem>
+            <MenuItem value={1}>Past 24 hours</MenuItem>
+            <MenuItem value={7}>Past week</MenuItem>
+            <MenuItem value={30}>Past month</MenuItem>
+            <MenuItem value={365}>Past year</MenuItem>
+          </TextField>
+        )}
+
+        {/* Location Filter Section */}
+        {renderSidebarSection(
+          "Location",
+          expandedSections.location,
+          () => toggleSection("location"),
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            {locationOptions.map((option) => (
+              <Box key={option.value} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Checkbox
+                  checked={locationFilter.includes(option.value)}
+                  onChange={() => handleLocationFilterChange(option.value)}
+                  size="small"
                 />
-                {tag === 'Email Found' && (
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={extractEmails}
-                    sx={{ ml: 1 }}
-                  >
-                    Get Emails
-                  </Button>
-                )}
+                <Typography variant="body2" sx={{ flex: 1 }}>
+                  {option.label}
+                </Typography>
+                <Chip
+                  label={locationCounts[option.value] || 0}
+                  size="small"
+                  variant="outlined"
+                  sx={{ minWidth: 40, height: 20, fontSize: '0.75rem' }}
+                />
               </Box>
             ))}
           </Box>
         )}
-      </Menu>
-    );
 
-    return (
-      <Box
-        sx={{
-          mb: 2,
-          borderRadius: 2,
-          position: "sticky",
-          top: 20,
-          zIndex: 1000,
-          backgroundColor: "background.paper",
-          padding: "16px",
-          boxShadow: (theme) =>
-            theme.palette.mode === "light"
-              ? [
-                  "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                  "0 2px 4px -1px rgba(0, 0, 0, 0.1)",
-                ]
-              : [
-                  "0 4px 6px -1px rgba(0, 0, 0, 0.5)",
-                  "0 2px 4px -1px rgba(0, 0, 0, 0.5)",
-                ],
-        }}
-      >
-        <Grid container spacing={2}>
-          <Grid item xs={12}>
-            <Grid
-              container
-              spacing={2}
-              alignItems="center"
-              justifyContent="center"
+        {/* Search Section */}
+        {renderSidebarSection(
+          "Search",
+          expandedSections.search,
+          () => toggleSection("search"),
+          <TextField
+            size="small"
+            onKeyDown={async (e) => {
+              if (e.key === "Enter") {
+                await handleGlobalSearch(e.target.value);
+                e.target.value = "";
+              }
+            }}
+            placeholder="Enter Search Term..."
+            fullWidth
+            variant="standard"
+            InputProps={{
+              endAdornment: isSearchInputLoading && (
+                <CircularProgress size={20} />
+              ),
+            }}
+          />
+        )}
+
+        {/* Actions Section */}
+        {renderSidebarSection(
+          "Actions",
+          expandedSections.actions,
+          () => toggleSection("actions"),
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            <Button
+              variant="outlined"
+              onClick={handleOpenAllLinks}
+              size="small"
+              fullWidth
             >
-              <Grid item>
-                <TextField
-                  variant="standard"
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  size="small"
-                  sx={{ width: "130px" }}
+              Open All ({Math.min(rowsPerPage, filteredBidLinks.length - page * rowsPerPage)})
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => {
+                const allLinks = filteredBidLinks.map((link) => 
+                  strictlyFilteredJobs && link.final_details?.finalUrl ? link.final_details.finalUrl : link.url
+                );
+                navigator.clipboard.writeText(allLinks.join("\n"));
+                toast.success(`Copied ${allLinks.length} links to clipboard`);
+              }}
+              size="small"
+              fullWidth
+            >
+              Copy All ({filteredBidLinks.length})
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={generateChartData}
+              startIcon={<BarChartIcon />}
+              size="small"
+              fullWidth
+            >
+              Links Stats
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => setOpenBlacklistDialog(true)}
+              startIcon={<DoNotTouchIcon />}
+              size="small"
+              fullWidth
+            >
+              Blacklists
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={() => setOpenNotificationConfig(true)}
+              size="small"
+              fullWidth
+            >
+              Configure Notifications
+            </Button>
+          </Box>
+        )}
+
+        {/* Confidence Range Section */}
+        {renderSidebarSection(
+          "Confidence Range",
+          expandedSections.confidence,
+          () => toggleSection("confidence"),
+          <Box>
+            <Slider
+              value={confidenceRange}
+              onChange={(event, newValue) => {
+                setConfidenceRange(newValue);
+                setPage(0);
+              }}
+              valueLabelDisplay="auto"
+              valueLabelFormat={(value) => `${Math.round(value * 100)}%`}
+              min={0.3}
+              max={1}
+              step={0.1}
+              marks={[
+                { value: 0.3, label: "30%" },
+                { value: 0.6, label: "60%" },
+                { value: 1, label: "100%" },
+              ]}
+            />
+          </Box>
+        )}
+
+        {/* Sorting Section */}
+        {renderSidebarSection(
+          "Sorting",
+          expandedSections.sorting,
+          () => toggleSection("sorting"),
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <TextField
+              select
+              variant="standard"
+              size="small"
+              value={sortBy}
+              onChange={(e) => {
+                setSortBy(e.target.value);
+                setPage(0);
+              }}
+              label="Sort by"
+              fullWidth
+            >
+              <MenuItem value="confidence">Confidence</MenuItem>
+              <MenuItem value="date">Date</MenuItem>
+            </TextField>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Button
+                variant={sortOrder === "desc" ? "contained" : "outlined"}
+                onClick={() => {
+                  setSortOrder("desc");
+                  setPage(0);
+                }}
+                size="small"
+                startIcon={<ArrowDownwardIcon />}
+                fullWidth
+              >
+                Desc
+              </Button>
+              <Button
+                variant={sortOrder === "asc" ? "contained" : "outlined"}
+                onClick={() => {
+                  setSortOrder("asc");
+                  setPage(0);
+                }}
+                size="small"
+                startIcon={<ArrowUpwardIcon />}
+                fullWidth
+              >
+                Asc
+              </Button>
+            </Box>
+          </Box>
+        )}
+
+        {/* Strict Filtering Section */}
+        {renderSidebarSection(
+          "Strict Filtering",
+          expandedSections.strictFiltering,
+          () => toggleSection("strictFiltering"),
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={strictlyFilteredJobs}
+                  onChange={(e) => {
+                    setStrictlyFilteredJobs(e.target.checked);
+                    localStorage.setItem("strictlyFilteredJobs", JSON.stringify(e.target.checked));
+                    setPage(0);
+                  }}
                 />
-              </Grid>
-
-              <Grid item>
-                <TextField
-                  select
-                  SelectProps={{
-                    multiple: true,
-                    value: Array.isArray(queryDateLimit) ? queryDateLimit : [queryDateLimit],
-                    onChange: (e) => {
-                      const values = e.target.value;
-                      let newValues = [...values];
-
-                      // Check if "All" (-1) was just selected
-                      const wasAllSelected = queryDateLimit.includes(-1);
-                      const isAllSelected = values.includes(-1);
-
-                      if (isAllSelected && !wasAllSelected) {
-                        // If "All" was just selected, deselect everything else
-                        newValues = [-1];
-                      } else if (values.some((v) => [0, 1, 7, 30, 365].includes(v))) {
-                        // Remove "All" (-1) if it exists
-                        newValues = newValues.filter((v) => v !== -1);
+              }
+              label="Strictly filtered jobs"
+            />
+            {strictlyFilteredJobs && (
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Visible Tags
+                </Typography>
+                {STRICT_TAGS.map((tag) => (
+                  <Box key={tag} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={visibleTags[tag]}
+                          onChange={(e) => {
+                            const newVisibleTags = {
+                              ...visibleTags,
+                              [tag]: e.target.checked
+                            };
+                            setVisibleTags(newVisibleTags);
+                            localStorage.setItem("visibleTags", JSON.stringify(newVisibleTags));
+                            setPage(0);
+                          }}
+                        />
                       }
-                      // If selecting "All" (-1)
-                      else if (values.includes(-1)) {
-                        // Remove all other options
-                        newValues = [-1];
-                      }
+                      label={tag}
+                      sx={{ flex: 1 }}
+                    />
+                    {tag === 'Email Found' && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={extractEmails}
+                      >
+                        Get Emails
+                      </Button>
+                    )}
+                  </Box>
+                ))}
+              </Box>
+            )}
+          </Box>
+        )}
+      </CardContent>
+    </Card>
+  );
 
-                      // If nothing is selected, select "All"
-                      if (newValues.length === 0) {
-                        newValues = [-1];
-                      }
-
-                      setQueryDateLimit(newValues);
-                      localStorage.setItem("queryDateLimit", JSON.stringify(newValues));
-                    },
-                    renderValue: (selected) => {
-                      if (!selected || selected.length === 0) return "Select time ranges";
-                      return selected
-                        .map((value) => {
-                          switch (value) {
-                            case -1:
-                              return "All";
-                            case 0:
-                              return "Any time";
-                            case 1:
-                              return "Past 24 hours";
-                            case 7:
-                              return "Past week";
-                            case 30:
-                              return "Past month";
-                            case 365:
-                              return "Past year";
-                            default:
-                              return `${value} days`;
-                          }
-                        })
-                        .join(", ");
-                    },
-                  }}
-                  variant="standard"
-                  size="small"
-                  sx={{ width: "200px" }}
-                >
-                  <MenuItem value={-1}>
-                    {viewMode === "queries" && selectedQueries.length > 0
-                      ? `Selected Query (${getCountForDateLimit(-1)})`
-                      : selectedCategory === "all"
-                      ? `All (${getCountForDateLimit(-1)})`
-                      : `All in ${selectedCategory} (${getCountForDateLimit(-1)})`}
-                  </MenuItem>
-                  <MenuItem value={0}>
-                    Any time ({getCountForDateLimit(0)})
-                  </MenuItem>
-                  <MenuItem value={1}>
-                    Past 24 hours ({getCountForDateLimit(1)})
-                  </MenuItem>
-                  <MenuItem value={7}>
-                    Past week ({getCountForDateLimit(7)})
-                  </MenuItem>
-                  <MenuItem value={30}>
-                    Past month ({getCountForDateLimit(30)})
-                  </MenuItem>
-                  <MenuItem value={365}>
-                    Past year ({getCountForDateLimit(365)})
-                  </MenuItem>
-                </TextField>
-              </Grid>
-
-              <Grid item>
-                <TextField
-                  size="small"
-                  onKeyDown={async (e) => {
-                    if (e.key === "Enter") {
-                      await handleGlobalSearch(e.target.value);
-                      e.target.value = "";
-                    }
-                  }}
-                  placeholder="Enter Search Term..."
-                  sx={{ width: "150px" }}
-                  variant="standard"
-                  InputProps={{
-                    endAdornment: isSearchInputLoading && (
-                      <CircularProgress size={20} />
-                    ),
-                  }}
-                />
-              </Grid>
-
-              <Grid item>
-                <Button
-                  variant="outlined"
-                  onClick={handleOpenAllLinks}
-                  size="small"
-                >
-                  Open All (
-                  {Math.min(
-                    rowsPerPage,
-                    filteredBidLinks.length - page * rowsPerPage
-                  )}
-                  )
-                </Button>
-              </Grid>
-
-              <Grid item>
-                <Button
-                  variant="outlined"
-                  onClick={() => {
-                    const allLinks = filteredBidLinks.map((link) => strictlyFilteredJobs && link.final_details?.finalUrl ? link.final_details.finalUrl : link.url);
-                    navigator.clipboard.writeText(allLinks.join("\n"));
-                    toast.success(
-                      `Copied ${allLinks.length} links to clipboard`
-                    );
-                  }}
-                  size="small"
-                >
-                  Copy All ({filteredBidLinks.length})
-                </Button>
-              </Grid>
-
-              <Grid item>
-                <Button
-                  variant="outlined"
-                  onClick={generateChartData}
-                  startIcon={<BarChartIcon />}
-                  size="small"
-                >
-                  Links Stats
-                </Button>
-              </Grid>
-
-              <Grid item>{blacklistButton}</Grid>
-
-              <Grid item>
-                <Button
-                  variant="outlined"
-                  onClick={() => setOpenNotificationConfig(true)}
-                  size="small"
-                >
-                  Configure Notifications
-                </Button>
-              </Grid>
-
-              <Grid item>
-                <Tooltip title="Additional Settings">
-                  <IconButton onClick={handleMenuOpen} size="small">
-                    <MoreVertIcon />
-                  </IconButton>
-                </Tooltip>
-              </Grid>
-            </Grid>
-          </Grid>
-        </Grid>
-
-        {renderSettingsMenu()}
-      </Box>
-    );
-  };
+  const renderSidebarToggle = () => (
+    <IconButton
+      size="small"
+      onClick={() => {
+        const newVisible = !sidebarVisible;
+        setSidebarVisible(newVisible);
+        localStorage.setItem("sidebarVisible", JSON.stringify(newVisible));
+      }}
+      sx={{
+        position: "absolute",
+        left: 20,
+        top: 20,
+        zIndex: 1000,
+        backgroundColor: "background.paper",
+        border: "1px solid",
+        borderColor: "divider",
+        "&:hover": {
+          backgroundColor: "action.hover",
+        },
+      }}
+    >
+      <ChevronRightIcon />
+    </IconButton>
+  );
 
   const handleToggleCategoryVisibility = (category, event) => {
     event.stopPropagation(); // Prevent ListItemButton click
@@ -2420,13 +2560,29 @@ const BidLinks = () => {
     toast.success(`Copied ${emails.length} emails to clipboard`);
   };
 
+  const handleOpenAllLinks = () => {
+    const visibleLinks = filteredBidLinks
+      .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+      .map((link) => strictlyFilteredJobs && link.final_details?.finalUrl ? link.final_details.finalUrl : link.url);
+
+    // Save opened links to localStorage and update state
+    const updatedLinks = addOpenedLinks(visibleLinks);
+    setOpenedLinks(updatedLinks);
+
+    visibleLinks.forEach((url) => {
+      window.open(url, "_blank");
+    });
+
+    toast.info(`Opened ${visibleLinks.length} links`);
+  };
+
   return (
     <Box sx={{ display: "flex", gap: 3 }}>
-      {renderLeftPanel()}
-      <Box sx={{ flex: 1 }}>
+      {!isReloadingBids && sidebarVisible && renderSidebar()}
+      <Box sx={{ flex: 1, position: "relative" }}>
+        {!isReloadingBids && !sidebarVisible && renderSidebarToggle()}
         <Grid container spacing={2}>
           <Grid item xs={12}>
-            {renderSettingsBar()}
             {isReloadingBids ? (
               <Grid
                 item
