@@ -1112,8 +1112,11 @@ const BidLinks = () => {
       params.append("confidenceMin", confidenceRange[0].toString());
       params.append("confidenceMax", confidenceRange[1].toString());
 
-      // Add strict filtering parameters
-      if (strictlyFilteredJobs) {
+      // Check if all visible tags are true
+      const allTagsVisible = Object.values(visibleTags).every(value => value === true);
+      
+      // Add strict filtering parameters - turn off if all tags are visible
+      if (strictlyFilteredJobs && !allTagsVisible) {
         params.append("strictlyFilteredJobs", "true");
         params.append("visibleTags", JSON.stringify(visibleTags));
       }
@@ -3107,7 +3110,7 @@ const BidLinks = () => {
               }
             }}
             placeholder="Enter Search Term..."
-            sx={{ minWidth: "100px", flex: 1, borderRadius: 2 }}
+            sx={{ minWidth: "150px", maxWidth: "200px", flex: 1, borderRadius: 2 }}
             variant="standard"
             InputProps={{
               endAdornment: isSearchInputLoading && (
