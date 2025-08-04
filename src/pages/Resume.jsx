@@ -29,6 +29,7 @@ import {
 import axios from "axios";
 import EditIcon from "@mui/icons-material/Edit";
 import AddIcon from "@mui/icons-material/Add";
+import RemoveIcon from "@mui/icons-material/Remove";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import SaveIcon from "@mui/icons-material/Save";
 import CancelIcon from "@mui/icons-material/Cancel";
@@ -41,6 +42,10 @@ import "react-toastify/dist/ReactToastify.css";
 import GoogleIcon from "@mui/icons-material/Google";
 import LinkIcon from "@mui/icons-material/Link";
 import LinkOffIcon from "@mui/icons-material/LinkOff";
+import ScheduleIcon from "@mui/icons-material/Schedule";
+import EmailIcon from "@mui/icons-material/Email";
+import BusinessIcon from "@mui/icons-material/Business";
+import DeleteIcon from '@mui/icons-material/Delete';
 
 // Set the worker source using a local path instead of CDN
 pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
@@ -74,6 +79,19 @@ const Resume = () => {
   const [cleanupError, setCleanupError] = useState("");
   const [savingGmailCleanup, setSavingGmailCleanup] = useState(false);
   const [emailSendFrequencyDays, setEmailSendFrequencyDays] = useState(1.5);
+  const [scheduledEmails, setScheduledEmails] = useState(null);
+  const [loadingScheduledEmails, setLoadingScheduledEmails] = useState(false);
+  const [scheduledEmailsError, setScheduledEmailsError] = useState("");
+  const [additionalEmailInput, setAdditionalEmailInput] = useState('');
+  const [addingEmail, setAddingEmail] = useState(false);
+  const [removingEmail, setRemovingEmail] = useState(false);
+  const [removingBidEmail, setRemovingBidEmail] = useState(false);
+  const [removeEmailDialog, setRemoveEmailDialog] = useState({
+    open: false,
+    email: null,
+    scheduleId: null,
+    emailType: null // 'additional' or 'bid_list'
+  });
   const { user } = useAuth();
 
   const fetchResumes = async () => {
@@ -629,6 +647,25 @@ const Resume = () => {
     return gmailTokenExpiryDate - now <= oneDayInMs;
   };
 
+  const fetchScheduledEmailApplications = async () => {
+    if (!selectedResume) return;
+
+    setLoadingScheduledEmails(true);
+    setScheduledEmailsError("");
+    
+    try {
+      const response = await axios.get(
+        `${process.env.REACT_APP_API_URL}/applications/scheduled/${selectedResume._id}`
+      );
+      setScheduledEmails(response.data);
+    } catch (error) {
+      console.error("Error fetching scheduled email applications:", error);
+      setScheduledEmailsError("Failed to fetch scheduled email applications");
+    } finally {
+      setLoadingScheduledEmails(false);
+    }
+  };
+
   useEffect(() => {
     const currentResume = resumes[selectedResumeIndex];
     if (currentResume) {
@@ -649,6 +686,13 @@ const Resume = () => {
 
       if (currentResume.gmail_cleanup_status) {
         setGmailCleanup(currentResume.gmail_cleanup_status.gmail_auto_cleanup);
+      }
+
+      // Fetch scheduled email applications if auto email is enabled
+      if (currentResume.auto_email_application) {
+        fetchScheduledEmailApplications();
+      } else {
+        setScheduledEmails(null);
       }
     }
   }, [selectedResumeIndex, resumes]);
@@ -688,6 +732,104 @@ const Resume = () => {
     } finally {
       setSavingGmailCleanup(false);
     }
+  };
+
+  // Add additional email to scheduled application
+  const handleAddAdditionalEmail = async (scheduleId) => {
+    if (!additionalEmailInput.trim()) {
+      return;
+    }
+
+    setAddingEmail(true);
+    try {
+      const response = await axios.post(
+        `${process.env.REACT_APP_API_URL}/applications/scheduled/${scheduleId}/add-email`,
+        { email: additionalEmailInput.trim() }
+      );
+
+      if (response.status === 200) {
+        setAdditionalEmailInput('');
+        await fetchScheduledEmailApplications();
+      }
+    } catch (error) {
+      console.error('Error adding additional email:', error);
+      toast.error(error.response?.data?.message || 'Failed to add email');
+    } finally {
+      setAddingEmail(false);
+    }
+  };
+
+  // Remove additional email from scheduled application
+  const handleRemoveAdditionalEmail = async (scheduleId, email) => {
+    setRemovingEmail(true);
+    try {
+      const response = await axios.delete(
+        `${process.env.REACT_APP_API_URL}/applications/scheduled/${scheduleId}/remove-email`,
+        { data: { email } }
+      );
+
+      if (response.status === 200) {
+        await fetchScheduledEmailApplications();
+      }
+    } catch (error) {
+      console.error('Error removing additional email:', error);
+      toast.error(error.response?.data?.message || 'Failed to remove email');
+    } finally {
+      setRemovingEmail(false);
+    }
+  };
+
+  // Remove bid list email from scheduled application
+  const handleRemoveBidEmail = async (scheduleId, bidId) => {
+    setRemovingBidEmail(true);
+    try {
+      const response = await axios.delete(
+        `${process.env.REACT_APP_API_URL}/applications/scheduled/${scheduleId}/remove-bid-email`,
+        { data: { bidId } }
+      );
+
+      if (response.status === 200) {
+        const result = response.data;
+        if (result.deleted) {
+          // Schedule was deleted entirely, refresh the list
+          await fetchScheduledEmailApplications();
+        } else {
+          // Just refresh to show updated list
+          await fetchScheduledEmailApplications();
+        }
+      }
+    } catch (error) {
+      console.error('Error removing bid email:', error);
+      toast.error(error.response?.data?.message || 'Failed to remove email');
+    } finally {
+      setRemovingBidEmail(false);
+    }
+  };
+
+  // Handle remove email with confirmation
+  const handleRemoveEmailClick = (email, scheduleId, emailType) => {
+    setRemoveEmailDialog({
+      open: true,
+      email,
+      scheduleId,
+      emailType
+    });
+  };
+
+  const handleRemoveEmailConfirm = async () => {
+    const { email, scheduleId, emailType } = removeEmailDialog;
+    
+    if (emailType === 'additional') {
+      await handleRemoveAdditionalEmail(scheduleId, email.applicationEmail);
+    } else if (emailType === 'bid_list') {
+      await handleRemoveBidEmail(scheduleId, email.id);
+    }
+    
+    setRemoveEmailDialog({ open: false, email: null, scheduleId: null, emailType: null });
+  };
+
+  const handleRemoveEmailCancel = () => {
+    setRemoveEmailDialog({ open: false, email: null, scheduleId: null, emailType: null });
   };
 
   if (loading) {
@@ -1425,6 +1567,184 @@ const Resume = () => {
                   </Typography>
                 </Box>
 
+                {/* Next Scheduled Email Section */}
+                <Box sx={{ mt: 3 }}>
+                  <Box
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="space-between"
+                    mb={2}
+                  >
+                    <Typography variant="h6" gutterBottom>
+                      Next Scheduled Email Applications
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={fetchScheduledEmailApplications}
+                      disabled={loadingScheduledEmails}
+                      startIcon={
+                        loadingScheduledEmails ? (
+                          <CircularProgress size={16} />
+                        ) : (
+                          <ScheduleIcon />
+                        )
+                      }
+                    >
+                      Refresh
+                    </Button>
+                  </Box>
+
+                  {scheduledEmailsError && (
+                    <Alert severity="error" sx={{ mb: 2 }}>
+                      <Typography variant="body2">{scheduledEmailsError}</Typography>
+                    </Alert>
+                  )}
+
+                  {scheduledEmails && scheduledEmails.schedules.length > 0 ? (
+                    <Box 
+                      sx={{ 
+                        maxHeight: '400px', 
+                        overflowY: 'auto',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        borderRadius: 1,
+                        p: 1
+                      }}
+                    >
+                      {scheduledEmails.schedules.map((schedule, index) => (
+                        <Paper key={schedule.id} sx={{ p: 3, mb: 2 }}>
+                          <Box
+                            display="flex"
+                            alignItems="center"
+                            justifyContent="space-between"
+                            mb={2}
+                          >
+                            <Box display="flex" alignItems="center" gap={1}>
+                              <ScheduleIcon color="primary" />
+                              <Typography variant="h6">
+                                {index === 0 ? "Next Schedule" : `Schedule ${index + 1}`}
+                              </Typography>
+                            </Box>
+                            <Chip
+                              label={`${schedule.totalEmails} emails`}
+                              color="primary"
+                              variant="outlined"
+                            />
+                          </Box>
+
+                          <Typography variant="body2" color="text.secondary" mb={2}>
+                            <strong>Scheduled for:</strong>{" "}
+                            {new Date(schedule.scheduledTime).toLocaleString()}
+                          </Typography>
+
+                          {/* Additional Email Input */}
+                          <Box sx={{ mb: 2, borderRadius: 1 }}>
+                            <Typography variant="subtitle2" gutterBottom>
+                              Add Additional Email:
+                            </Typography>
+                            <Box display="flex" gap={1}>
+                              <TextField
+                                size="small"
+                                placeholder="Enter email address"
+                                value={additionalEmailInput}
+                                onChange={(e) => setAdditionalEmailInput(e.target.value)}
+                                onKeyPress={(e) => {
+                                  if (e.key === 'Enter') {
+                                    handleAddAdditionalEmail(schedule.id);
+                                  }
+                                }}
+                                sx={{ flexGrow: 1 }}
+                              />
+                              <Button
+                                variant="contained"
+                                size="small"
+                                onClick={() => handleAddAdditionalEmail(schedule.id)}
+                                disabled={addingEmail || !additionalEmailInput.trim()}
+                                startIcon={<AddIcon />}
+                              >
+                                Add
+                              </Button>
+                            </Box>
+                          </Box>
+
+                          <Typography variant="subtitle2" gutterBottom>
+                            Emails to be sent:
+                          </Typography>
+
+                          <List dense>
+                            {schedule.emailsToSend.map((email, emailIndex) => (
+                              <ListItem key={email.id} sx={{ pl: 0 }}>
+                                <ListItemText
+                                  primary={
+                                    <Box display="flex" alignItems="center" gap={1}>
+                                      <EmailIcon fontSize="small" color="action" />
+                                      <Typography variant="body2">
+                                        {email.title || "Untitled Position"}
+                                      </Typography>
+                                      {email.source === 'additional' && (
+                                        <Chip
+                                          label="Additional"
+                                          size="small"
+                                          color="secondary"
+                                          variant="outlined"
+                                        />
+                                      )}
+                                      {email.source === 'bid_list' && (
+                                        <Chip
+                                          label="From Job"
+                                          size="small"
+                                          color="primary"
+                                          variant="outlined"
+                                        />
+                                      )}
+                                    </Box>
+                                  }
+                                  secondary={
+                                    <Box>
+                                      <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                                        <BusinessIcon fontSize="small" color="action" />
+                                        <Typography variant="caption" color="text.secondary">
+                                          {email.company || "Unknown Company"}
+                                        </Typography>
+                                      </Box>
+                                      <Typography variant="caption" color="text.secondary">
+                                        <strong>Email:</strong> {email.applicationEmail}
+                                      </Typography>
+                                      <br />
+                                      <Typography variant="caption" color="text.secondary">
+                                        <strong>Found:</strong>{" "}
+                                        {new Date(email.created_at).toLocaleDateString()}
+                                      </Typography>
+                                    </Box>
+                                  }
+                                />
+                                {/* Remove button for both additional and bid list emails */}
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleRemoveEmailClick(email, schedule.id, email.source)}
+                                  disabled={removingEmail || removingBidEmail}
+                                  color="error"
+                                  title={email.source === 'additional' ? 'Remove additional email' : 'Remove from schedule'}
+                                >
+                                  <DeleteIcon />
+                                </IconButton>
+                              </ListItem>
+                            ))}
+                          </List>
+                        </Paper>
+                      ))}
+                    </Box>
+                  ) : (
+                    <Alert severity="info">
+                      <Typography variant="body2">
+                        No scheduled email applications found. Emails will be scheduled automatically 
+                        when new job opportunities are found that match your criteria.
+                      </Typography>
+                    </Alert>
+                  )}
+                </Box>
+
                 {/* Cover Letter Section */}
                 <Box sx={{ mt: 3 }}>
                   <Typography variant="h6" gutterBottom>
@@ -1630,6 +1950,41 @@ const Resume = () => {
             }}
           >
             Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Confirmation Dialog for removing emails */}
+      <Dialog
+        open={removeEmailDialog.open}
+        onClose={handleRemoveEmailCancel}
+        aria-labelledby="remove-email-dialog-title"
+        aria-describedby="remove-email-dialog-description"
+      >
+        <DialogTitle id="remove-email-dialog-title">
+          Remove Email from Schedule
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="remove-email-dialog-description">
+            Are you sure you want to remove this email from the scheduled application?
+            <br />
+            <strong>Email:</strong> {removeEmailDialog.email?.applicationEmail}
+            <br />
+            <strong>Type:</strong> {removeEmailDialog.emailType === 'additional' ? 'Additional Email' : 'Job Application'}
+            {removeEmailDialog.email?.title && (
+              <>
+                <br />
+                <strong>Position:</strong> {removeEmailDialog.email.title}
+              </>
+            )}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleRemoveEmailCancel} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleRemoveEmailConfirm} color="error" variant="contained">
+            Remove
           </Button>
         </DialogActions>
       </Dialog>
