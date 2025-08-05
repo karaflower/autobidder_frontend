@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { AppBar, Toolbar, Typography, Button, Box, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Tooltip } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { AppBar, Toolbar, Typography, Button, Box, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, List, ListItemButton, ListItemIcon, ListItemText, Tooltip, Badge } from '@mui/material';
 import { Link as RouterLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { gmailExpiryService } from '../services/gmailExpiryService';
 import LogoutIcon from '@mui/icons-material/Logout';
 import LinkIcon from '@mui/icons-material/Link';
 import DescriptionIcon from '@mui/icons-material/Description';
@@ -17,8 +18,27 @@ const Navigation = ({ isNavExpanded, setIsNavExpanded }) => {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const [openDialog, setOpenDialog] = useState(false);
+  const [expiringTokenCount, setExpiringTokenCount] = useState(0);
   const location = useLocation();
   
+  // Check Gmail expiry status on component mount and every hour
+  useEffect(() => {
+    const checkExpiryStatus = async () => {
+      if (user && user.role !== 'bidder') {
+        const count = await gmailExpiryService.getExpiringTokenCount();
+        setExpiringTokenCount(count);
+      }
+    };
+
+    // Check immediately on mount
+    checkExpiryStatus();
+
+    // Set up interval to check every hour (3600000 ms)
+    const interval = setInterval(checkExpiryStatus, 3600000);
+
+    return () => clearInterval(interval);
+  }, [user]);
+
   const renderNavigationItems = () => {
     if (user?.role === 'boss') {
       return (
@@ -113,10 +133,33 @@ const Navigation = ({ isNavExpanded, setIsNavExpanded }) => {
               <ListItemIcon sx={{ 
                 minWidth: isNavExpanded ? 56 : 'auto',
                 justifyContent: 'center',
+                position: 'relative',
               }}>
                 <DescriptionIcon sx={{ color: "primary.main" }} />
               </ListItemIcon>
-              {isNavExpanded && <ListItemText primary="Resumes" />}
+              {isNavExpanded && (
+                <ListItemText 
+                  primary={
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                      <span>Resumes</span>
+                      {expiringTokenCount > 0 && (
+                        <Badge 
+                          badgeContent={expiringTokenCount} 
+                          color="error"
+                          sx={{
+                            '& .MuiBadge-badge': {
+                              fontSize: '0.75rem',
+                              minWidth: '18px',
+                              height: '18px',
+                              borderRadius: '9px',
+                            }
+                          }}
+                        />
+                      )}
+                    </Box>
+                  } 
+                />
+              )}
             </ListItemButton>
           </Tooltip>
         )}
@@ -202,7 +245,7 @@ const Navigation = ({ isNavExpanded, setIsNavExpanded }) => {
       <Box
         component="nav"
         sx={{
-          width: isNavExpanded ? 250 : 65,
+          width: isNavExpanded ? 220 : 65,
           flexShrink: 0,
           height: "100vh",
           bgcolor: "background.paper",
@@ -300,4 +343,4 @@ const Navigation = ({ isNavExpanded, setIsNavExpanded }) => {
   );
 };
 
-export default Navigation; 
+export default Navigation;

@@ -332,13 +332,13 @@ function App() {
                       component="main"
                       sx={{
                         flexGrow: 1,
-                        ml: isNavExpanded ? '250px' : '65px',
+                        ml: isNavExpanded ? '220px' : '65px',
                         mt: 1,
                         p: 3,
                         minHeight: '100vh',
                         bgcolor: 'background.default',
                         transition: 'margin-left 0.3s ease',
-                        width: `calc(100% - ${isNavExpanded ? '250px' : '65px'})`,
+                        width: `calc(100% - ${isNavExpanded ? '220px' : '65px'})`,
                       }}
                     >
                       <Routes>

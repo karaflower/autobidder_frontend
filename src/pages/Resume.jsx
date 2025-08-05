@@ -25,6 +25,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Badge
 } from "@mui/material";
 import axios from "axios";
 import EditIcon from "@mui/icons-material/Edit";
@@ -870,17 +871,43 @@ const Resume = () => {
           </Typography>
         ) : (
           <List>
-            {resumes.map((resume, index) => (
-              <ListItemButton
-                key={index}
-                selected={index === selectedResumeIndex}
-                onClick={() => setSelectedResumeIndex(index)}
-              >
-                <ListItemText
-                  primary={resume.personal_info?.name || "Untitled Resume"}
-                />
-              </ListItemButton>
-            ))}
+            {resumes.map((resume, index) => {
+              // Check if Gmail token is near expiry
+              const isNearExpiry = resume.gmail_status?.isNearExpiry || false;
+              
+              return (
+                <ListItemButton
+                  key={index}
+                  selected={index === selectedResumeIndex}
+                  onClick={() => setSelectedResumeIndex(index)}
+                >
+                  <ListItemText
+                    primary={
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                        <span>{resume.personal_info?.name || "Untitled Resume"}</span>
+                        {isNearExpiry && (
+                          <Badge 
+                            badgeContent="!"
+                            color="error"
+                            sx={{
+                              '& .MuiBadge-badge': {
+                                fontSize: '0.75rem',
+                                minWidth: '18px',
+                                height: '18px',
+                                borderRadius: '9px',
+                                backgroundColor: '#f44336',
+                                color: 'white',
+                                fontWeight: 'bold',
+                              }
+                            }}
+                          />
+                        )}
+                      </Box>
+                    }
+                  />
+                </ListItemButton>
+              );
+            })}
           </List>
         )}
       </Paper>
