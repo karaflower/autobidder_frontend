@@ -14,6 +14,10 @@ import {
   ListItemText,
   ListItemSecondaryAction,
   IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import axios from "axios";
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -33,7 +37,11 @@ const Settings = () => {
   const [teamlessUsers, setTeamlessUsers] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
   const [selectedUser, setSelectedUser] = useState('');
+  const [selectedMaster, setSelectedMaster] = useState('');
   const [teamName, setTeamName] = useState('');
+  const [showMasterDialog, setShowMasterDialog] = useState(false);
+  const [pendingBidderId, setPendingBidderId] = useState(null);
+  const [isEditingExistingBidder, setIsEditingExistingBidder] = useState(false);
 
   useEffect(() => {
     fetchTeamData();
@@ -87,6 +95,14 @@ const Settings = () => {
 
   const handleChangeRole = async (memberId, newRole) => {
     try {
+      if (newRole === 'bidder') {
+        // Show master selection dialog
+        setPendingBidderId(memberId);
+        setIsEditingExistingBidder(false);
+        setShowMasterDialog(true);
+        return;
+      }
+      
       await axios.put(`${process.env.REACT_APP_API_URL}/users/change-role/${memberId}`, {
         newRole
       });
@@ -94,6 +110,44 @@ const Settings = () => {
       toast.success("Role updated successfully");
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to update role");
+    }
+  };
+
+  const handleSetMaster = async (bidderId) => {
+    setPendingBidderId(bidderId);
+    setIsEditingExistingBidder(true);
+    setShowMasterDialog(true);
+  };
+
+  const handleMakeBidder = async () => {
+    if (!selectedMaster) {
+      toast.error("Please select a master");
+      return;
+    }
+    
+    try {
+      if (isEditingExistingBidder) {
+        // Update existing bidder's master
+        await axios.put(`${process.env.REACT_APP_API_URL}/users/${pendingBidderId}/set-master`, {
+          masterId: selectedMaster
+        });
+        toast.success("Master updated successfully");
+      } else {
+        // Make new bidder
+        await axios.put(`${process.env.REACT_APP_API_URL}/users/change-role/${pendingBidderId}`, {
+          newRole: 'bidder',
+          masterId: selectedMaster
+        });
+        toast.success("User made bidder successfully");
+      }
+      
+      setShowMasterDialog(false);
+      setSelectedMaster('');
+      setPendingBidderId(null);
+      setIsEditingExistingBidder(false);
+      fetchTeamData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to update bidder");
     }
   };
 
@@ -199,30 +253,49 @@ const Settings = () => {
               <List>
                 {teamMembers
                   .filter(member => member._id !== user._id && member.role === 'bidder')
-                  .map((member) => (
-                    <ListItem key={member._id}>
-                      <ListItemText 
-                        primary={member.name} 
-                        secondary={`Role: ${member.role}`} 
-                      />
-                      <ListItemSecondaryAction>
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          onClick={() => handleChangeRole(member._id, 'member')}
-                          sx={{ mr: 1 }}
-                        >
-                          Make Member
-                        </Button>
-                        <IconButton
-                          edge="end"
-                          onClick={() => handleRemoveMember(member._id)}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </ListItemSecondaryAction>
-                    </ListItem>
-                  ))}
+                  .map((member) => {
+                    const master = teamMembers.find(m => m._id === member.master);
+                    return (
+                      <ListItem key={member._id}>
+                        <ListItemText 
+                          primary={member.name} 
+                          secondary={
+                            <>
+                              Role: {member.role}
+                              {master && <br />}
+                              {master && `Master: ${master.name}`}
+                              {!master && <br />}
+                              {!master && 'No master assigned'}
+                            </>
+                          } 
+                        />
+                        <ListItemSecondaryAction>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => handleSetMaster(member._id)}
+                            sx={{ mr: 1 }}
+                          >
+                            Set Master
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => handleChangeRole(member._id, 'member')}
+                            sx={{ mr: 1 }}
+                          >
+                            Make Member
+                          </Button>
+                          <IconButton
+                            edge="end"
+                            onClick={() => handleRemoveMember(member._id)}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </ListItemSecondaryAction>
+                      </ListItem>
+                    );
+                  })}
               </List>
             </CardContent>
           </Card>
@@ -285,26 +358,45 @@ const Settings = () => {
             </form>
           </CardContent>
         </Card>
-        
-        <Card sx={{ mt: 2 }}>
-          <CardContent>
-            <Typography variant="h5" gutterBottom>
-              Chrome Extension
-            </Typography>
-            <Typography variant="body1" sx={{ mb: 2 }}>
-              Download and install our Chrome extension to enhance your job application experience.
-            </Typography>
-            <Button
-              variant="contained"
-              color="primary"
-              href={`${process.env.REACT_APP_API_URL}/bidext/bidext.zip`}
-              download
-            >
-              Download Extension
-            </Button>
-          </CardContent>
-        </Card>
       </Grid>
+
+      {/* Master Selection Dialog */}
+      <Dialog open={showMasterDialog} onClose={() => setShowMasterDialog(false)}>
+        <DialogTitle>
+          {isEditingExistingBidder ? 'Set Master for Bidder' : 'Select Master for Bidder'}
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            {isEditingExistingBidder 
+              ? 'Select a team member who will be the master for this bidder. The bidder will use the master\'s resumes.'
+              : 'Select a team member who will be the master for this bidder. The bidder will use the master\'s resumes.'
+            }
+          </Typography>
+          <Select
+            fullWidth
+            value={selectedMaster}
+            onChange={(e) => setSelectedMaster(e.target.value)}
+            displayEmpty
+          >
+            <MenuItem value="" disabled>
+              Select master
+            </MenuItem>
+            {teamMembers
+              .filter(member => member.role !== 'bidder')
+              .map((member) => (
+                <MenuItem key={member._id} value={member._id}>
+                  {member.name} ({member.role})
+                </MenuItem>
+              ))}
+          </Select>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowMasterDialog(false)}>Cancel</Button>
+          <Button onClick={handleMakeBidder} variant="contained">
+            {isEditingExistingBidder ? 'Update Master' : 'Make Bidder'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Grid>
   );
 };

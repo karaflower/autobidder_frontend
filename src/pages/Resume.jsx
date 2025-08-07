@@ -94,6 +94,8 @@ const Resume = () => {
     emailType: null // 'additional' or 'bid_list'
   });
   const { user } = useAuth();
+  const [showToBidder, setShowToBidder] = useState(false);
+  const [savingShowToBidder, setSavingShowToBidder] = useState(false);
 
   const fetchResumes = async () => {
     try {
@@ -152,6 +154,7 @@ const Resume = () => {
             gmail_cleanup_status: resumeData.gmail_cleanup_status || {
               gmail_auto_cleanup: false,
             },
+            showToBidder: resumeData.showToBidder || false,
           };
         });
 
@@ -667,6 +670,32 @@ const Resume = () => {
     }
   };
 
+  const handleShowToBidderToggle = async (checked) => {
+    if (!selectedResume) return;
+    
+    setSavingShowToBidder(true);
+    try {
+      await axios.put(`${process.env.REACT_APP_API_URL}/resumes/${selectedResume._id}/toggle-bidder-visibility`);
+      
+      // Update the resume in the local state
+      const updatedResumes = resumes.map((resume, index) => {
+        if (index === selectedResumeIndex) {
+          return { ...resume, showToBidder: checked };
+        }
+        return resume;
+      });
+      setResumes(updatedResumes);
+      setShowToBidder(checked);
+      
+      toast.success(`Resume ${checked ? 'made visible' : 'hidden'} to bidders`);
+    } catch (error) {
+      console.error('Error updating showToBidder:', error);
+      toast.error('Failed to update bidder visibility');
+    } finally {
+      setSavingShowToBidder(false);
+    }
+  };
+
   useEffect(() => {
     const currentResume = resumes[selectedResumeIndex];
     if (currentResume) {
@@ -674,6 +703,7 @@ const Resume = () => {
       setCoverLetterTitle(currentResume.cover_letter_title || "");
       setCoverLetterContent(currentResume.cover_letter_content || "");
       setEmailSendFrequencyDays(currentResume.email_send_frequency_days || 1.5);
+      setShowToBidder(!!currentResume.showToBidder);
 
       if (currentResume.gmail_status) {
         setGmailConnected(currentResume.gmail_status.connected);
@@ -1418,6 +1448,44 @@ const Resume = () => {
                 </Typography>
               )
             )}
+          </Box>
+
+          {/* Bidder Visibility Section - Add this before the Gmail API Integration Section */}
+          <Box sx={{ mt: 3, mb: 4 }}>
+            <Box
+              display="flex"
+              alignItems="center"
+              justifyContent="space-between"
+            >
+              <Typography variant="h6" gutterBottom>
+                Bidder Visibility
+              </Typography>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={showToBidder}
+                    onChange={(e) => handleShowToBidderToggle(e.target.checked)}
+                    color="primary"
+                    disabled={savingShowToBidder}
+                  />
+                }
+                label=""
+              />
+            </Box>
+            <Divider />
+            
+            <Box sx={{ mt: 2 }}>
+              <Alert severity="info" sx={{ mb: 2 }}>
+                <Typography variant="body2">
+                  When enabled, this resume will be visible to bidders who have you as their master. 
+                  Bidders will be able to use this resume for their applications.
+                </Typography>
+              </Alert>
+              
+              <Typography variant="body2" color="text.secondary">
+                <strong>Current status:</strong> {showToBidder ? 'Visible to bidders' : 'Hidden from bidders'}
+              </Typography>
+            </Box>
           </Box>
 
           {/* Gmail API Integration Section - Always visible */}
