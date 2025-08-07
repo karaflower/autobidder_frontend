@@ -21,6 +21,7 @@ import {
 } from "@mui/material";
 import axios from "axios";
 import DeleteIcon from '@mui/icons-material/Delete';
+import DownloadIcon from '@mui/icons-material/Download';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useAuth } from "../context/AuthContext";
@@ -62,6 +63,28 @@ const Settings = () => {
     } catch (error) {
       console.log(error);
       toast.error("Failed to fetch team data");
+    }
+  };
+
+  const handleDownloadBidext = async () => {
+    try {
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/bidext/bidext.zip`, {
+        responseType: 'blob'
+      });
+      
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'bidext.zip');
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      
+      toast.success("Bidext extension downloaded successfully");
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error("Failed to download bidext extension");
     }
   };
 
@@ -179,6 +202,31 @@ const Settings = () => {
   return (
     <Grid container justifyContent="center" spacing={2}>
       <Grid item xs={12} md={8} lg={6}>
+        {/* Bidext Download Card */}
+        <Card sx={{ mb: 2 }}>
+          <CardContent>
+            <Typography variant="h5" gutterBottom>
+              Browser Extension
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Download the Bidext browser extension to enhance your bidding experience.
+            </Typography>
+            <Button
+              variant="contained"
+              startIcon={<DownloadIcon />}
+              onClick={handleDownloadBidext}
+              sx={{ 
+                backgroundColor: '#1976d2',
+                '&:hover': {
+                  backgroundColor: '#1565c0'
+                }
+              }}
+            >
+              Download Bidext Extension
+            </Button>
+          </CardContent>
+        </Card>
+
         {user.role === 'lead' && (
           <Card sx={{ mb: 2 }}>
             <CardContent>
