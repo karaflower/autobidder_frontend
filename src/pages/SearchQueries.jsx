@@ -109,55 +109,137 @@ const TimeSelectionDialog = ({
   options = TIME_OPTIONS,
   filterClosed = true,
   onFilterClosedChange,
-}) => (
-  <Dialog open={open} onClose={onClose}>
-    <DialogTitle>{title}</DialogTitle>
-    <DialogContent>
-      <Typography gutterBottom>Select Time Limit</Typography>
-      <Box sx={{ 
-        display: 'flex', 
-        gap: 1, 
-        mt: 2, 
-        width: '100%',
-        flexWrap: 'wrap',
-      }}>
-        {options.map((option) => (
-          <Button
-            key={option.value}
-            variant={selectedTime === option.value ? 'contained' : 'outlined'}
-            onClick={() => onTimeSelect(option.value)}
-            sx={{ 
-              width: 'calc(33.33% - 8px)',
-              bgcolor: selectedTime === option.value ? undefined : 'background.paper'
-            }}
-          >
-            {option.label}
-          </Button>
-        ))}
-      </Box>
-      {onFilterClosedChange !== null && (
-        <Box sx={{ mt: 2 }}>
-          <FormControlLabel
-            control={
-              <Checkbox
-                checked={filterClosed}
-                onChange={(e) => onFilterClosedChange(e.target.checked)}
-              />
-            }
-            label="Filter out closed positions"
-          />
-        </Box>
-      )}
-    </DialogContent>
+  allowMultiple = false, // New prop to enable multiple selection
+}) => {
+  const [selectedTimes, setSelectedTimes] = useState([]);
+  const [localFilterClosed, setLocalFilterClosed] = useState(filterClosed);
 
-    <DialogActions sx={{ pb: 2 }}>
-      <Button onClick={onClose}>Cancel</Button>
-      <Button onClick={onConfirm} color="primary" variant="contained">
-        Search
-      </Button>
-    </DialogActions>
-  </Dialog>
-);
+  // Initialize selected times when dialog opens
+  useEffect(() => {
+    if (open) {
+      if (allowMultiple) {
+        // For multiple selection, initialize with current selection or empty array
+        setSelectedTimes(selectedTime ? [selectedTime] : []);
+      }
+      setLocalFilterClosed(filterClosed);
+    }
+  }, [open, selectedTime, filterClosed, allowMultiple]);
+
+  const handleTimeSelect = (value) => {
+    if (allowMultiple) {
+      setSelectedTimes(prev => {
+        if (value === 'a') {
+          // If "All above" is selected, include all time options except "All above" itself
+          return options.filter(opt => opt.value !== 'a').map(opt => opt.value);
+        } else if (prev.includes(value)) {
+          // Remove if already selected
+          return prev.filter(time => time !== value);
+        } else {
+          // Add to selection
+          return [...prev, value];
+        }
+      });
+    } else {
+      // Single selection mode (existing behavior)
+      onTimeSelect(value);
+    }
+  };
+
+  const handleConfirm = () => {
+    if (allowMultiple) {
+      // For multiple selection, pass the array of selected times
+      onTimeSelect(selectedTimes);
+      onFilterClosedChange?.(localFilterClosed);
+    }
+    onConfirm();
+  };
+
+  const isSelected = (value) => {
+    if (allowMultiple) {
+      return selectedTimes.includes(value);
+    }
+    return selectedTime === value;
+  };
+
+  const getSelectedCount = () => {
+    if (allowMultiple) {
+      return selectedTimes.length;
+    }
+    return selectedTime ? 1 : 0;
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose}>
+      <DialogTitle>{title}</DialogTitle>
+      <DialogContent>
+        <Typography gutterBottom>
+          Select Time Limit{allowMultiple ? 's' : ''}
+          {allowMultiple && getSelectedCount() > 0 && (
+            <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+              ({getSelectedCount()} selected)
+            </Typography>
+          )}
+        </Typography>
+        <Box sx={{ 
+          display: 'flex', 
+          gap: 1, 
+          mt: 2, 
+          width: '100%',
+          flexWrap: 'wrap',
+        }}>
+          {options.map((option) => (
+            <Button
+              key={option.value}
+              variant={isSelected(option.value) ? 'contained' : 'outlined'}
+              onClick={() => handleTimeSelect(option.value)}
+              sx={{ 
+                width: 'calc(33.33% - 8px)',
+                bgcolor: isSelected(option.value) ? undefined : 'background.paper'
+              }}
+            >
+              {option.label}
+            </Button>
+          ))}
+        </Box>
+        {onFilterClosedChange !== null && (
+          <Box sx={{ mt: 2 }}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={localFilterClosed}
+                  onChange={(e) => setLocalFilterClosed(e.target.checked)}
+                />
+              }
+              label="Filter out closed positions"
+            />
+          </Box>
+        )}
+        {allowMultiple && selectedTimes.length > 0 && (
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              Selected: {selectedTimes.map(time => {
+                const option = options.find(opt => opt.value === time);
+                return option ? option.label : time;
+              }).join(', ')}
+            </Typography>
+          </Box>
+        )}
+      </DialogContent>
+
+      <DialogActions sx={{ pb: 2 }}>
+        <Button onClick={onClose}>Cancel</Button>
+        <Button 
+          onClick={handleConfirm} 
+          color="primary" 
+          variant="contained"
+          disabled={allowMultiple && selectedTimes.length === 0}
+        >
+          Search
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
 
 const SearchTimeline = React.memo(({ queries, users, selectedCategories }) => {
   const [dateRange, setDateRange] = useState(7); // Default to 7 days
@@ -818,7 +900,7 @@ const SearchQueries = () => {
   const [selectedQueryId, setSelectedQueryId] = useState(null);
   const [autoSearchLoading, setAutoSearchLoading] = useState(false);
   const [autoSearchDialogOpen, setAutoSearchDialogOpen] = useState(false);
-  const [autoSearchTimeUnit, setAutoSearchTimeUnit] = useState('a');
+  const [autoSearchTimeUnits, setAutoSearchTimeUnits] = useState(['']); // Changed from autoSearchTimeUnit to autoSearchTimeUnits with default ['a']
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editQuery, setEditQuery] = useState('');
   const [queryToEdit, setQueryToEdit] = useState(null);
@@ -981,7 +1063,7 @@ const SearchQueries = () => {
 
   const handleAutoSearch = async () => {
     setAutoSearchDialogOpen(false);
-    setAutoSearchTimeUnit('');
+    setAutoSearchTimeUnits([]);
     setAutoSearchLoading(true);
     try {
       // Get all available categories if none are selected
@@ -989,10 +1071,23 @@ const SearchQueries = () => {
         ? categories.map(category => category) // Send all categories
         : selectedCategoriesForSearch;
         
-      const response = await executeAutoSearch(autoSearchTimeUnit, autoSearchFilterClosed, categoriesToSearch);
+      // For multiple time units, we'll process them sequentially
+      let totalJobsFound = 0;
+      
+      if (autoSearchTimeUnits.length > 0) {
+        for (const timeUnit of autoSearchTimeUnits) {
+          const response = await executeAutoSearch(timeUnit, autoSearchFilterClosed, categoriesToSearch);
+          totalJobsFound += response.jobsFound || 0;
+        }
+      } else {
+        // Fallback to default time unit if none selected
+        const response = await executeAutoSearch('a', autoSearchFilterClosed, categoriesToSearch);
+        totalJobsFound = response.jobsFound || 0;
+      }
+      
       setSnackbar({
         open: true,
-        message: `Auto-search completed! Found ${response.jobsFound || 0} new jobs.`,
+        message: `Auto-search completed! Found ${totalJobsFound} new jobs.`,
         severity: 'success',
       });
     } catch (err) {
@@ -1644,14 +1739,17 @@ const SearchQueries = () => {
           open={autoSearchDialogOpen}
           onClose={() => {
             setAutoSearchDialogOpen(false);
-            setAutoSearchTimeUnit('');
+            setAutoSearchTimeUnits([]);
           }}
           title="Auto Search Settings"
-          selectedTime={autoSearchTimeUnit}
-          onTimeSelect={setAutoSearchTimeUnit}
+          selectedTime={autoSearchTimeUnits.length > 0 ? autoSearchTimeUnits[0] : 'a'}
+          onTimeSelect={(timeUnits) => {
+            setAutoSearchTimeUnits(timeUnits);
+          }}
           onConfirm={handleAutoSearch}
           filterClosed={autoSearchFilterClosed}
           onFilterClosedChange={setAutoSearchFilterClosed}
+          allowMultiple={true} // Enable multiple selection for auto search
         />
 
         <Dialog 

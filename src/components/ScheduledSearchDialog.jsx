@@ -229,11 +229,15 @@ const ScheduledSearchDialog = ({
                   value={settings.categories}
                   onChange={(e) => {
                     const newValue = e.target.value;
+                    const lastSelected = newValue[newValue.length - 1];
+                    
                     // If "All Categories" is selected, clear other selections
-                    if (newValue.includes('all')) {
+                    if (lastSelected === 'all') {
                       setSettings({ ...settings, categories: ['all'] });
                     } else {
-                      setSettings({ ...settings, categories: newValue });
+                      // If individual categories are selected, remove "all" from selection
+                      const filteredValue = newValue.filter(cat => cat !== 'all');
+                      setSettings({ ...settings, categories: filteredValue });
                     }
                   }}
                   input={<OutlinedInput label="Categories" />}
