@@ -1608,7 +1608,7 @@ const SearchQueries = () => {
                 if (selectedCategory === 'all') {
                   categoryMatch = true;
                 } else if (selectedCategory === 'uncategorized') {
-                  categoryMatch = !query.category || query.category === '' || query.category === null;
+                  categoryMatch = !query.category || query.category === '' || query.category === null || query.category === 'uncategorized';
                 } else {
                   categoryMatch = query.category === selectedCategory;
                 }
