@@ -72,7 +72,7 @@ const ScheduledSearchDialog = ({
   });
 
   const [settings, setSettings] = useState({
-    timeUnit: initialData?.settings?.timeUnit || 'a',
+    timeUnits: initialData?.settings?.timeUnits || ['a', 'd', 'w', 'm', 'y'],
     filterClosed: initialData?.settings?.filterClosed ?? true,
     categories: initialData?.settings?.categories || ["all"],
     categoryType: "all"
