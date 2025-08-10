@@ -18,7 +18,8 @@ import {
   Divider,
   ListItemButton,
   Menu,
-  MenuItem
+  MenuItem,
+  Select
 } from '@mui/material';
 import { Edit, Delete, Lock, PersonRemove, PersonAdd, SupervisorAccount, SwapHoriz, MoreVert } from '@mui/icons-material';
 import axios from 'axios';
@@ -36,6 +37,10 @@ const TeamManagement = () => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedMember, setSelectedMember] = useState(null);
   const [roleAnchorEl, setRoleAnchorEl] = useState(null);
+  const [showMasterDialog, setShowMasterDialog] = useState(false);
+  const [pendingBidderId, setPendingBidderId] = useState(null);
+  const [isEditingExistingBidder, setIsEditingExistingBidder] = useState(false);
+  const [selectedMaster, setSelectedMaster] = useState('');
 
   useEffect(() => {
     fetchTeams();
@@ -237,6 +242,14 @@ const TeamManagement = () => {
 
   const handleChangeRole = async (user, newRole) => {
     try {
+      if (newRole === 'bidder') {
+        // Show master selection dialog
+        setPendingBidderId(user._id);
+        setIsEditingExistingBidder(false);
+        setShowMasterDialog(true);
+        return;
+      }
+      
       await axios.put(
         `${process.env.REACT_APP_API_URL}/users/change-role/${user._id}`,
         { newRole }
@@ -244,7 +257,45 @@ const TeamManagement = () => {
       toast.success('Role updated successfully');
       fetchTeamMembers(selectedTeam._id);
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to change role');
+      toast.error(error.response?.data?.message || 'Failed to update role');
+    }
+  };
+
+  const handleSetMaster = async (bidderId) => {
+    setPendingBidderId(bidderId);
+    setIsEditingExistingBidder(true);
+    setShowMasterDialog(true);
+  };
+
+  const handleMakeBidder = async () => {
+    if (!selectedMaster) {
+      toast.error("Please select a master");
+      return;
+    }
+    
+    try {
+      if (isEditingExistingBidder) {
+        // Update existing bidder's master
+        await axios.put(`${process.env.REACT_APP_API_URL}/users/${pendingBidderId}/set-master`, {
+          masterId: selectedMaster
+        });
+        toast.success("Master updated successfully");
+      } else {
+        // Make new bidder
+        await axios.put(`${process.env.REACT_APP_API_URL}/users/change-role/${pendingBidderId}`, {
+          newRole: 'bidder',
+          masterId: selectedMaster
+        });
+        toast.success("User made bidder successfully");
+      }
+      
+      setShowMasterDialog(false);
+      setSelectedMaster('');
+      setPendingBidderId(null);
+      setIsEditingExistingBidder(false);
+      fetchTeamMembers(selectedTeam._id);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to update bidder');
     }
   };
 
@@ -362,28 +413,43 @@ const TeamManagement = () => {
                   <Typography variant="subtitle1" sx={{ ml: 2, mb: 1 }}>Bidders</Typography>
                   {teamMembers[selectedTeam._id]
                     ?.filter(member => member.role === 'bidder')
-                    .map((member) => (
-                    <ListItem key={member._id}>
-                      <ListItemText 
-                        primary={member.name} 
-                        secondary={
-                          <>
-                            {member.email}
-                            <br />
-                            Role: {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
-                          </>
-                        } 
-                      />
-                      <ListItemSecondaryAction>
-                        <Button
-                          size="small"
-                          onClick={(e) => handleMenuOpen(e, member)}
-                        >
-                          <MoreVert />
-                        </Button>
-                      </ListItemSecondaryAction>
-                    </ListItem>
-                  ))}
+                    .map((member) => {
+                      const master = teamMembers[selectedTeam._id]?.find(m => m._id === member.master);
+                      return (
+                        <ListItem key={member._id}>
+                          <ListItemText 
+                            primary={member.name} 
+                            secondary={
+                              <>
+                                {member.email}
+                                <br />
+                                Role: {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
+                                {master && <br />}
+                                {master && `Master: ${master.name}`}
+                                {!master && <br />}
+                                {!master && 'No master assigned'}
+                              </>
+                            } 
+                          />
+                          <ListItemSecondaryAction>
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              onClick={() => handleSetMaster(member._id)}
+                              sx={{ mr: 1 }}
+                            >
+                              Set Master
+                            </Button>
+                            <Button
+                              size="small"
+                              onClick={(e) => handleMenuOpen(e, member)}
+                            >
+                              <MoreVert />
+                            </Button>
+                          </ListItemSecondaryAction>
+                        </ListItem>
+                      );
+                    })}
                 </>
               )}
 
@@ -646,6 +712,44 @@ const TeamManagement = () => {
               {dialogType === 'addTeam' ? 'Add' : 'Update'}
             </Button>
           )}
+        </DialogActions>
+      </Dialog>
+
+      {/* Master Selection Dialog */}
+      <Dialog open={showMasterDialog} onClose={() => setShowMasterDialog(false)}>
+        <DialogTitle>
+          {isEditingExistingBidder ? 'Set Master for Bidder' : 'Select Master for Bidder'}
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            {isEditingExistingBidder 
+              ? 'Select a team member who will be the master for this bidder. The bidder will use the master\'s resumes.'
+              : 'Select a team member who will be the master for this bidder. The bidder will use the master\'s resumes.'
+            }
+          </Typography>
+          <Select
+            fullWidth
+            value={selectedMaster}
+            onChange={(e) => setSelectedMaster(e.target.value)}
+            displayEmpty
+          >
+            <MenuItem value="" disabled>
+              Select master
+            </MenuItem>
+            {teamMembers[selectedTeam?._id]
+              ?.filter(member => member.role !== 'bidder')
+              .map((member) => (
+                <MenuItem key={member._id} value={member._id}>
+                  {member.name} ({member.role})
+                </MenuItem>
+              ))}
+          </Select>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowMasterDialog(false)}>Cancel</Button>
+          <Button onClick={handleMakeBidder} variant="contained">
+            {isEditingExistingBidder ? 'Update Master' : 'Make Bidder'}
+          </Button>
         </DialogActions>
       </Dialog>
     </Container>
