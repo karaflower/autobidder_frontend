@@ -48,7 +48,6 @@ import { Line } from 'react-chartjs-2';
 import ScheduledSearchDialog from '../components/ScheduledSearchDialog';
 import ScheduledSearchesList from '../components/ScheduledSearchesList';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import BidHistory from './BidHistory';
 
 const TIME_OPTIONS = [
   { value: 'd', label: 'Past 24 Hours' },
@@ -1596,7 +1595,6 @@ const SearchQueries = () => {
         <Tabs value={activeTab} onChange={(e, newValue) => setActiveTab(newValue)} sx={{ mb: 3 }}>
           <Tab label="Search Queries" />
           <Tab label="Scheduled Searches" />
-          <Tab label="Bid History" />
         </Tabs>
 
         {activeTab === 0 && (
@@ -1652,12 +1650,6 @@ const SearchQueries = () => {
               onEdit={handleEditScheduledSearch}
               onDelete={handleDeleteScheduledSearch}
             />
-          </Box>
-        )}
-
-        {activeTab === 2 && (
-          <Box>
-            <BidHistory />
           </Box>
         )}
 
