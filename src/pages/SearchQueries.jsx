@@ -901,7 +901,7 @@ const SearchQueries = () => {
   const [selectedQueryId, setSelectedQueryId] = useState(null);
   const [autoSearchLoading, setAutoSearchLoading] = useState(false);
   const [autoSearchDialogOpen, setAutoSearchDialogOpen] = useState(false);
-  const [autoSearchTimeUnits, setAutoSearchTimeUnits] = useState(['']); // Changed from autoSearchTimeUnit to autoSearchTimeUnits with default ['a']
+  const [autoSearchTimeUnits, setAutoSearchTimeUnits] = useState(['a']); // Changed from autoSearchTimeUnit to autoSearchTimeUnits with default ['a']
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editQuery, setEditQuery] = useState('');
   const [queryToEdit, setQueryToEdit] = useState(null);

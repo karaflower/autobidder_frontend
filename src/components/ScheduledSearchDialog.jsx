@@ -197,8 +197,16 @@ const ScheduledSearchDialog = ({
               <FormControl fullWidth>
                 <InputLabel>Time Range</InputLabel>
                 <Select
-                  value={settings.timeUnit}
-                  onChange={(e) => setSettings({ ...settings, timeUnit: e.target.value })}
+                  multiple
+                  value={settings.timeUnits}
+                  onChange={(e) => setSettings({ ...settings, timeUnits: e.target.value })}
+                  input={<OutlinedInput label="Time Range" />}
+                  renderValue={(selected) => {
+                    if (selected.includes('a')) {
+                      return 'All Time';
+                    }
+                    return selected.join(', ');
+                  }}
                 >
                   <MenuItem value="d">Past 24 Hours</MenuItem>
                   <MenuItem value="w">Past Week</MenuItem>
