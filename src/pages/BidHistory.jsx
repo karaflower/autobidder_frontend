@@ -87,21 +87,30 @@ const BidHistory = () => {
   const [selectedBidIndex, setSelectedBidIndex] = useState(null);
   const [currentUserId, setCurrentUserId] = useState('');
   const [gridViewOpen, setGridViewOpen] = useState(false);
+  const [userRole, setUserRole] = useState('');
 
   useEffect(() => {
     const fetchUsers = async () => {
       try {
         const response = await axios.get(`${process.env.REACT_APP_API_URL}/teams/my-team`);
         const userResponse = await axios.get(`${process.env.REACT_APP_API_URL}/auth/user`);
-        setUsersList([
-          { _id: userResponse.data._id, name: 'My Applications' },
-          ...response.data
-            .filter(user => user._id !== userResponse.data._id)
-            .map(user => ({
-              _id: user._id,
-              name: user.name || user.email
-            }))
-        ]);
+        setUserRole(userResponse.data.role);
+        
+        // Only fetch team members if user is lead
+        if (userResponse.data.role === 'lead') {
+          setUsersList([
+            { _id: userResponse.data._id, name: 'My Applications' },
+            ...response.data
+              .filter(user => user._id !== userResponse.data._id)
+              .map(user => ({
+                _id: user._id,
+                name: user.name || user.email
+              }))
+          ]);
+        } else {
+          // For non-lead users, only show their own applications
+          setUsersList([{ _id: userResponse.data._id, name: 'My Applications' }]);
+        }
         setSelectedUser(userResponse.data._id);
       } catch (err) {
         console.error('Failed to fetch team members:', err);
@@ -392,21 +401,27 @@ const BidHistory = () => {
         </Box>
         <Box sx={{ width: '80%', mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box sx={{ minWidth: 200 }}>
-            <TextField
-              select
-              label="User"
-              value={selectedUser}
-              onChange={(e) => setSelectedUser(e.target.value)}
-              variant="outlined"
-              size="small"
-              fullWidth
-            >
-              {usersList.map((user) => (
-                <MenuItem key={user._id} value={user._id}>
-                  {user.name}
-                </MenuItem>
-              ))}
-            </TextField>
+            {userRole === 'lead' ? (
+              <TextField
+                select
+                label="User"
+                value={selectedUser}
+                onChange={(e) => setSelectedUser(e.target.value)}
+                variant="outlined"
+                size="small"
+                fullWidth
+              >
+                {usersList.map((user) => (
+                  <MenuItem key={user._id} value={user._id}>
+                    {user.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            ) : (
+              <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>
+                My Applications
+              </Typography>
+            )}
           </Box>
           <Typography variant="subtitle1">
             {globalSearchResults.length > 0 ? 'Search Results' : 'Total'}: {displayedBids.length}

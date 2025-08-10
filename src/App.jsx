@@ -366,7 +366,7 @@ function App() {
                         } />
                         <Route path="/settings" element={<Settings />} />
                         <Route path="/bid-history" element={
-                          <ProtectedRoute forbiddenRole="bidder">
+                          <ProtectedRoute>
                             <BidHistory />
                           </ProtectedRoute>
                         } />

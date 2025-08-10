@@ -547,7 +547,7 @@ const BossDashboard = () => {
 
           {/* Display bid stats when a single member is selected */}
           {selectedMember !== 'all' && (
-            <Paper sx={{ p: 2, mb: 3, bgcolor: '#f5f5f5' }}>
+            <Paper sx={{ p: 2, mb: 3 }}>
               <Typography variant="h6" gutterBottom>
                 Bid Statistics for {teamMembers[selectedTeam]?.find(m => m._id === selectedMember)?.name || 'Selected Member'}
               </Typography>

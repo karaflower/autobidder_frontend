@@ -27,14 +27,39 @@ const Dashboard = () => {
   const [bidData, setBidData] = useState({});
   const [selectedMember, setSelectedMember] = useState('all');
   const [teamMembers, setTeamMembers] = useState([]);
-  const [dateRange, setDateRange] = useState('7');
+  const [dateRange, setDateRange] = useState('14');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [memberColors, setMemberColors] = useState({});
+  const [userRole, setUserRole] = useState('');
+  const [currentUserId, setCurrentUserId] = useState('');
 
   useEffect(() => {
-    // Fetch team members
+    // Fetch current user info and role
+    const fetchCurrentUser = async () => {
+      try {
+        const userResponse = await axios.get(`${process.env.REACT_APP_API_URL}/auth/user`);
+        setUserRole(userResponse.data.role);
+        setCurrentUserId(userResponse.data._id);
+      } catch (error) {
+        console.error('Error fetching current user:', error);
+        setError('Error fetching user information');
+      }
+    };
+
+    fetchCurrentUser();
+  }, []);
+
+  useEffect(() => {
+    // Fetch team members only if user is lead
     const fetchTeamMembers = async () => {
+      if (userRole !== 'lead') {
+        // For non-lead users, only set their own data
+        setTeamMembers([{ _id: currentUserId, name: 'My Applications' }]);
+        setSelectedMember(currentUserId);
+        return;
+      }
+
       setError(null);
       setIsLoading(true);
       try {
@@ -54,17 +79,21 @@ const Dashboard = () => {
       }
     };
 
-    fetchTeamMembers();
-  }, []);
+    if (currentUserId && userRole) {
+      fetchTeamMembers();
+    }
+  }, [userRole, currentUserId]);
 
   useEffect(() => {
     // Fetch bid history when member or date range changes
     const fetchBidHistory = async () => {
+      if (!currentUserId) return;
+
       setError(null);
       setIsLoading(true);
       try {
-        if (selectedMember === 'all') {
-          // Fetch data for all team members
+        if (userRole === 'lead' && selectedMember === 'all') {
+          // Fetch data for all team members (leads only)
           const promises = teamMembers.map(member =>
             axios.get(`${process.env.REACT_APP_API_URL}/applications/bid-history/${member._id}`, {
               params: { days: dateRange }
@@ -77,11 +106,12 @@ const Dashboard = () => {
           });
           setBidData(allData);
         } else {
-          // Fetch data for single member
-          const response = await axios.get(`${process.env.REACT_APP_API_URL}/applications/bid-history/${selectedMember}`, {
+          // Fetch data for single member (either selected member or current user)
+          const memberId = selectedMember === 'all' ? currentUserId : selectedMember;
+          const response = await axios.get(`${process.env.REACT_APP_API_URL}/applications/bid-history/${memberId}`, {
             params: { days: dateRange }
           });
-          setBidData({ [selectedMember]: response.data });
+          setBidData({ [memberId]: response.data });
         }
       } catch (error) {
         setError('Error fetching bid history: ' + (error.response?.data?.message || error.message));
@@ -90,11 +120,11 @@ const Dashboard = () => {
       }
     };
 
-    // Only fetch if we have team members
-    if (teamMembers.length > 0) {
+    // Only fetch if we have the necessary data
+    if (currentUserId && (teamMembers.length > 0 || userRole !== 'lead')) {
       fetchBidHistory();
     }
-  }, [selectedMember, dateRange, teamMembers]);
+  }, [selectedMember, dateRange, teamMembers, userRole, currentUserId]);
 
   // Generate random color for each member
   const getRandomColor = () => {
@@ -109,9 +139,9 @@ const Dashboard = () => {
   // Prepare chart data
   const chartData = {
     labels: selectedMember === 'all' && Object.keys(bidData).length > 0
-      ? bidData[Object.keys(bidData)[0]].map(item => item.date)
+      ? bidData[Object.keys(bidData)[0]]?.map(item => item.date) || []
       : bidData[selectedMember]?.map(item => item.date) || [],
-    datasets: selectedMember === 'all'
+    datasets: selectedMember === 'all' && userRole === 'lead'
       ? teamMembers.map(member => ({
           label: member.name,
           data: bidData[member._id]?.map(item => item.bidCount) || [],
@@ -120,8 +150,8 @@ const Dashboard = () => {
           tension: 0.1
         }))
       : [{
-          label: 'Number of Bids',
-          data: bidData[selectedMember]?.map(item => item.bidCount) || [],
+          label: userRole === 'lead' ? 'Number of Bids' : 'My Bids',
+          data: bidData[selectedMember === 'all' ? currentUserId : selectedMember]?.map(item => item.bidCount) || [],
           fill: false,
           borderColor: 'rgb(75, 192, 192)',
           tension: 0.1
@@ -136,7 +166,7 @@ const Dashboard = () => {
       },
       title: {
         display: true,
-        text: 'Daily Bid History'
+        text: userRole === 'lead' ? 'Team Bid History Dashboard' : 'My Bid History Dashboard'
       }
     },
     scales: {
@@ -158,24 +188,26 @@ const Dashboard = () => {
 
   return (
     <div className="dashboard-container">
-      <h1>Team Bid History Dashboard</h1>
+      <h1>{userRole === 'lead' ? 'Team Bid History Dashboard' : 'My Bid History Dashboard'}</h1>
       
       {error && <div className="error-message">{error}</div>}
       
       <div className="dashboard-controls">
-        <select 
-          value={selectedMember}
-          onChange={(e) => setSelectedMember(e.target.value)}
-          className="member-select"
-          disabled={isLoading}
-        >
-          <option value="all">All Members</option>
-          {teamMembers.map(member => (
-            <option key={member._id} value={member._id}>
-              {member.name}
-            </option>
-          ))}
-        </select>
+        {userRole === 'lead' && (
+          <select 
+            value={selectedMember}
+            onChange={(e) => setSelectedMember(e.target.value)}
+            className="member-select"
+            disabled={isLoading}
+          >
+            <option value="all">All Members</option>
+            {teamMembers.map(member => (
+              <option key={member._id} value={member._id}>
+                {member.name}
+              </option>
+            ))}
+          </select>
+        )}
 
         <select
           value={dateRange}
@@ -210,6 +242,7 @@ const Dashboard = () => {
           display: flex;
           gap: 20px;
           margin-bottom: 20px;
+          align-items: center;
         }
 
         .member-select,
@@ -218,6 +251,18 @@ const Dashboard = () => {
           border-radius: 4px;
           border: 1px solid #ccc;
           min-width: 200px;
+        }
+
+        .user-info {
+          padding: 8px;
+          border-radius: 4px;
+          border: 1px solid #ccc;
+          min-width: 200px;
+          background-color: #f5f5f5;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 500;
         }
 
         .chart-container {

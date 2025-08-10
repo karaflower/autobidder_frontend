@@ -188,53 +188,56 @@ const Navigation = ({ isNavExpanded, setIsNavExpanded }) => {
                 {isNavExpanded && <ListItemText primary="Job Search" />}
               </ListItemButton>
             </Tooltip>
-
-            <Tooltip title="Bid History" placement="right" arrow disableHoverListener={isNavExpanded}>
-              <ListItemButton
-                component={RouterLink}
-                to="/bid-history"
-                sx={{
-                  "&.Mui-selected": {
-                    backgroundColor: "action.selected",
-                  },
-                  justifyContent: isNavExpanded ? 'initial' : 'center',
-                  px: 2.5,
-                }}
-                selected={location.pathname === "/bid-history"}
-              >
-                <ListItemIcon sx={{ 
-                  minWidth: isNavExpanded ? 56 : 'auto',
-                  justifyContent: 'center',
-                }}>
-                  <HistoryIcon sx={{ color: "primary.main" }} />
-                </ListItemIcon>
-                {isNavExpanded && <ListItemText primary="Bid History" />}
-              </ListItemButton>
-            </Tooltip>
-
-            <Tooltip title="AI Prompts" placement="right" arrow disableHoverListener={isNavExpanded}>
-              <ListItemButton
-                component={RouterLink}
-                to="/ai-prompts"
-                sx={{
-                  "&.Mui-selected": {
-                    backgroundColor: "action.selected",
-                  },
-                  justifyContent: isNavExpanded ? 'initial' : 'center',
-                  px: 2.5,
-                }}
-                selected={location.pathname === "/ai-prompts"}
-              >
-                <ListItemIcon sx={{ 
-                  minWidth: isNavExpanded ? 56 : 'auto',
-                  justifyContent: 'center',
-                }}>
-                  <SmartToyIcon sx={{ color: "primary.main" }} />
-                </ListItemIcon>
-                {isNavExpanded && <ListItemText primary="AI Prompts" />}
-              </ListItemButton>
-            </Tooltip>
           </>
+        )}
+
+        {/* Bid History - Show to all users including bidders */}
+        <Tooltip title="Bid History" placement="right" arrow disableHoverListener={isNavExpanded}>
+          <ListItemButton
+            component={RouterLink}
+            to="/bid-history"
+            sx={{
+              "&.Mui-selected": {
+                backgroundColor: "action.selected",
+              },
+              justifyContent: isNavExpanded ? 'initial' : 'center',
+              px: 2.5,
+            }}
+            selected={location.pathname === "/bid-history"}
+          >
+            <ListItemIcon sx={{ 
+              minWidth: isNavExpanded ? 56 : 'auto',
+              justifyContent: 'center',
+            }}>
+              <HistoryIcon sx={{ color: "primary.main" }} />
+            </ListItemIcon>
+            {isNavExpanded && <ListItemText primary="Bid History" />}
+          </ListItemButton>
+        </Tooltip>
+
+        {user?.role !== 'bidder' && (
+          <Tooltip title="AI Prompts" placement="right" arrow disableHoverListener={isNavExpanded}>
+            <ListItemButton
+              component={RouterLink}
+              to="/ai-prompts"
+              sx={{
+                "&.Mui-selected": {
+                  backgroundColor: "action.selected",
+                },
+                justifyContent: isNavExpanded ? 'initial' : 'center',
+                px: 2.5,
+              }}
+              selected={location.pathname === "/ai-prompts"}
+            >
+              <ListItemIcon sx={{ 
+                minWidth: isNavExpanded ? 56 : 'auto',
+                justifyContent: 'center',
+              }}>
+                <SmartToyIcon sx={{ color: "primary.main" }} />
+              </ListItemIcon>
+              {isNavExpanded && <ListItemText primary="AI Prompts" />}
+            </ListItemButton>
+          </Tooltip>
         )}
       </>
     );
