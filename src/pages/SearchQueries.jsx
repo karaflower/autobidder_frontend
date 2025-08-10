@@ -2029,7 +2029,7 @@ const CategoryListItem = React.memo(({
     if (cat === 'all') {
       return queries.length;
     } else if (cat === 'uncategorized') {
-      return queries.filter(q => !q.category || q.category === '' || q.category === null).length;
+      return queries.filter(q => !q.category || q.category === '' || q.category === null || q.category === 'uncategorized').length;
     } else {
       return queries.filter(q => q.category === cat).length;
     }
