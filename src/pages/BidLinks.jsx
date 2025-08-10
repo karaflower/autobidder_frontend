@@ -568,8 +568,11 @@ const BidLinks = () => {
   const locationOptions = [
     { value: "all", label: "Anywhere", count: 0 },
     { value: "USA", label: "USA", count: 0 },
+    { value: "Canada", label: "Canada", count: 0 },
     { value: "Europe", label: "Europe", count: 0 },
     { value: "Asia", label: "Asia", count: 0 },
+    { value: "LATAM", label: "LATAM", count: 0 },
+    { value: "Australia", label: "Australia", count: 0 },
     { value: "Africa", label: "Africa", count: 0 },
     { value: "Anonymous", label: "Anonymous", count: 0 },
   ];
@@ -3017,15 +3020,15 @@ const BidLinks = () => {
   };
 
   const extractEmails = () => {
-    // Use original bidLinks instead of filteredBidLinks to get emails from non-filtered links
-    const emails = bidLinks
+    // Use filteredBidLinks instead of bidLinks to respect current filters
+    const emails = filteredBidLinks
       .filter(
         (link) => link.final_details?.applicationMethods?.applicationEmail
       )
       .map((link) => link.final_details.applicationMethods.applicationEmail);
 
     if (emails.length === 0) {
-      toast.info("No emails found in the original bid links");
+      toast.info("No emails found in the filtered bid links");
       return;
     }
 

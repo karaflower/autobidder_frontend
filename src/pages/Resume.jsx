@@ -25,7 +25,11 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Badge
+  Badge,
+  Grid,
+  Checkbox,
+  Slider,
+  Collapse
 } from "@mui/material";
 import axios from "axios";
 import EditIcon from "@mui/icons-material/Edit";
@@ -47,9 +51,28 @@ import ScheduleIcon from "@mui/icons-material/Schedule";
 import EmailIcon from "@mui/icons-material/Email";
 import BusinessIcon from "@mui/icons-material/Business";
 import DeleteIcon from '@mui/icons-material/Delete';
+import FilterListIcon from "@mui/icons-material/FilterList";
+import LocationOnIcon from "@mui/icons-material/LocationOn";
+import CategoryIcon from "@mui/icons-material/Category";
+import PsychologyIcon from "@mui/icons-material/Psychology";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 
 // Set the worker source using a local path instead of CDN
 pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
+
+
+const locationOptions = [
+  { value: "all", label: "Anywhere", count: 0 },
+  { value: "USA", label: "USA", count: 0 },
+  { value: "Canada", label: "Canada", count: 0 },
+  { value: "Europe", label: "Europe", count: 0 },
+  { value: "Asia", label: "Asia", count: 0 },
+  { value: "LATAM", label: "LATAM", count: 0 },
+  { value: "Australia", label: "Australia", count: 0 },
+  { value: "Africa", label: "Africa", count: 0 },
+  { value: "Anonymous", label: "Anonymous", count: 0 },
+];
+
 
 const Resume = () => {
   const [resumes, setResumes] = useState([]);
@@ -96,6 +119,92 @@ const Resume = () => {
   const { user } = useAuth();
   const [showToBidder, setShowToBidder] = useState(false);
   const [savingShowToBidder, setSavingShowToBidder] = useState(false);
+
+  // Add new state for filters
+  const [locationFilter, setLocationFilter] = useState([]);
+  const [categoryFilter, setCategoryFilter] = useState([]);
+  const [queryDateLimit, setQueryDateLimit] = useState([-1]);
+
+  // Date limit options - reduced to 5 options
+  const dateLimitOptions = [
+    { value: -1, label: "All" },
+    { value: 1, label: "1 day" },
+    { value: 3, label: "3 days" },
+    { value: 7, label: "7 days" },
+    { value: 30, label: "30 days" },
+  ];
+
+  // Add new state for filters dialog
+  const [filtersDialogOpen, setFiltersDialogOpen] = useState(false);
+  const [tempFilters, setTempFilters] = useState({
+    location: [],
+    category: [],
+    dateLimit: [-1]
+  });
+
+  // State for team categories
+  const [teamCategories, setTeamCategories] = useState([]);
+
+  // Add function to handle opening filters dialog
+  const handleOpenFiltersDialog = () => {
+    setTempFilters({
+      location: [...locationFilter],
+      category: [...categoryFilter],
+      dateLimit: [...queryDateLimit]
+    });
+    setFiltersDialogOpen(true);
+  };
+
+  // Add function to handle saving filters
+  const handleSaveFilters = async () => {
+    if (!selectedResume) return;
+    
+    try {
+      // Save filters to backend using the existing auto-email-settings endpoint
+      await axios.put(
+        `${process.env.REACT_APP_API_URL}/resumes/${selectedResume._id}/auto-email-settings`,
+        {
+          location_filter: tempFilters.location,
+          category_filter: tempFilters.category,
+          query_date_limit: tempFilters.dateLimit,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      // Update local state
+      setLocationFilter([...tempFilters.location]);
+      setCategoryFilter([...tempFilters.category]);
+      setQueryDateLimit([...tempFilters.dateLimit]);
+      
+      // Update the local resume data
+      const updatedResumes = [...resumes];
+      updatedResumes[selectedResumeIndex] = {
+        ...updatedResumes[selectedResumeIndex],
+        auto_email_filters: {
+          ...updatedResumes[selectedResumeIndex].auto_email_filters,
+          location_filter: tempFilters.location,
+          category_filter: tempFilters.category,
+          query_date_limit: tempFilters.dateLimit,
+        }
+      };
+      setResumes(updatedResumes);
+      
+      setFiltersDialogOpen(false);
+      toast.success("Filters updated successfully!");
+    } catch (err) {
+      console.error('Failed to save filters:', err);
+      toast.error("Failed to save filters. Please try again.");
+    }
+  };
+
+  // Add function to handle canceling filters
+  const handleCancelFilters = () => {
+    setFiltersDialogOpen(false);
+  };
 
   const fetchResumes = async () => {
     try {
@@ -155,6 +264,12 @@ const Resume = () => {
               gmail_auto_cleanup: false,
             },
             showToBidder: resumeData.showToBidder || false,
+            auto_email_filters: resumeData.auto_email_filters || {
+              location_filter: [],
+              category_filter: [],
+              confidence_range: [0.3, 1],
+              query_date_limit: [-1]
+            }
           };
         });
 
@@ -170,8 +285,21 @@ const Resume = () => {
     }
   };
 
+  // Fetch team categories
+  const fetchTeamCategories = async () => {
+    try {
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/categories`);
+      setTeamCategories(response.data.categories || []);
+    } catch (error) {
+      console.error('Failed to fetch team categories:', error);
+      // Fallback to default categories if API fails
+      setTeamCategories(['general']);
+    }
+  };
+
   useEffect(() => {
     fetchResumes();
+    fetchTeamCategories();
   }, []);
 
   const handleSave = async () => {
@@ -520,11 +648,22 @@ const Resume = () => {
   const handleAutoEmailToggle = async (checked) => {
     if (!selectedResume) return;
 
+    setAutoEmailEnabled(checked);
     setSavingAutoEmail(true);
+
     try {
-      const response = await axios.put(
-        `${process.env.REACT_APP_API_URL}/resumes/${selectedResume._id}/auto-email-application`,
-        { auto_email_application: checked },
+      await axios.put(
+        `${process.env.REACT_APP_API_URL}/resumes/${selectedResume._id}/auto-email`,
+        {
+          enabled: checked,
+          cover_letter_title: coverLetterTitle,
+          cover_letter_content: coverLetterContent,
+          email_send_frequency_days: emailSendFrequencyDays,
+          location_filter: locationFilter,
+          category_filter: categoryFilter,
+          confidence_range: [0.3, 1],
+          query_date_limit: queryDateLimit,
+        },
         {
           headers: {
             "Content-Type": "application/json",
@@ -536,16 +675,29 @@ const Resume = () => {
       const updatedResumes = [...resumes];
       updatedResumes[selectedResumeIndex] = {
         ...updatedResumes[selectedResumeIndex],
-        auto_email_application: checked,
+        auto_email_enabled: checked,
+        cover_letter_title: coverLetterTitle,
+        cover_letter_content: coverLetterContent,
+        email_send_frequency_days: emailSendFrequencyDays,
+        auto_email_filters: {
+          location_filter: locationFilter,
+          category_filter: categoryFilter,
+          confidence_range: [0.3, 1],
+          query_date_limit: queryDateLimit,
+        }
       };
       setResumes(updatedResumes);
 
-      setAutoEmailEnabled(checked);
       setError("");
+      toast.success(
+        checked
+          ? "Automatic email applications enabled successfully!"
+          : "Automatic email applications disabled successfully!"
+      );
     } catch (err) {
-      setError("Failed to update auto email application status");
-      // Revert the toggle if the API call failed
-      setAutoEmailEnabled(!checked);
+      setError("Failed to update automatic email application settings");
+      toast.error("Failed to update automatic email application settings");
+      setAutoEmailEnabled(!checked); // Revert the change
     } finally {
       setSavingAutoEmail(false);
     }
@@ -562,6 +714,10 @@ const Resume = () => {
           cover_letter_title: coverLetterTitle,
           cover_letter_content: coverLetterContent,
           email_send_frequency_days: emailSendFrequencyDays,
+          location_filter: locationFilter,
+          category_filter: categoryFilter,
+          confidence_range: [0.3, 1],
+          query_date_limit: queryDateLimit,
         },
         {
           headers: {
@@ -577,6 +733,12 @@ const Resume = () => {
         cover_letter_title: coverLetterTitle,
         cover_letter_content: coverLetterContent,
         email_send_frequency_days: emailSendFrequencyDays,
+        auto_email_filters: {
+          location_filter: locationFilter,
+          category_filter: categoryFilter,
+          confidence_range: [0.3, 1],
+          query_date_limit: queryDateLimit,
+        }
       };
       setResumes(updatedResumes);
 
@@ -655,16 +817,13 @@ const Resume = () => {
     if (!selectedResume) return;
 
     setLoadingScheduledEmails(true);
-    setScheduledEmailsError("");
-    
     try {
       const response = await axios.get(
         `${process.env.REACT_APP_API_URL}/applications/scheduled/${selectedResume._id}`
       );
       setScheduledEmails(response.data);
     } catch (error) {
-      console.error("Error fetching scheduled email applications:", error);
-      setScheduledEmailsError("Failed to fetch scheduled email applications");
+      console.error("Error fetching scheduled emails:", error);
     } finally {
       setLoadingScheduledEmails(false);
     }
@@ -724,6 +883,19 @@ const Resume = () => {
         fetchScheduledEmailApplications();
       } else {
         setScheduledEmails(null);
+      }
+
+      // Load filter settings when resume changes
+      if (currentResume.auto_email_filters) {
+        const filters = currentResume.auto_email_filters;
+        setLocationFilter(filters.location_filter || []);
+        setCategoryFilter(filters.category_filter || []);
+        setQueryDateLimit(filters.query_date_limit || [-1]);
+      } else {
+        // Set defaults
+        setLocationFilter([]);
+        setCategoryFilter([]);
+        setQueryDateLimit([-1]);
       }
     }
   }, [selectedResumeIndex, resumes]);
@@ -861,6 +1033,58 @@ const Resume = () => {
 
   const handleRemoveEmailCancel = () => {
     setRemoveEmailDialog({ open: false, email: null, scheduleId: null, emailType: null });
+  };
+
+  // Add filter handlers
+  const handleLocationFilterChange = (location) => {
+    let newLocationFilter;
+    
+    if (location === "all") {
+      // If "Anywhere" is selected, deselect all other locations
+      newLocationFilter = ["all"];
+    } else {
+      // If a specific location is selected, remove "Anywhere" and add the location
+      if (locationFilter.includes("all")) {
+        // Remove "all" and add the specific location
+        newLocationFilter = [location];
+      } else if (locationFilter.includes(location)) {
+        // Remove the specific location
+        newLocationFilter = locationFilter.filter((loc) => loc !== location);
+        // If no locations left, default to "all"
+        if (newLocationFilter.length === 0) {
+          newLocationFilter = ["all"];
+        }
+      } else {
+        // Add the specific location (removing "all" if it exists)
+        newLocationFilter = locationFilter.filter((loc) => loc !== "all");
+        newLocationFilter.push(location);
+      }
+    }
+    
+    setLocationFilter(newLocationFilter);
+  };
+
+  const handleCategoryFilterChange = (category) => {
+    let newCategoryFilter;
+    if (category === "all") {
+      newCategoryFilter = ["all"];
+    } else if (categoryFilter.includes("all")) {
+      newCategoryFilter = [category];
+    } else if (categoryFilter.includes(category)) {
+      newCategoryFilter = categoryFilter.filter((c) => c !== category);
+      if (newCategoryFilter.length === 0) {
+        newCategoryFilter = ["all"];
+      }
+    } else {
+      newCategoryFilter = [...categoryFilter, category];
+    }
+
+    setCategoryFilter(newCategoryFilter);
+  };
+
+  const handleQueryDateLimitChange = (event) => {
+    const value = event.target.value;
+    setQueryDateLimit(Array.isArray(value) ? value : [value]);
   };
 
   if (loading) {
@@ -1662,6 +1886,30 @@ const Resume = () => {
                   </Typography>
                 </Box>
 
+                {/* Email Filters Section */}
+                <Box sx={{ mt: 3 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+                    <Typography variant="h6" gutterBottom>
+                      Email Filters
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={<FilterListIcon />}
+                      onClick={handleOpenFiltersDialog}
+                      sx={{ 
+                        backgroundColor: "primary.main",
+                        "&:hover": { backgroundColor: "primary.dark" }
+                      }}
+                    >
+                      Set Filters
+                    </Button>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    Configure filters to control which job opportunities are included in automatic email applications. Click "Set Filters" to configure your preferences.
+                  </Typography>
+                </Box>
+
                 {/* Next Scheduled Email Section */}
                 <Box sx={{ mt: 3 }}>
                   <Box
@@ -2080,6 +2328,210 @@ const Resume = () => {
           </Button>
           <Button onClick={handleRemoveEmailConfirm} color="error" variant="contained">
             Remove
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Filters Configuration Dialog */}
+      <Dialog
+        open={filtersDialogOpen}
+        onClose={handleCancelFilters}
+        maxWidth="md"
+        fullWidth
+        aria-labelledby="filters-dialog-title"
+      >
+        <DialogTitle id="filters-dialog-title" sx={{
+          color: "white",
+          display: "flex",
+          alignItems: "center",
+          gap: 1
+        }}>
+          <FilterListIcon />
+          Configure Email Filters
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          {/* Location Filter */}
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, color: "primary.main" }}>
+              <LocationOnIcon sx={{ mr: 1, verticalAlign: "middle" }} />
+              Location Filter
+            </Typography>
+            <Grid container spacing={1}>
+              {locationOptions.map((option) => (
+                <Grid item xs={6} sm={4} key={option.value}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={tempFilters.location.includes(option.value)}
+                        onChange={(e) => {
+                          if (option.value === "all") {
+                            // If "Anywhere" is selected, deselect all others
+                            if (e.target.checked) {
+                              setTempFilters(prev => ({
+                                ...prev,
+                                location: ["all"]
+                              }));
+                            } else {
+                              setTempFilters(prev => ({
+                                ...prev,
+                                location: []
+                              }));
+                            }
+                          } else {
+                            // If a specific location is selected
+                            if (e.target.checked) {
+                              // Remove "all" and add the specific location
+                              const newLocations = tempFilters.location.filter(loc => loc !== "all");
+                              setTempFilters(prev => ({
+                                ...prev,
+                                location: [...newLocations, option.value]
+                              }));
+                            } else {
+                              // Remove the specific location
+                              const newLocations = tempFilters.location.filter(loc => loc !== option.value);
+                              if (newLocations.length === 0) {
+                                // If no locations left, default to "all"
+                                setTempFilters(prev => ({
+                                  ...prev,
+                                  location: ["all"]
+                                }));
+                              } else {
+                                setTempFilters(prev => ({
+                                  ...prev,
+                                  location: newLocations
+                                }));
+                              }
+                            }
+                          }
+                        }}
+                        size="small"
+                      />
+                    }
+                    label={option.label}
+                  />
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
+
+          {/* Category Filter */}
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, color: "primary.main" }}>
+              <CategoryIcon sx={{ mr: 1, verticalAlign: "middle" }} />
+              Category Filter
+            </Typography>
+            <Grid container spacing={1}>
+              <Grid item xs={6} sm={4}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={tempFilters.category.includes("all")}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setTempFilters(prev => ({
+                            ...prev,
+                            category: ["all"]
+                          }));
+                        } else {
+                          setTempFilters(prev => ({
+                            ...prev,
+                            category: []
+                          }));
+                        }
+                      }}
+                      size="small"
+                    />
+                  }
+                  label="All Categories"
+                />
+              </Grid>
+              {teamCategories.slice(0, 4).map((category) => (
+                <Grid item xs={6} sm={4} key={category}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={tempFilters.category.includes(category)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            // Remove "all" if it exists and add the specific category
+                            const newCategories = tempFilters.category.filter(cat => cat !== "all");
+                            setTempFilters(prev => ({
+                              ...prev,
+                              category: [...newCategories, category]
+                            }));
+                          } else {
+                            // Remove the specific category
+                            const newCategories = tempFilters.category.filter(cat => cat !== category);
+                            if (newCategories.length === 0) {
+                              // If no categories selected, default to "all"
+                              setTempFilters(prev => ({
+                                ...prev,
+                                category: ["all"]
+                              }));
+                            } else {
+                              setTempFilters(prev => ({
+                                ...prev,
+                                category: newCategories
+                              }));
+                            }
+                          }
+                        }}
+                        size="small"
+                      />
+                    }
+                    label={category}
+                  />
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
+
+          {/* Query Date Limit Filter */}
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2, color: "primary.main" }}>
+              <ScheduleIcon sx={{ mr: 1, verticalAlign: "middle" }} />
+              Query Date Limit
+            </Typography>
+            <FormControl fullWidth>
+              <InputLabel>Date Limit</InputLabel>
+              <Select
+                multiple
+                value={tempFilters.dateLimit}
+                onChange={(e) => {
+                  setTempFilters(prev => ({
+                    ...prev,
+                    dateLimit: e.target.value
+                  }));
+                }}
+                label="Date Limit"
+              >
+                {dateLimitOptions.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ p: 3, gap: 2 }}>
+          <Button 
+            onClick={handleCancelFilters} 
+            variant="outlined"
+            startIcon={<CancelIcon />}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSaveFilters} 
+            variant="contained"
+            startIcon={<SaveIcon />}
+            sx={{ 
+              backgroundColor: "primary.main",
+              "&:hover": { backgroundColor: "primary.dark" }
+            }}
+          >
+            Save Filters
           </Button>
         </DialogActions>
       </Dialog>
