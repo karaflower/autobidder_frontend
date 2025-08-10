@@ -800,14 +800,14 @@ const useSearchQueries = () => {
     }
   };
 
-  const executeAutoSearch = async (timeUnit, filterClosed, categories) => {
+  const executeAutoSearch = async (timeUnits, filterClosed, categories) => {
     try {
       setAutoSearchInProgress(true);
       startPolling();
       const response = await axios.post(
         `${process.env.REACT_APP_API_URL}/auto-search/auto-bid`,
         { 
-          timeUnit, 
+          timeUnits, // Changed from timeUnit to timeUnits (array)
           filterClosed,
           categories,
           userId: user._id
@@ -1071,23 +1071,16 @@ const SearchQueries = () => {
         ? categories.map(category => category) // Send all categories
         : selectedCategoriesForSearch;
         
-      // For multiple time units, we'll process them sequentially
-      let totalJobsFound = 0;
+      // Send all time units as a single parameter for parallel processing
+      const timeUnitsToProcess = autoSearchTimeUnits.length > 0 
+        ? autoSearchTimeUnits 
+        : ['a']; // Fallback to default time unit if none selected
       
-      if (autoSearchTimeUnits.length > 0) {
-        for (const timeUnit of autoSearchTimeUnits) {
-          const response = await executeAutoSearch(timeUnit, autoSearchFilterClosed, categoriesToSearch);
-          totalJobsFound += response.jobsFound || 0;
-        }
-      } else {
-        // Fallback to default time unit if none selected
-        const response = await executeAutoSearch('a', autoSearchFilterClosed, categoriesToSearch);
-        totalJobsFound = response.jobsFound || 0;
-      }
+      const response = await executeAutoSearch(timeUnitsToProcess, autoSearchFilterClosed, categoriesToSearch);
       
       setSnackbar({
         open: true,
-        message: `Auto-search completed! Found ${totalJobsFound} new jobs.`,
+        message: `Auto-search completed! Found ${response.jobsFound || 0} new jobs.`,
         severity: 'success',
       });
     } catch (err) {
