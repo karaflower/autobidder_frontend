@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -78,6 +78,27 @@ const ScheduledSearchDialog = ({
     categoryType: initialData?.settings?.categoryType || 
       (initialData?.settings?.categories?.includes('all') ? 'all' : 'specific')
   });
+
+  // Add useEffect to update state when initialData changes
+  useEffect(() => {
+    if (initialData) {
+      setSchedule({
+        frequency: initialData.schedule?.frequency || 'daily',
+        time: initialData.schedule?.time || generateTimeFromTeamName(teamName),
+        daysOfWeek: initialData.schedule?.daysOfWeek || [0, 1, 2, 3, 4, 5, 6],
+        dayOfMonth: initialData.schedule?.dayOfMonth || 1,
+        hourInterval: initialData.schedule?.hourInterval || 1,
+      });
+
+      setSettings({
+        timeUnits: initialData.settings?.timeUnits || ['a', 'd', 'w', 'm', 'y'],
+        filterClosed: initialData.settings?.filterClosed ?? true,
+        categories: initialData.settings?.categories || ["all"],
+        categoryType: initialData.settings?.categoryType || 
+          (initialData.settings?.categories?.includes('all') ? 'all' : 'specific')
+      });
+    }
+  }, [initialData, teamName]);
 
   const handleSave = () => {
     onSave({
