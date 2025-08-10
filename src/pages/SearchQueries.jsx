@@ -1025,6 +1025,8 @@ const SearchQueries = () => {
   const handleCategorySelect = (category) => {
     if (category === 'all') {
       setSelectedCategoriesForSearch([]);
+    } else if (category === 'uncategorized') {
+      setSelectedCategoriesForSearch(['uncategorized']);
     } else {
       setSelectedCategoriesForSearch([category]);
     }
@@ -1150,7 +1152,7 @@ const SearchQueries = () => {
   };
 
   // Modify the filteredCategories calculation
-  const filteredCategories = ['all', ...categories]
+  const filteredCategories = ['all', ...categories, 'uncategorized']
     .filter(category => 
       category && // Add null check
       (!categorySearch || category.toLowerCase().includes(categorySearch.toLowerCase()))
@@ -1602,7 +1604,15 @@ const SearchQueries = () => {
             {queries
               .filter(query => {
                 // Filter by category
-                const categoryMatch = selectedCategory === 'all' || query.category === selectedCategory;
+                let categoryMatch = false;
+                if (selectedCategory === 'all') {
+                  categoryMatch = true;
+                } else if (selectedCategory === 'uncategorized') {
+                  categoryMatch = !query.category || query.category === '' || query.category === null;
+                } else {
+                  categoryMatch = query.category === selectedCategory;
+                }
+                
                 // Filter by search term
                 const searchMatch = !querySearch || 
                   query.link.toLowerCase().includes(querySearch.toLowerCase());
@@ -2013,85 +2023,108 @@ const CategoryListItem = React.memo(({
   setOpenCategoryDialog,
   setCategoryToDelete,
   setDeleteCategoryDialogOpen
-}) => (
-  <ListItem
-    disablePadding
-    sx={{
-      borderRadius: 1,
-      mb: 0.5,
-      '&:hover': {
-        bgcolor: 'action.hover',
-      },
-    }}
-  >
-    <ListItemButton
-      selected={selectedCategory === category}
-      onClick={() => handleCategorySelect(category)}
-      sx={{ 
+}) => {
+  // Calculate count for each category
+  const getCategoryCount = (cat) => {
+    if (cat === 'all') {
+      return queries.length;
+    } else if (cat === 'uncategorized') {
+      return queries.filter(q => !q.category || q.category === '' || q.category === null).length;
+    } else {
+      return queries.filter(q => q.category === cat).length;
+    }
+  };
+
+  return (
+    <ListItem
+      disablePadding
+      sx={{
         borderRadius: 1,
-        display: 'flex',
-        alignItems: 'center',
-        pl: 0,
+        mb: 0.5,
+        '&:hover': {
+          bgcolor: 'action.hover',
+        },
       }}
     >
-      <Checkbox
-        checked={category === 'all' ? selectedCategoriesForSearch.length === 0 : selectedCategoriesForSearch.includes(category)}
-        onChange={(e) => {
-          e.stopPropagation();
-          if (category === 'all') {
-            setSelectedCategoriesForSearch([]);
-          } else if (e.target.checked) {
-            setSelectedCategoriesForSearch(prev => [...prev, category]);
-          } else {
-            setSelectedCategoriesForSearch(prev => 
-              prev.filter(cat => cat !== category)
-            );
-          }
+      <ListItemButton
+        selected={selectedCategory === category}
+        onClick={() => handleCategorySelect(category)}
+        sx={{ 
+          borderRadius: 1,
+          display: 'flex',
+          alignItems: 'center',
+          pl: 0,
         }}
-        onClick={(e) => e.stopPropagation()}
-        size="small"
-        sx={{ ml: 1 }}
-      />
-      <Box sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
-        <Typography>{category}</Typography>
-        <Chip
+      >
+        <Checkbox
+          checked={category === 'all' ? selectedCategoriesForSearch.length === 0 : 
+                   category === 'uncategorized' ? selectedCategoriesForSearch.includes('uncategorized') :
+                   selectedCategoriesForSearch.includes(category)}
+          onChange={(e) => {
+            e.stopPropagation();
+            if (category === 'all') {
+              setSelectedCategoriesForSearch([]);
+            } else if (category === 'uncategorized') {
+              if (e.target.checked) {
+                setSelectedCategoriesForSearch(prev => [...prev, 'uncategorized']);
+              } else {
+                setSelectedCategoriesForSearch(prev => 
+                  prev.filter(cat => cat !== 'uncategorized')
+                );
+              }
+            } else if (e.target.checked) {
+              setSelectedCategoriesForSearch(prev => [...prev, category]);
+            } else {
+              setSelectedCategoriesForSearch(prev => 
+                prev.filter(cat => cat !== category)
+              );
+            }
+          }}
+          onClick={(e) => e.stopPropagation()}
           size="small"
-          label={category === 'all' ? queries.length : queries.filter(q => q.category === category).length}
-          sx={{ ml: 1, fontSize: '0.7rem' }}
+          sx={{ ml: 1 }}
         />
-      </Box>
-      {category !== 'all' && (
-        <Box sx={{ display: 'flex', gap: 0.5 }}>
-          <Tooltip title="Edit">
-            <IconButton
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation();
-                setEditingCategory(category);
-                setNewCategory(category);
-                setOpenCategoryDialog(true);
-              }}
-            >
-              <EditIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Delete">
-            <IconButton
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation();
-                setCategoryToDelete(category);
-                setDeleteCategoryDialogOpen(true);
-              }}
-            >
-              <DeleteIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
+        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+          <Typography>{category}</Typography>
+          <Chip
+            size="small"
+            label={getCategoryCount(category)}
+            sx={{ ml: 1, fontSize: '0.7rem' }}
+          />
         </Box>
-      )}
-    </ListItemButton>
-  </ListItem>
-));
+        {category !== 'all' && category !== 'uncategorized' && (
+          <Box sx={{ display: 'flex', gap: 0.5 }}>
+            <Tooltip title="Edit">
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditingCategory(category);
+                  setNewCategory(category);
+                  setOpenCategoryDialog(true);
+                }}
+              >
+                <EditIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Delete">
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCategoryToDelete(category);
+                  setDeleteCategoryDialogOpen(true);
+                }}
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        )}
+      </ListItemButton>
+    </ListItem>
+  );
+});
 
 const TimelineDialog = React.memo(({ 
   open, 
@@ -2110,6 +2143,8 @@ const TimelineDialog = React.memo(({
   const handleCategoryClick = React.useCallback((category) => {
     if (category === 'all') {
       setSelectedTimelineCategories([]);
+    } else if (category === 'uncategorized') {
+      setSelectedTimelineCategories(['uncategorized']);
     } else {
       setSelectedTimelineCategories([category]);
     }
@@ -2118,14 +2153,20 @@ const TimelineDialog = React.memo(({
   // Set initial category when dialog opens
   useEffect(() => {
     if (open) {
-      setSelectedTimelineCategories(initialCategory === 'all' ? [] : [initialCategory]);
+      if (initialCategory === 'all') {
+        setSelectedTimelineCategories([]);
+      } else if (initialCategory === 'uncategorized') {
+        setSelectedTimelineCategories(['uncategorized']);
+      } else {
+        setSelectedTimelineCategories([initialCategory]);
+      }
     }
   }, [open, initialCategory, setSelectedTimelineCategories]);
 
   const MemoizedSearchTimeline = React.memo(SearchTimeline);
   const categories = React.useMemo(() => {
-    const uniqueCategories = [...new Set(queries.map(q => q.category))];
-    return ['all', ...uniqueCategories]; // Add 'all' as the first option
+    const uniqueCategories = [...new Set(queries.map(q => q.category).filter(Boolean))];
+    return ['all', ...uniqueCategories, 'uncategorized']; // Add 'uncategorized' category
   }, [queries]);
 
   return (
