@@ -666,7 +666,7 @@ const Resume = () => {
       const updatedResumes = [...resumes];
       updatedResumes[selectedResumeIndex] = {
         ...updatedResumes[selectedResumeIndex],
-        auto_email_enabled: checked,
+        auto_email_application: checked, // Changed from auto_email_enabled
         cover_letter_title: coverLetterTitle,
         cover_letter_content: coverLetterContent,
         email_send_frequency_days: emailSendFrequencyDays,
@@ -690,7 +690,7 @@ const Resume = () => {
       toast.error("Failed to update automatic email application settings");
       setAutoEmailEnabled(!checked); // Revert the change
     } finally {
-      setSavingAutoEmail(false);
+      setSavingAutoEmail(false); // Moved to finally block
     }
   };
 
