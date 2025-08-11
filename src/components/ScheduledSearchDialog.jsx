@@ -72,7 +72,7 @@ const ScheduledSearchDialog = ({
   });
 
   const [settings, setSettings] = useState({
-    timeUnits: initialData?.settings?.timeUnits || ['a', 'd', 'w', 'm', 'y'],
+    timeUnits: initialData?.settings?.timeUnits || ['d'], // Changed default from ['a', 'd', 'w', 'm', 'y'] to ['d']
     filterClosed: initialData?.settings?.filterClosed ?? true,
     categories: initialData?.settings?.categories || ["all"],
     categoryType: initialData?.settings?.categoryType || 
@@ -91,7 +91,7 @@ const ScheduledSearchDialog = ({
       });
 
       setSettings({
-        timeUnits: initialData.settings?.timeUnits || ['a', 'd', 'w', 'm', 'y'],
+        timeUnits: initialData.settings?.timeUnits || ['d'], // Changed default
         filterClosed: initialData.settings?.filterClosed ?? true,
         categories: initialData.settings?.categories || ["all"],
         categoryType: initialData.settings?.categoryType || 
@@ -224,17 +224,26 @@ const ScheduledSearchDialog = ({
                   onChange={(e) => setSettings({ ...settings, timeUnits: e.target.value })}
                   input={<OutlinedInput label="Time Range" />}
                   renderValue={(selected) => {
-                    if (selected.includes('a')) {
-                      return 'All Time';
+                    if (selected.length === 0) {
+                      return 'Select time ranges';
                     }
-                    return selected.join(', ');
+                    return selected.map(unit => {
+                      const labels = {
+                        'd': 'Past 24 Hours',
+                        'w': 'Past Week', 
+                        'm': 'Past Month',
+                        'y': 'Past Year',
+                        '': 'Any Time'
+                      };
+                      return labels[unit] || unit;
+                    }).join(', ');
                   }}
                 >
                   <MenuItem value="d">Past 24 Hours</MenuItem>
                   <MenuItem value="w">Past Week</MenuItem>
                   <MenuItem value="m">Past Month</MenuItem>
                   <MenuItem value="y">Past Year</MenuItem>
-                  <MenuItem value="a">All Time</MenuItem>
+                  <MenuItem value="">Any Time</MenuItem>
                 </Select>
               </FormControl>
             </Grid>

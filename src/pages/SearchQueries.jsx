@@ -55,7 +55,6 @@ const TIME_OPTIONS = [
   { value: 'm', label: 'Past Month' },
   { value: 'y', label: 'Past Year' },
   { value: '', label: 'Any Time' },
-  { value: 'a', label: 'All above' },
 ];
 
 const JOB_SCRAPING_TIME_OPTIONS = [
@@ -128,22 +127,19 @@ const TimeSelectionDialog = ({
   const handleTimeSelect = (value) => {
     if (allowMultiple) {
       setSelectedTimes(prev => {
-        if (value === 'a') {
-          // If "All above" is selected, include all time options except "All above" itself
-          return options.filter(opt => opt.value !== 'a').map(opt => opt.value);
-        } else if (prev.includes(value)) {
-          // Remove if already selected
-          return prev.filter(time => time !== value);
-        } else {
-          // Add to selection
-          return [...prev, value];
-        }
-      });
-    } else {
-      // Single selection mode (existing behavior)
-      onTimeSelect(value);
-    }
-  };
+      if (prev.includes(value)) {
+        // Remove if already selected
+        return prev.filter(time => time !== value);
+      } else {
+        // Add to selection
+        return [...prev, value];
+      }
+    });
+  } else {
+    // Single selection mode (existing behavior)
+    onTimeSelect(value);
+  }
+};
 
   const handleConfirm = () => {
     if (allowMultiple) {
@@ -212,16 +208,6 @@ const TimeSelectionDialog = ({
               }
               label="Filter out closed positions"
             />
-          </Box>
-        )}
-        {allowMultiple && selectedTimes.length > 0 && (
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="body2" color="text.secondary">
-              Selected: {selectedTimes.map(time => {
-                const option = options.find(opt => opt.value === time);
-                return option ? option.label : time;
-              }).join(', ')}
-            </Typography>
           </Box>
         )}
       </DialogContent>
@@ -900,7 +886,7 @@ const SearchQueries = () => {
   const [selectedQueryId, setSelectedQueryId] = useState(null);
   const [autoSearchLoading, setAutoSearchLoading] = useState(false);
   const [autoSearchDialogOpen, setAutoSearchDialogOpen] = useState(false);
-  const [autoSearchTimeUnits, setAutoSearchTimeUnits] = useState(['a']); // Changed from autoSearchTimeUnit to autoSearchTimeUnits with default ['a']
+  const [autoSearchTimeUnits, setAutoSearchTimeUnits] = useState(['']); // Changed from autoSearchTimeUnit to autoSearchTimeUnits with default ['a']
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editQuery, setEditQuery] = useState('');
   const [queryToEdit, setQueryToEdit] = useState(null);
@@ -1073,10 +1059,10 @@ const SearchQueries = () => {
         ? categories.map(category => category) // Send all categories
         : selectedCategoriesForSearch;
         
-      // Send all time units as a single parameter for parallel processing
+      // Send selected time units as an array
       const timeUnitsToProcess = autoSearchTimeUnits.length > 0 
         ? autoSearchTimeUnits 
-        : ['a']; // Fallback to default time unit if none selected
+        : ['d']; // Fallback to default time unit if none selected
       
       const response = await executeAutoSearch(timeUnitsToProcess, autoSearchFilterClosed, categoriesToSearch);
       
@@ -1745,7 +1731,7 @@ const SearchQueries = () => {
             setAutoSearchTimeUnits([]);
           }}
           title="Auto Search Settings"
-          selectedTime={autoSearchTimeUnits.length > 0 ? autoSearchTimeUnits[0] : 'a'}
+          selectedTime={autoSearchTimeUnits.length > 0 ? autoSearchTimeUnits : ['d']}
           onTimeSelect={(timeUnits) => {
             setAutoSearchTimeUnits(timeUnits);
           }}
