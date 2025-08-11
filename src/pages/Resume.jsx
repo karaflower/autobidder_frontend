@@ -164,9 +164,13 @@ const Resume = () => {
       await axios.put(
         `${process.env.REACT_APP_API_URL}/resumes/${selectedResume._id}/auto-email-settings`,
         {
-          location_filter: tempFilters.location,
-          category_filter: tempFilters.category,
-          query_date_limit: tempFilters.dateLimit,
+          cover_letter_title: coverLetterTitle,
+          cover_letter_content: coverLetterContent,
+          email_send_frequency_days: emailSendFrequencyDays,
+          location_filter: locationFilter,
+          category_filter: categoryFilter,
+          confidence_range: [0.3, 1],
+          query_date_limit: queryDateLimit,
         },
         {
           headers: {
@@ -653,22 +657,9 @@ const Resume = () => {
 
     try {
       await axios.put(
-        `${process.env.REACT_APP_API_URL}/resumes/${selectedResume._id}/auto-email`,
-        {
-          enabled: checked,
-          cover_letter_title: coverLetterTitle,
-          cover_letter_content: coverLetterContent,
-          email_send_frequency_days: emailSendFrequencyDays,
-          location_filter: locationFilter,
-          category_filter: categoryFilter,
-          confidence_range: [0.3, 1],
-          query_date_limit: queryDateLimit,
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
+        `${process.env.REACT_APP_API_URL}/resumes/${selectedResume._id}/auto-email-application`,
+        { auto_email_application: checked },
+        { headers: { "Content-Type": "application/json" } }
       );
 
       // Update the local resume data
