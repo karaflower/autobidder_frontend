@@ -721,6 +721,7 @@ const BidLinks = () => {
         newVisibleTags = {
           ...visibleTags,
           All: false,
+          Uncategorized: false, // Explicitly deselect Uncategorized
           [tag]: false,
         };
         
@@ -735,10 +736,11 @@ const BidLinks = () => {
           localStorage.setItem("strictlyFilteredJobs", JSON.stringify(true));
         }
       } else {
-        // Select this tag and deselect "All"
+        // Select this tag and deselect "All" and "Uncategorized"
         newVisibleTags = {
           ...visibleTags,
           All: false,
+          Uncategorized: false, // Explicitly deselect Uncategorized
           [tag]: true,
         };
         
