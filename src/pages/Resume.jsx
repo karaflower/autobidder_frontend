@@ -56,6 +56,7 @@ import LocationOnIcon from "@mui/icons-material/LocationOn";
 import CategoryIcon from "@mui/icons-material/Category";
 import PsychologyIcon from "@mui/icons-material/Psychology";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import TitleIcon from "@mui/icons-material/Title";
 
 // Set the worker source using a local path instead of CDN
 pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.js";
@@ -119,6 +120,9 @@ const Resume = () => {
   const { user } = useAuth();
   const [showToBidder, setShowToBidder] = useState(false);
   const [savingShowToBidder, setSavingShowToBidder] = useState(false);
+  const [editingNicknameId, setEditingNicknameId] = useState(null);
+  const [nicknameInput, setNicknameInput] = useState("");
+  const [savingNickname, setSavingNickname] = useState(false);
 
   // Add new state for filters
   const [locationFilter, setLocationFilter] = useState([]);
@@ -226,6 +230,14 @@ const Resume = () => {
             description: exp.description,
           }));
 
+          const summarizedExperienceEntries = content.summarized_experience ? content.summarized_experience.map((exp, index) => ({
+            id: index + 1,
+            company: exp.company,
+            position: exp.position,
+            duration: exp.duration,
+            description: exp.description,
+          })) : [];
+
           const educationEntries = content.education.map((edu, index) => ({
             id: index + 1,
             institution: edu.institution,
@@ -242,10 +254,12 @@ const Resume = () => {
           return {
             _id: resumeData._id,
             owner: resumeData.owner,
+            nickname: resumeData.nickname || null,
             personal_info: content.personal_info,
             profile: content.profile,
             education: educationEntries,
             experience: experienceEntries,
+            summarized_experience: summarizedExperienceEntries,
             skillset: skillEntries,
             additional_info: content.additional_info || "",
             path: resumeData.path,
@@ -445,6 +459,7 @@ const Resume = () => {
     const emptyResume = {
       _id: `temp-${Date.now()}`, // Temporary ID for local state
       owner: user._id,
+      nickname: null,
       personal_info: {
         name: "",
         title: "",
@@ -642,6 +657,11 @@ const Resume = () => {
         }
       } catch (error) {
         console.error("Error processing PDF:", error);
+        console.error("Error details:", {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status
+        });
         setError("Failed to process resume file");
       } finally {
         setIsAnalyzing(false);
@@ -844,6 +864,53 @@ const Resume = () => {
     } finally {
       setSavingShowToBidder(false);
     }
+  };
+
+  const handleSaveNickname = async (resumeId) => {
+    setSavingNickname(true);
+    try {
+      await axios.put(
+        `${process.env.REACT_APP_API_URL}/resumes/${resumeId}/nickname`,
+        { nickname: nicknameInput.trim() || null },
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      // Update local state
+      const updatedResumes = resumes.map(resume => 
+        resume._id === resumeId 
+          ? { ...resume, nickname: nicknameInput.trim() || null }
+          : resume
+      );
+      setResumes(updatedResumes);
+
+      setEditingNicknameId(null);
+      setNicknameInput("");
+      toast.success("Nickname updated successfully!");
+    } catch (err) {
+      console.error('Failed to save nickname:', err);
+      toast.error("Failed to save nickname. Please try again.");
+    } finally {
+      setSavingNickname(false);
+    }
+  };
+
+  const handleCancelNickname = () => {
+    setEditingNicknameId(null);
+    setNicknameInput("");
+  };
+
+  const handleEditNickname = (resume) => {
+    setEditingNicknameId(resume._id);
+    setNicknameInput(resume.nickname || "");
+  };
+
+  const handleStartEditNickname = (resume) => {
+    setEditingNicknameId(resume._id);
+    setNicknameInput(resume.nickname || "");
   };
 
   useEffect(() => {
@@ -1119,37 +1186,124 @@ const Resume = () => {
             {resumes.map((resume, index) => {
               // Check if Gmail token is near expiry
               const isNearExpiry = resume.gmail_status?.isNearExpiry || false;
+              const isEditingNickname = editingNicknameId === resume._id;
               
               return (
                 <ListItemButton
                   key={index}
                   selected={index === selectedResumeIndex}
                   onClick={() => setSelectedResumeIndex(index)}
+                  sx={{ 
+                    flexDirection: 'column', 
+                    alignItems: 'stretch',
+                    p: 1
+                  }}
                 >
-                  <ListItemText
-                    primary={
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                        <span>{resume.personal_info?.name || "Untitled Resume"}</span>
-                        {isNearExpiry && (
-                          <Badge 
-                            badgeContent="!"
-                            color="error"
-                            sx={{
-                              '& .MuiBadge-badge': {
-                                fontSize: '0.75rem',
-                                minWidth: '18px',
-                                height: '18px',
-                                borderRadius: '9px',
-                                backgroundColor: '#f44336',
-                                color: 'white',
-                                fontWeight: 'bold',
-                              }
-                            }}
-                          />
-                        )}
+                  {/* Resume Selection Area */}
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between', 
+                    width: '100%',
+                    mb: 1
+                  }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <input
+                        type="checkbox"
+                        checked={false}
+                        readOnly
+                        style={{ margin: 0 }}
+                      />
+                      <span style={{ fontWeight: 'bold' }}>
+                        {resume.nickname || resume.personal_info?.name || "Untitled Resume"}
+                      </span>
+                    </Box>
+                    {isNearExpiry && (
+                      <Badge 
+                        badgeContent="!"
+                        color="error"
+                        sx={{
+                          '& .MuiBadge-badge': {
+                            fontSize: '0.75rem',
+                            minWidth: '18px',
+                            height: '18px',
+                            borderRadius: '9px',
+                            backgroundColor: '#f44336',
+                            color: 'white',
+                            fontWeight: 'bold',
+                          }
+                        }}
+                      />
+                    )}
+                  </Box>
+
+                  {/* Nickname Display/Edit Area */}
+                  <Box sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between',
+                    width: '100%'
+                  }}>
+                    {isEditingNickname ? (
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+                        <TextField
+                          size="small"
+                          placeholder="Enter nickname..."
+                          value={nicknameInput}
+                          onChange={(e) => setNicknameInput(e.target.value)}
+                          sx={{ flex: 1 }}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              handleSaveNickname(resume._id);
+                            }
+                          }}
+                        />
+                        <IconButton
+                          size="small"
+                          onClick={() => handleSaveNickname(resume._id)}
+                          disabled={savingNickname}
+                          color="primary"
+                        >
+                          {savingNickname ? (
+                            <CircularProgress size={16} />
+                          ) : (
+                            <SaveIcon fontSize="small" />
+                          )}
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={handleCancelNickname}
+                          color="default"
+                        >
+                          <CancelIcon fontSize="small" />
+                        </IconButton>
                       </Box>
-                    }
-                  />
+                    ) : (
+                      <Box sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'space-between',
+                        width: '100%'
+                      }}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                          <Typography variant="caption" color="text.secondary">
+                            {resume.personal_info?.name}
+                          </Typography>
+                        </Box>
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleStartEditNickname(resume);
+                          }}
+                          color="primary"
+                          title="Edit nickname"
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    )}
+                  </Box>
                 </ListItemButton>
               );
             })}

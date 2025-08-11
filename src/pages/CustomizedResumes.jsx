@@ -219,6 +219,11 @@ const CustomizedResumes = ({ baseResumeId, dialogMode }) => {
                   </TableCell>
                   <TableCell>
                     {resume.content?.personal_info?.name || 'N/A'}
+                    {resume.nickname && (
+                      <Typography variant="caption" display="block" color="text.secondary">
+                        Nickname: {resume.nickname}
+                      </Typography>
+                    )}
                   </TableCell>
                   <TableCell>
                     {new Date(resume.generated_at).toLocaleString(undefined, {
