@@ -1231,6 +1231,7 @@ const Resume = () => {
                             backgroundColor: '#f44336',
                             color: 'white',
                             fontWeight: 'bold',
+                            marginRight: '15px'
                           }
                         }}
                       />
