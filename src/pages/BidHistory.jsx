@@ -70,6 +70,7 @@ ChartJS.register(
 const BidHistory = () => {
   const [bidHistory, setBidHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [bidHistoryLoading, setBidHistoryLoading] = useState(false);
   const [error, setError] = useState('');
   const [titleFilter, setTitleFilter] = useState('');
   const [dateFilter, setDateFilter] = useState(() => {
@@ -88,65 +89,116 @@ const BidHistory = () => {
   const [currentUserId, setCurrentUserId] = useState('');
   const [gridViewOpen, setGridViewOpen] = useState(false);
   const [userRole, setUserRole] = useState('');
+  const [userDataLoaded, setUserDataLoaded] = useState(false);
 
+  // Add these props to pass to Dashboard
+  const [dashboardProps, setDashboardProps] = useState(null);
+
+  // Step 1: Load user role and team members first
   useEffect(() => {
-    const fetchUsers = async () => {
+    const loadUserData = async () => {
       try {
-        const response = await axios.get(`${process.env.REACT_APP_API_URL}/teams/my-team`);
-        const userResponse = await axios.get(`${process.env.REACT_APP_API_URL}/auth/user`);
-        setUserRole(userResponse.data.role);
+        setLoading(true);
         
-        if (userResponse.data.role === 'lead') {
+        // Fetch user data and team members in parallel
+        const [userResponse, teamResponse] = await Promise.all([
+          axios.get(`${process.env.REACT_APP_API_URL}/auth/user`),
+          axios.get(`${process.env.REACT_APP_API_URL}/teams/my-team`)
+        ]);
+
+        const userData = userResponse.data;
+        const teamData = teamResponse.data;
+
+        setUserRole(userData.role);
+        setCurrentUserId(userData._id);
+        setSelectedUser(userData._id);
+
+        console.log('User role:', userData.role);
+
+        // Set up users list based on role
+        if (userData.role === 'lead') {
           // Lead users can see all team members
+          const otherUsers = teamData
+            .filter(user => user._id !== userData._id)
+            .sort((a, b) => {
+              // Sort members first, then bidders
+              if (a.role === 'bidder' && b.role !== 'bidder') return 1;
+              if (a.role !== 'bidder' && b.role === 'bidder') return -1;
+              return 0;
+            })
+            .map(user => ({
+              _id: user._id,
+              name: `${user.name || user.email} (${user.role === 'bidder' ? 'Bidder' : 'Member'})`
+            }));
+
           setUsersList([
-            { _id: userResponse.data._id, name: 'My Applications' },
-            ...response.data
-              .filter(user => user._id !== userResponse.data._id)
+            { _id: userData._id, name: 'My Applications' },
+            ...otherUsers
+          ]);
+        } else if (userData.role === 'member') {
+          // Members can see all team members
+          const otherUsers = teamData
+            .filter(user => user._id !== userData._id)
+            .sort((a, b) => {
+              // Sort members first, then bidders
+              if (a.role === 'bidder' && b.role !== 'bidder') return 1;
+              if (a.role !== 'bidder' && b.role === 'bidder') return -1;
+              return 0;
+            })
+            .map(user => ({
+              _id: user._id,
+              name: `${user.name || user.email} (${user.role === 'bidder' ? 'Bidder' : 'Member'})`
+            }));
+
+          setUsersList([
+            { _id: userData._id, name: 'My Applications' },
+            ...otherUsers
+          ]);
+        } else if (userData.role === 'bidder') {
+          // Bidders can see all bidders in the same team
+          console.log('bidder!!!');
+          const bidders = teamData.filter(user => user.role === 'bidder');
+          setUsersList([
+            { _id: userData._id, name: 'My Applications' },
+            ...bidders
+              .filter(user => user._id !== userData._id)
               .map(user => ({
                 _id: user._id,
-                name: user.name || user.email
+                name: `${user.name || user.email} (Bidder)`
               }))
           ]);
-        } else if (userResponse.data.role === 'member') {
-          // Normal members can see their own applications and their subordinates' applications
-          const subordinates = response.data.filter(user => user.master === userResponse.data._id);
-          setUsersList([
-            { _id: userResponse.data._id, name: 'My Applications' },
-            ...subordinates.map(user => ({
-              _id: user._id,
-              name: `${user.name || user.email} (Bidder)`
-            }))
-          ]);
         } else {
-          // For other roles, only show their own applications
-          setUsersList([{ _id: userResponse.data._id, name: 'My Applications' }]);
+          // For other roles (like boss), only show their own applications
+          setUsersList([{ _id: userData._id, name: 'My Applications' }]);
         }
-        setSelectedUser(userResponse.data._id);
+
+        // Prepare dashboard props to avoid double loading
+        setDashboardProps({
+          userRole: userData.role,
+          currentUserId: userData._id,
+          teamMembers: teamData,
+          preloaded: true
+        });
+
+        setUserDataLoaded(true);
+        setLoading(false);
       } catch (err) {
-        console.error('Failed to fetch team members:', err);
-        toast.error('Failed to fetch team members list');
+        console.error('Failed to load user data:', err);
+        toast.error('Failed to load user data');
+        setError('Failed to load user data');
+        setLoading(false);
       }
     };
 
-    fetchUsers();
+    loadUserData();
   }, []);
 
+  // Step 2: Load bid history after user data is loaded
   useEffect(() => {
-    const fetchCurrentUser = async () => {
-      try {
-        const userResponse = await axios.get(`${process.env.REACT_APP_API_URL}/auth/user`);
-        setCurrentUserId(userResponse.data._id);
-      } catch (err) {
-        console.error('Failed to fetch current user:', err);
-      }
-    };
+    if (!userDataLoaded) return;
 
-    fetchCurrentUser();
-  }, []);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true); // Set loading to true when starting to fetch data
+    const fetchBidHistory = async () => {
+      setBidHistoryLoading(true);
       try {
         const fromDate = new Date(dateFilter);
         fromDate.setHours(0, 0, 0, 0);
@@ -168,16 +220,23 @@ const BidHistory = () => {
         );
         
         setBidHistory(response.data);
-        setLoading(false);
+        setBidHistoryLoading(false);
       } catch (err) {
         console.error('Failed to fetch bid history:', err);
         setError('Failed to fetch bid history');
-        setLoading(false);
+        setBidHistoryLoading(false);
       }
     };
 
-    fetchData();
-  }, [dateFilter, selectedUser]);
+    fetchBidHistory();
+  }, [dateFilter, selectedUser, userDataLoaded]);
+
+  // Handle user selection change - clear bid history immediately
+  const handleUserChange = (newUserId) => {
+    setSelectedUser(newUserId);
+    setBidHistory([]); // Clear the bid history immediately
+    setGlobalSearchResults([]); // Also clear any search results
+  };
 
   const filteredBids = bidHistory.filter(bid => {
     const matchesTitle = bid.url.toLowerCase().includes(titleFilter.toLowerCase());
@@ -412,12 +471,12 @@ const BidHistory = () => {
         </Box>
         <Box sx={{ width: '80%', mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box sx={{ minWidth: 200 }}>
-            {(userRole === 'lead' || userRole === 'member') ? (
+            {(userRole === 'lead' || userRole === 'member' || userRole === 'bidder') ? (
               <TextField
                 select
                 label={userRole === 'lead' ? "User" : "Select Applications"}
                 value={selectedUser}
-                onChange={(e) => setSelectedUser(e.target.value)}
+                onChange={(e) => handleUserChange(e.target.value)}
                 variant="outlined"
                 size="small"
                 fullWidth
@@ -464,152 +523,153 @@ const BidHistory = () => {
           </Box>
         </Box>
 
-        {/* Show loading or table based on loading state */}
-        {loading ? (
-          <Box sx={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            alignItems: 'center', 
-            minHeight: '400px',
-            width: '80%'
-          }}>
-            <Box sx={{ textAlign: 'center' }}>
-              <CircularProgress size={60} />
-              <Typography sx={{ mt: 2, fontSize: '1.1rem' }}>
-                Loading bid history...
-              </Typography>
-            </Box>
-          </Box>
-        ) : (
-          <TableContainer component={Paper} sx={{ maxWidth: '80%', padding: '20px' }}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell width="50px">#</TableCell>
-                  <TableCell>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1}}>
-                      Link
-                      <TextField
-                        size="small"
-                        placeholder="filter..."
-                        value={titleFilter}
-                        variant="standard"
-                        onChange={(e) => setTitleFilter(e.target.value)}
-                        sx={{ ml: 1 }}
-                      />
-                      <Tooltip title={globalSearchResults.length > 0 ? "Clear Search" : "Global Search (Ctrl+Enter)"}>
-                        <Button
-                          variant="outlined"
-                          onClick={globalSearchResults.length > 0 ? handleClearSearch : handleGlobalSearch}
-                          disabled={isSearching}
-                          sx={{ maxWidth: 'max-content' }}
-                        >
-                          {isSearching ? (
-                            <CircularProgress size={20} />
-                          ) : globalSearchResults.length > 0 ? (
-                            <CloseIcon sx={{ color: 'red' }}/>
-                          ) : (
-                            <ManageSearchIcon />
-                          )}
-                        </Button>
-                      </Tooltip>
-                    </Box>
-                  </TableCell>
-                  <TableCell>Profile</TableCell>
-                  <TableCell sx={{ display: 'flex', placeItems: 'baseline', height: '68.5px' }}>
-                    Date
+        <TableContainer component={Paper} sx={{ maxWidth: '80%', padding: '20px' }}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell width="50px">#</TableCell>
+                <TableCell>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1}}>
+                    Link
                     <TextField
-                      type="date"
-                      variant="standard"
                       size="small"
-                      value={dateFilter}
-                      onChange={(e) => setDateFilter(e.target.value)}
-                      sx={{ ml:1, maxWidth: '120px' }}
+                      placeholder="filter..."
+                      value={titleFilter}
+                      variant="standard"
+                      onChange={(e) => setTitleFilter(e.target.value)}
+                      sx={{ ml: 1 }}
                     />
+                    <Tooltip title={globalSearchResults.length > 0 ? "Clear Search" : "Global Search (Ctrl+Enter)"}>
+                      <Button
+                        variant="outlined"
+                        onClick={globalSearchResults.length > 0 ? handleClearSearch : handleGlobalSearch}
+                        disabled={isSearching}
+                        sx={{ maxWidth: 'max-content' }}
+                      >
+                        {isSearching ? (
+                          <CircularProgress size={20} />
+                        ) : globalSearchResults.length > 0 ? (
+                          <CloseIcon sx={{ color: 'red' }}/>
+                        ) : (
+                          <ManageSearchIcon />
+                        )}
+                      </Button>
+                    </Tooltip>
+                  </Box>
+                </TableCell>
+                <TableCell>Profile</TableCell>
+                <TableCell sx={{ display: 'flex', placeItems: 'baseline', height: '68.5px' }}>
+                  Date
+                  <TextField
+                    type="date"
+                    variant="standard"
+                    size="small"
+                    value={dateFilter}
+                    onChange={(e) => setDateFilter(e.target.value)}
+                    sx={{ ml:1, maxWidth: '120px' }}
+                  />
+                </TableCell>
+                <TableCell></TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {displayedBids.map((bid, index) => (
+                <TableRow key={bid._id}>
+                  <TableCell>{index + 1}</TableCell>
+                  <TableCell>
+                    <Link 
+                      href={bid.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      sx={{
+                        textDecoration: 'none',
+                        "&:visited": (theme) => ({
+                          color: theme.palette.mode === 'dark' ? '#e0b0ff' : 'purple'
+                        })
+                      }}
+                    >
+                      {bid.url.length > 60 ? bid.url.substring(0, 60) + '...' : bid.url}
+                    </Link>
                   </TableCell>
-                  <TableCell></TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {displayedBids.map((bid, index) => (
-                  <TableRow key={bid._id}>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell>
-                      <Link 
-                        href={bid.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        sx={{
-                          textDecoration: 'none',
-                          "&:visited": (theme) => ({
-                            color: theme.palette.mode === 'dark' ? '#e0b0ff' : 'purple'
-                          })
+                  <TableCell>
+                    {bid.profile ? (
+                      <Typography 
+                        variant="body2" 
+                        sx={{ 
+                          backgroundColor: '#008B8B',
+                          color: 'white', 
+                          px: 1, 
+                          py: 0.5, 
+                          borderRadius: 1,
+                          display: 'inline-block',
+                          fontSize: '0.75rem'
                         }}
                       >
-                        {bid.url.length > 60 ? bid.url.substring(0, 60) + '...' : bid.url}
+                        {bid.profile}
+                      </Typography>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                        No profile
+                      </Typography>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {new Date(bid.timestamp).toLocaleString(undefined, {
+                      year: 'numeric',
+                      month: 'numeric',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </TableCell>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Link
+                        component="button"
+                        onClick={() => handleOpenDetails(bid)}
+                        sx={{ cursor: 'pointer' }}
+                      >
+                        <Tooltip title="Details">
+                          <ViewHeadlineIcon />
+                        </Tooltip>
                       </Link>
-                    </TableCell>
-                    <TableCell>
-                      {bid.profile ? (
-                        <Typography 
-                          variant="body2" 
-                          sx={{ 
-                            backgroundColor: '#008B8B',
-                            color: 'white', 
-                            px: 1, 
-                            py: 0.5, 
-                            borderRadius: 1,
-                            display: 'inline-block',
-                            fontSize: '0.75rem'
-                          }}
-                        >
-                          {bid.profile}
-                        </Typography>
-                      ) : (
-                        <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                          No profile
-                        </Typography>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {new Date(bid.timestamp).toLocaleString(undefined, {
-                        year: 'numeric',
-                        month: 'numeric',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', gap: 1 }}>
+                      {selectedUser === currentUserId && (
                         <Link
                           component="button"
-                          onClick={() => handleOpenDetails(bid)}
-                          sx={{ cursor: 'pointer' }}
+                          onClick={() => handleDelete(bid._id)}
+                          sx={{ cursor: 'pointer', color: 'error.main' }}
                         >
-                          <Tooltip title="Details">
-                            <ViewHeadlineIcon />
+                          <Tooltip title="Delete">
+                            <DeleteIcon />
                           </Tooltip>
                         </Link>
-                        {selectedUser === currentUserId && (
-                          <Link
-                            component="button"
-                            onClick={() => handleDelete(bid._id)}
-                            sx={{ cursor: 'pointer', color: 'error.main' }}
-                          >
-                            <Tooltip title="Delete">
-                              <DeleteIcon />
-                            </Tooltip>
-                          </Link>
-                        )}
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        )}
+                      )}
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          
+          {/* Loading indicator below the table */}
+          {bidHistoryLoading && (
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'center', 
+              alignItems: 'center', 
+              py: 4,
+              borderTop: '1px solid #e0e0e0',
+              mt: 2
+            }}>
+              <Box sx={{ textAlign: 'center' }}>
+                <CircularProgress size={40} />
+                <Typography sx={{ mt: 1, fontSize: '0.9rem', color: 'text.secondary' }}>
+                  Loading bid history...
+                </Typography>
+              </Box>
+            </Box>
+          )}
+        </TableContainer>
       </Box>
 
       <Dialog
@@ -786,7 +846,18 @@ const BidHistory = () => {
         fullWidth
       >
         <DialogContent>
-          <Dashboard />
+          {dashboardProps ? (
+            <Dashboard 
+              userRole={dashboardProps.userRole}
+              currentUserId={dashboardProps.currentUserId}
+              teamMembers={dashboardProps.teamMembers}
+              preloaded={dashboardProps.preloaded}
+            />
+          ) : (
+            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
+              <CircularProgress />
+            </Box>
+          )}
         </DialogContent>
       </Dialog>
     </>

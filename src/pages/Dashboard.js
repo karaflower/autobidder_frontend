@@ -23,7 +23,7 @@ ChartJS.register(
   Legend
 );
 
-const Dashboard = () => {
+const Dashboard = ({ userRole: propUserRole, currentUserId: propCurrentUserId, teamMembers: propTeamMembers, preloaded }) => {
   const [bidData, setBidData] = useState({});
   const [selectedMember, setSelectedMember] = useState('all');
   const [teamMembers, setTeamMembers] = useState([]);
@@ -34,44 +34,90 @@ const Dashboard = () => {
   const [userRole, setUserRole] = useState('');
   const [currentUserId, setCurrentUserId] = useState('');
 
+  // Use props if provided, otherwise fetch data
   useEffect(() => {
-    // Fetch current user info and role
-    const fetchCurrentUser = async () => {
-      try {
-        const userResponse = await axios.get(`${process.env.REACT_APP_API_URL}/auth/user`);
-        setUserRole(userResponse.data.role);
-        setCurrentUserId(userResponse.data._id);
-      } catch (error) {
-        console.error('Error fetching current user:', error);
-        setError('Error fetching user information');
+    if (preloaded && propUserRole && propCurrentUserId && propTeamMembers) {
+      // Use preloaded data
+      setUserRole(propUserRole);
+      setCurrentUserId(propCurrentUserId);
+      setTeamMembers(propTeamMembers);
+      
+      // Generate colors for team members
+      const colors = {};
+      propTeamMembers.forEach(member => {
+        colors[member._id] = getRandomColor();
+      });
+      setMemberColors(colors);
+      
+      // Set default selected member
+      if (propTeamMembers.length === 1) {
+        setSelectedMember(propTeamMembers[0]._id);
+      } else if (propUserRole === 'lead') {
+        setSelectedMember('all');
+      } else {
+        setSelectedMember(propCurrentUserId);
       }
-    };
+    } else {
+      // Fetch current user info and role (original logic)
+      const fetchCurrentUser = async () => {
+        try {
+          const userResponse = await axios.get(`${process.env.REACT_APP_API_URL}/auth/user`);
+          setUserRole(userResponse.data.role);
+          setCurrentUserId(userResponse.data._id);
+        } catch (error) {
+          console.error('Error fetching current user:', error);
+          setError('Error fetching user information');
+        }
+      };
 
-    fetchCurrentUser();
-  }, []);
+      fetchCurrentUser();
+    }
+  }, [preloaded, propUserRole, propCurrentUserId, propTeamMembers]);
 
   useEffect(() => {
-    // Fetch team members only if user is lead
+    // Only fetch team members if not preloaded
+    if (preloaded) return;
+
     const fetchTeamMembers = async () => {
-      if (userRole !== 'lead') {
-        // For non-lead users, only set their own data
-        setTeamMembers([{ _id: currentUserId, name: 'My Applications' }]);
-        setSelectedMember(currentUserId);
-        return;
-      }
-
       setError(null);
       setIsLoading(true);
       try {
         const response = await axios.get(`${process.env.REACT_APP_API_URL}/teams/my-team`);
-        setTeamMembers(response.data);
+        const userResponse = await axios.get(`${process.env.REACT_APP_API_URL}/auth/user`);
+        
+        let filteredMembers = [];
+        
+        if (userResponse.data.role === 'lead') {
+          // Lead users can see all team members
+          filteredMembers = response.data;
+        } else if (userResponse.data.role === 'member') {
+          // Members can see all team members
+          filteredMembers = response.data;
+        } else if (userResponse.data.role === 'bidder') {
+          // Bidders can see all bidders in the same team
+          filteredMembers = response.data.filter(user => user.role === 'bidder');
+        } else {
+          // For other roles, only show their own data
+          filteredMembers = [userResponse.data];
+        }
+        
+        setTeamMembers(filteredMembers);
         
         // Generate and store a color for each team member
         const colors = {};
-        response.data.forEach(member => {
+        filteredMembers.forEach(member => {
           colors[member._id] = getRandomColor();
         });
         setMemberColors(colors);
+        
+        // Set default selected member
+        if (filteredMembers.length === 1) {
+          setSelectedMember(filteredMembers[0]._id);
+        } else if (userResponse.data.role === 'lead') {
+          setSelectedMember('all');
+        } else {
+          setSelectedMember(userResponse.data._id);
+        }
       } catch (error) {
         setError('Error fetching team members: ' + (error.response?.data?.message || error.message));
       } finally {
@@ -79,10 +125,8 @@ const Dashboard = () => {
       }
     };
 
-    if (currentUserId && userRole) {
-      fetchTeamMembers();
-    }
-  }, [userRole, currentUserId]);
+    fetchTeamMembers();
+  }, [preloaded]);
 
   useEffect(() => {
     // Fetch bid history when member or date range changes
@@ -198,12 +242,25 @@ const Dashboard = () => {
             value={selectedMember}
             onChange={(e) => setSelectedMember(e.target.value)}
             className="member-select"
-            disabled={isLoading}
           >
             <option value="all">All Members</option>
             {teamMembers.map(member => (
               <option key={member._id} value={member._id}>
                 {member.name}
+              </option>
+            ))}
+          </select>
+        )}
+
+        {(userRole === 'member' || userRole === 'bidder') && teamMembers.length > 1 && (
+          <select 
+            value={selectedMember}
+            onChange={(e) => setSelectedMember(e.target.value)}
+            className="member-select"
+          >
+            {teamMembers.map(member => (
+              <option key={member._id} value={member._id}>
+                {member.name} {member.role === 'bidder' ? '(Bidder)' : '(Member)'}
               </option>
             ))}
           </select>
