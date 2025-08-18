@@ -1609,12 +1609,14 @@ const Resume = () => {
                             {exp.duration}
                           </Typography>
                           <br />
-                          {exp.description.split("\n").map((line, index) => (
-                            <React.Fragment key={index}>
-                              {line}
-                              <br />
-                            </React.Fragment>
-                          ))}
+                          {exp.description && typeof exp.description === 'string' 
+                            ? exp.description.split("\n").map((line, index) => (
+                                <React.Fragment key={index}>
+                                  {line}
+                                  <br />
+                                </React.Fragment>
+                              ))
+                            : exp.description || ''}
                         </>
                       }
                     />
