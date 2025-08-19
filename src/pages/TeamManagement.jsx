@@ -21,7 +21,18 @@ import {
   MenuItem,
   Select
 } from '@mui/material';
-import { Edit, Delete, Lock, PersonRemove, PersonAdd, SupervisorAccount, SwapHoriz, MoreVert } from '@mui/icons-material';
+import { 
+  Edit, 
+  Delete, 
+  Lock, 
+  PersonRemove, 
+  PersonAdd, 
+  SupervisorAccount, 
+  SwapHoriz, 
+  MoreVert,
+  Add,
+  Remove
+} from '@mui/icons-material';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -41,6 +52,9 @@ const TeamManagement = () => {
   const [pendingBidderId, setPendingBidderId] = useState(null);
   const [isEditingExistingBidder, setIsEditingExistingBidder] = useState(false);
   const [selectedMaster, setSelectedMaster] = useState('');
+  const [roleDialogOpen, setRoleDialogOpen] = useState(false);
+  const [newRole, setNewRole] = useState('');
+  const [selectedTeamForRoles, setSelectedTeamForRoles] = useState(null);
 
   useEffect(() => {
     fetchTeams();
@@ -299,6 +313,37 @@ const TeamManagement = () => {
     }
   };
 
+  const handleAddRole = async () => {
+    if (!newRole.trim()) {
+      toast.error('Please enter a role name');
+      return;
+    }
+
+    try {
+      await axios.post(`${process.env.REACT_APP_API_URL}/teams/add-team-role/${selectedTeamForRoles._id}`, {
+        role: newRole.trim()
+      });
+      toast.success('Role added successfully');
+      setNewRole('');
+      setRoleDialogOpen(false);
+      fetchTeams(); // Refresh teams to get updated roles
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to add role');
+    }
+  };
+
+  const handleRemoveRole = async (team, roleToRemove) => {
+    if (window.confirm(`Are you sure you want to remove the role "${roleToRemove}" from ${team.name}?`)) {
+      try {
+        await axios.delete(`${process.env.REACT_APP_API_URL}/teams/remove-team-role/${team._id}/${encodeURIComponent(roleToRemove)}`);
+        toast.success('Role removed successfully');
+        fetchTeams(); // Refresh teams to get updated roles
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to remove role');
+      }
+    }
+  };
+
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
@@ -323,8 +368,57 @@ const TeamManagement = () => {
                     },
                   }}
                 >
-                  <ListItemText primary={team.name} />
-                  <Box sx={{ display: 'flex' }}>
+                  <Box sx={{ width: '100%' }}>
+                    <ListItemText primary={team.name} />
+                    {team.role && team.role.length > 0 && (
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 1 }}>
+                        {team.role.map((role, index) => (
+                          <Box
+                            key={index}
+                            sx={{
+                              backgroundColor: 'primary.main',
+                              color: 'white',
+                              px: 1,
+                              py: 0.5,
+                              borderRadius: 1,
+                              fontSize: '0.75rem',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 0.5
+                            }}
+                          >
+                            {role}
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveRole(team, role);
+                              }}
+                              sx={{ 
+                                color: 'white', 
+                                p: 0,
+                                '&:hover': { backgroundColor: 'rgba(255,255,255,0.2)' }
+                              }}
+                            >
+                              <Remove fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        ))}
+                      </Box>
+                    )}
+                  </Box>
+                  <Box sx={{ display: 'flex', flexDirection: 'row', gap: 0.5 }}>
+                    <IconButton
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedTeamForRoles(team);
+                        setRoleDialogOpen(true);
+                      }}
+                      size="small"
+                      sx={{ color: 'primary.main' }}
+                    >
+                      <Add />
+                    </IconButton>
                     <IconButton
                       onClick={(e) => {
                         e.stopPropagation();
@@ -749,6 +843,32 @@ const TeamManagement = () => {
           <Button onClick={() => setShowMasterDialog(false)}>Cancel</Button>
           <Button onClick={handleMakeBidder} variant="contained">
             {isEditingExistingBidder ? 'Update Master' : 'Make Bidder'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add Role Dialog */}
+      <Dialog open={roleDialogOpen} onClose={() => setRoleDialogOpen(false)}>
+        <DialogTitle>
+          Add Role to {selectedTeamForRoles?.name}
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Role Name"
+            fullWidth
+            value={newRole}
+            onChange={(e) => setNewRole(e.target.value)}
+            placeholder="e.g., blockchain, special, frontend"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRoleDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleAddRole} variant="contained">
+            Add Role
           </Button>
         </DialogActions>
       </Dialog>
