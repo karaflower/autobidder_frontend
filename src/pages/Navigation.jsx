@@ -164,31 +164,29 @@ const Navigation = ({ isNavExpanded, setIsNavExpanded }) => {
           </Tooltip>
         )}
 
-        {user?.role !== 'bidder' && (
-          <>
-            <Tooltip title="Job Search" placement="right" arrow disableHoverListener={isNavExpanded}>
-              <ListItemButton
-                component={RouterLink}
-                to="/search-queries"
-                sx={{
-                  "&.Mui-selected": {
-                    backgroundColor: "action.selected",
-                  },
-                  justifyContent: isNavExpanded ? 'initial' : 'center',
-                  px: 2.5,
-                }}
-                selected={location.pathname === "/search-queries"}
-              >
-                <ListItemIcon sx={{ 
-                  minWidth: isNavExpanded ? 56 : 'auto',
-                  justifyContent: 'center',
-                }}>
-                  <SearchIcon sx={{ color: "primary.main" }} />
-                </ListItemIcon>
-                {isNavExpanded && <ListItemText primary="Job Search" />}
-              </ListItemButton>
-            </Tooltip>
-          </>
+        {(user?.role === 'lead' || user?.role === 'boss') && (
+          <Tooltip title="Job Search" placement="right" arrow disableHoverListener={isNavExpanded}>
+            <ListItemButton
+              component={RouterLink}
+              to="/search-queries"
+              sx={{
+                "&.Mui-selected": {
+                  backgroundColor: "action.selected",
+                },
+                justifyContent: isNavExpanded ? 'initial' : 'center',
+                px: 2.5,
+              }}
+              selected={location.pathname === "/search-queries"}
+            >
+              <ListItemIcon sx={{ 
+                minWidth: isNavExpanded ? 56 : 'auto',
+                justifyContent: 'center',
+              }}>
+                <SearchIcon sx={{ color: "primary.main" }} />
+              </ListItemIcon>
+              {isNavExpanded && <ListItemText primary="Job Search" />}
+            </ListItemButton>
+          </Tooltip>
         )}
 
         {/* Bid History - Show to all users including bidders */}

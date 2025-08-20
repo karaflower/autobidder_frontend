@@ -355,8 +355,10 @@ function App() {
                           </ProtectedRoute>
                         } />
                         <Route path="/search-queries" element={
-                          <ProtectedRoute forbiddenRole="bidder">
-                            <SearchQueries />
+                          <ProtectedRoute>
+                            {({ user }) => 
+                              (user.role === 'lead' || user.role === 'boss') ? <SearchQueries /> : <Navigate to="/" />
+                            }
                           </ProtectedRoute>
                         } />
                         <Route path="/ai-prompts" element={
