@@ -52,6 +52,7 @@ import {
   BarController,
   Tooltip as ChartTooltip
 } from 'chart.js';
+import PeopleIcon from '@mui/icons-material/People';
 
 // Register ChartJS components
 ChartJS.register(
@@ -93,6 +94,11 @@ const BidHistory = () => {
 
   // Add these props to pass to Dashboard
   const [dashboardProps, setDashboardProps] = useState(null);
+
+  // Add global user search state variables
+  const [globalUserSearchResults, setGlobalUserSearchResults] = useState([]);
+  const [isGlobalUserSearching, setIsGlobalUserSearching] = useState(false);
+  const [showGlobalUserResults, setShowGlobalUserResults] = useState(false);
 
   // Step 1: Load user role and team members first
   useEffect(() => {
@@ -331,7 +337,66 @@ const BidHistory = () => {
     return () => window.removeEventListener('keydown', handleKeyPress);
   }, [titleFilter]);
 
-  const displayedBids = globalSearchResults.length > 0 ? globalSearchResults : filteredBids;
+  // Add a function to get user name by userId
+  const getUserNameById = (userId) => {
+    const user = usersList.find(user => user._id === userId);
+    return user ? user.name : 'Unknown User';
+  };
+
+  const handleGlobalUserSearch = async () => {
+    if (!titleFilter.trim()) {
+      toast.error('Please enter a search term');
+      return;
+    }
+
+    setIsGlobalUserSearching(true);
+    try {
+      const response = await axios.get(
+        `${process.env.REACT_APP_API_URL}/applications/global-user-search`, {
+          params: { 
+            search: titleFilter,
+            userId: selectedUser
+          }
+        }
+      );
+      
+      // Map the response data to include user names
+      const resultsWithUserNames = Array.isArray(response.data) 
+        ? response.data.map(item => ({
+            ...item,
+            userName: getUserNameById(item.userId)
+          }))
+        : [];
+      
+      setGlobalUserSearchResults(resultsWithUserNames);
+      setShowGlobalUserResults(true);
+    } catch (error) {
+      console.error('Failed to perform global user search:', error);
+      toast.error('Failed to perform global user search');
+    } finally {
+      setIsGlobalUserSearching(false);
+    }
+  };
+
+  const handleClearGlobalUserSearch = () => {
+    setGlobalUserSearchResults([]);
+    setShowGlobalUserResults(false);
+    setTitleFilter('');
+  };
+
+  // Update the displayedBids logic to always include user information
+  const displayedBids = showGlobalUserResults 
+    ? globalUserSearchResults 
+    : (globalSearchResults.length > 0 ? globalSearchResults : filteredBids);
+
+  // Add a function to check if we should show the user column
+  const shouldShowUserColumn = () => {
+    // Show user column if we have global user search results
+    if (showGlobalUserResults) return true;
+    
+    // Show user column if we have any bids with user information
+    return displayedBids.some(bid => bid.userName || bid.userEmail || bid.userRole);
+  };
 
   const handleDelete = async (bidId) => {
     if (!window.confirm('Are you sure you want to delete this application?')) {
@@ -555,8 +620,28 @@ const BidHistory = () => {
                         )}
                       </Button>
                     </Tooltip>
+                    {userRole === 'lead' && (
+                      <Tooltip title={showGlobalUserResults ? "Clear Global User Search" : "Global User Search"}>
+                        <Button
+                          variant="outlined"
+                          color="warning"
+                          onClick={showGlobalUserResults ? handleClearGlobalUserSearch : handleGlobalUserSearch}
+                          disabled={isGlobalUserSearching}
+                          sx={{ maxWidth: 'max-content' }}
+                        >
+                          {isGlobalUserSearching ? (
+                            <CircularProgress size={20} />
+                          ) : showGlobalUserResults ? (
+                            <CloseIcon sx={{ color: 'red' }}/>
+                          ) : (
+                            <PeopleIcon />
+                          )}
+                        </Button>
+                      </Tooltip>
+                    )}
                   </Box>
                 </TableCell>
+                {shouldShowUserColumn() && <TableCell>User</TableCell>}
                 <TableCell>Profile</TableCell>
                 <TableCell sx={{ display: 'flex', placeItems: 'baseline', height: '68.5px' }}>
                   Date
@@ -591,6 +676,18 @@ const BidHistory = () => {
                       {bid.url.length > 60 ? bid.url.substring(0, 60) + '...' : bid.url}
                     </Link>
                   </TableCell>
+                  {shouldShowUserColumn() && (
+                    <TableCell>
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                          {bid.userName || getUserNameById(bid.userId) || 'Unknown User'}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {bid.userRole}
+                        </Typography>
+                      </Box>
+                    </TableCell>
+                  )}
                   <TableCell>
                     {bid.profile ? (
                       <Typography 
