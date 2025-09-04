@@ -123,6 +123,10 @@ const Resume = () => {
   const [editingNicknameId, setEditingNicknameId] = useState(null);
   const [nicknameInput, setNicknameInput] = useState("");
   const [savingNickname, setSavingNickname] = useState(false);
+  const [bidderSelectOpen, setBidderSelectOpen] = useState(false);
+
+  // Define selectedResume here so it's available throughout the component
+  const selectedResume = resumes[selectedResumeIndex] || null;
 
   // Add new state for filters
   const [locationFilter, setLocationFilter] = useState([]);
@@ -148,6 +152,11 @@ const Resume = () => {
 
   // State for team categories
   const [teamCategories, setTeamCategories] = useState([]);
+
+  // Add new state for bidder visibility
+  const [visibleToBidders, setVisibleToBidders] = useState([]);
+  const [teamBidders, setTeamBidders] = useState([]);
+  const [savingBidderVisibility, setSavingBidderVisibility] = useState(false);
 
   // Add function to handle opening filters dialog
   const handleOpenFiltersDialog = () => {
@@ -287,7 +296,8 @@ const Resume = () => {
               category_filter: [],
               confidence_range: [0.3, 1],
               query_date_limit: [-1]
-            }
+            },
+            visibleToBidders: resumeData.visibleToBidders || []
           };
         });
 
@@ -315,10 +325,64 @@ const Resume = () => {
     }
   };
 
+  // Add function to fetch team bidders
+  const fetchTeamBidders = async () => {
+    try {
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/teams/my-team`);
+      // Filter bidders who have the current user as their master
+      const bidders = response.data.filter(member => 
+        member.role === 'bidder' && 
+        member.master && 
+        member.master == user._id
+      );
+      setTeamBidders(bidders);
+    } catch (error) {
+      console.error('Error fetching team bidders:', error);
+      toast.error('Failed to fetch team bidders');
+    }
+  };
+
+  // Add function to handle bidder visibility changes
+  const handleBidderVisibilityChange = async (bidderIds) => {
+    try {
+      setSavingBidderVisibility(true);
+      
+      await axios.put(`${process.env.REACT_APP_API_URL}/resumes/${selectedResume._id}/bidder-visibility`, {
+        visibleToBidders: bidderIds
+      });
+      
+      // Update local state
+      const updatedResumes = resumes.map(resume => 
+        resume._id === selectedResume._id 
+          ? { ...resume, visibleToBidders: bidderIds }
+          : resume
+      );
+      setResumes(updatedResumes);
+      
+      setVisibleToBidders(bidderIds);
+      setBidderSelectOpen(false); // Close the select after selection
+      toast.success('Bidder visibility updated successfully');
+    } catch (error) {
+      console.error('Error updating bidder visibility:', error);
+      toast.error('Failed to update bidder visibility');
+    } finally {
+      setSavingBidderVisibility(false);
+    }
+  };
+
   useEffect(() => {
     fetchResumes();
     fetchTeamCategories();
+    fetchTeamBidders();
   }, []);
+
+  // Add useEffect to update visibleToBidders when selected resume changes
+  useEffect(() => {
+    if (selectedResume) {
+      setShowToBidder(!!selectedResume.showToBidder);
+      setVisibleToBidders(selectedResume.visibleToBidders || []);
+    }
+  }, [selectedResume]);
 
   const handleSave = async () => {
     if (!editedResume) return;
@@ -841,22 +905,21 @@ const Resume = () => {
   };
 
   const handleShowToBidderToggle = async (checked) => {
-    if (!selectedResume) return;
-    
-    setSavingShowToBidder(true);
     try {
+      setSavingShowToBidder(true);
+      
       await axios.put(`${process.env.REACT_APP_API_URL}/resumes/${selectedResume._id}/toggle-bidder-visibility`);
       
-      // Update the resume in the local state
-      const updatedResumes = resumes.map((resume, index) => {
-        if (index === selectedResumeIndex) {
-          return { ...resume, showToBidder: checked };
-        }
-        return resume;
-      });
+      // Update local state
+      const updatedResumes = resumes.map(resume => 
+        resume._id === selectedResume._id 
+          ? { ...resume, showToBidder: checked, visibleToBidders: checked ? [] : [] }
+          : resume
+      );
       setResumes(updatedResumes);
-      setShowToBidder(checked);
       
+      setShowToBidder(checked);
+      setVisibleToBidders(checked ? [] : []);
       toast.success(`Resume ${checked ? 'made visible' : 'hidden'} to bidders`);
     } catch (error) {
       console.error('Error updating showToBidder:', error);
@@ -912,51 +975,6 @@ const Resume = () => {
     setEditingNicknameId(resume._id);
     setNicknameInput(resume.nickname || "");
   };
-
-  useEffect(() => {
-    const currentResume = resumes[selectedResumeIndex];
-    if (currentResume) {
-      setAutoEmailEnabled(!!currentResume.auto_email_application);
-      setCoverLetterTitle(currentResume.cover_letter_title || "");
-      setCoverLetterContent(currentResume.cover_letter_content || "");
-      setEmailSendFrequencyDays(currentResume.email_send_frequency_days || 1.5);
-      setShowToBidder(!!currentResume.showToBidder);
-
-      if (currentResume.gmail_status) {
-        setGmailConnected(currentResume.gmail_status.connected);
-        setGmailEmail(currentResume.gmail_status.email);
-        setGmailTokenExpiryDate(
-          currentResume.gmail_status.tokenExpiryDate
-            ? new Date(currentResume.gmail_status.tokenExpiryDate)
-            : null
-        );
-      }
-
-      if (currentResume.gmail_cleanup_status) {
-        setGmailCleanup(currentResume.gmail_cleanup_status.gmail_auto_cleanup);
-      }
-
-      // Fetch scheduled email applications if auto email is enabled
-      if (currentResume.auto_email_application) {
-        fetchScheduledEmailApplications();
-      } else {
-        setScheduledEmails(null);
-      }
-
-      // Load filter settings when resume changes
-      if (currentResume.auto_email_filters) {
-        const filters = currentResume.auto_email_filters;
-        setLocationFilter(filters.location_filter || []);
-        setCategoryFilter(filters.category_filter || []);
-        setQueryDateLimit(filters.query_date_limit || [-1]);
-      } else {
-        // Set defaults
-        setLocationFilter([]);
-        setCategoryFilter([]);
-        setQueryDateLimit([-1]);
-      }
-    }
-  }, [selectedResumeIndex, resumes]);
 
   const handleGmailCleanupToggle = async (checked) => {
     if (!selectedResume) return;
@@ -1158,13 +1176,13 @@ const Resume = () => {
     );
   }
 
-  const selectedResume = resumes[selectedResumeIndex] || null;
+  // Remove the duplicate selectedResume definition
   const displayedResume = isEditing ? editedResume : selectedResume;
 
   return (
     <Box sx={{ display: "flex", gap: 2, p: 2, maxWidth: 1200, mx: "auto" }}>
       {/* Left sidebar with resume list */}
-      <Paper sx={{ width: 300, p: 2 }}>
+      <Paper sx={{ width: 300, p: 2, position: "fixed", height: "90%", overflowY: "auto" }}>
         <Box
           display="flex"
           justifyContent="space-between"
@@ -1314,7 +1332,7 @@ const Resume = () => {
 
       {/* Right side with resume details */}
       {displayedResume && resumes.length > 0 && (
-        <Paper sx={{ flex: 1, p: 4 }}>
+        <Paper sx={{ flex: 1, p: 4, marginLeft: "320px" }}>
           <Box display="flex" justifyContent="flex-end" mb={2}>
             {!isEditing ? (
               <>
@@ -1822,7 +1840,7 @@ const Resume = () => {
             )}
           </Box>
 
-          {/* Bidder Visibility Section - Add this before the Gmail API Integration Section */}
+          {/* Bidder Visibility Section */}
           <Box sx={{ mt: 3, mb: 4 }}>
             <Box
               display="flex"
@@ -1854,8 +1872,55 @@ const Resume = () => {
                 </Typography>
               </Alert>
               
+              {showToBidder && teamBidders.length > 0 && (
+                <Box sx={{ mt: 2, mb: 2 }}>
+                  <FormControl fullWidth>
+                    <InputLabel>Visible to specific bidders</InputLabel>
+                    <Select
+                      multiple
+                      open={bidderSelectOpen}
+                      onOpen={() => setBidderSelectOpen(true)}
+                      onClose={() => setBidderSelectOpen(false)}
+                      value={visibleToBidders}
+                      onChange={(e) => handleBidderVisibilityChange(e.target.value)}
+                      renderValue={(selected) => (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                          {selected.map((bidderId) => {
+                            const bidder = teamBidders.find(b => b._id === bidderId);
+                            return (
+                              <Chip 
+                                key={bidderId} 
+                                label={bidder ? bidder.name : bidderId} 
+                                size="small" 
+                              />
+                            );
+                          })}
+                        </Box>
+                      )}
+                      disabled={savingBidderVisibility}
+                    >
+                      {teamBidders.map((bidder) => (
+                        <MenuItem key={bidder._id} value={bidder._id}>
+                          <Checkbox checked={visibleToBidders.indexOf(bidder._id) > -1} />
+                          <ListItemText primary={bidder.name} secondary={bidder.email} />
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                    {visibleToBidders.length === 0 
+                      ? 'Leave empty to make visible to all bidders in your team'
+                      : `Visible to ${visibleToBidders.length} selected bidder(s)`
+                    }
+                  </Typography>
+                </Box>
+              )}
+              
               <Typography variant="body2" color="text.secondary">
                 <strong>Current status:</strong> {showToBidder ? 'Visible to bidders' : 'Hidden from bidders'}
+                {showToBidder && visibleToBidders.length > 0 && (
+                  <span> - Limited to {visibleToBidders.length} specific bidder(s)</span>
+                )}
               </Typography>
             </Box>
           </Box>
@@ -2117,7 +2182,7 @@ const Resume = () => {
                                 {index === 0 ? "Next Schedule" : `Schedule ${index + 1}`}
                               </Typography>
                             </Box>
-                            <Chip
+                              <Chip 
                               label={`${schedule.totalEmails} emails`}
                               color="primary"
                               variant="outlined"
@@ -2136,7 +2201,7 @@ const Resume = () => {
                             </Typography>
                             <Box display="flex" gap={1}>
                               <TextField
-                                size="small"
+                                size="small" 
                                 placeholder="Enter email address"
                                 value={additionalEmailInput}
                                 onChange={(e) => setAdditionalEmailInput(e.target.value)}
@@ -2156,7 +2221,7 @@ const Resume = () => {
                               >
                                 Add
                               </Button>
-                            </Box>
+                        </Box>
                           </Box>
 
                           <Typography variant="subtitle2" gutterBottom>
@@ -2295,7 +2360,7 @@ const Resume = () => {
             >
               <Typography variant="h5" gutterBottom>
                 Automatic Gmail Management
-              </Typography>
+                  </Typography>
               <FormControlLabel
                 control={
                   <Switch
@@ -2314,8 +2379,8 @@ const Resume = () => {
                 <Alert severity="error">
                   <Typography variant="body2">{cleanupError}</Typography>
                 </Alert>
-              </Box>
-            )}
+                </Box>
+              )}
           </Box>
 
           {/* Add new Dialog for Customized Resumes */}

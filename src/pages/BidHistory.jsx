@@ -141,10 +141,10 @@ const BidHistory = () => {
             { _id: userData._id, name: 'My Applications' },
             ...otherUsers
           ]);
-        } else if (userData.role === 'member') {
-          // Members can see all team members
-          const otherUsers = teamData
-            .filter(user => user._id !== userData._id)
+        } else {
+          // For non-leads: only show current user and their bidders (master relationship)
+          const myBidders = teamData
+            .filter(user => user.master && user.master.toString() === userData._id.toString())
             .sort((a, b) => {
               // Sort members first, then bidders
               if (a.role === 'bidder' && b.role !== 'bidder') return 1;
@@ -158,24 +158,8 @@ const BidHistory = () => {
 
           setUsersList([
             { _id: userData._id, name: 'My Applications' },
-            ...otherUsers
+            ...myBidders
           ]);
-        } else if (userData.role === 'bidder') {
-          // Bidders can see all bidders in the same team
-          console.log('bidder!!!');
-          const bidders = teamData.filter(user => user.role === 'bidder');
-          setUsersList([
-            { _id: userData._id, name: 'My Applications' },
-            ...bidders
-              .filter(user => user._id !== userData._id)
-              .map(user => ({
-                _id: user._id,
-                name: `${user.name || user.email} (Bidder)`
-              }))
-          ]);
-        } else {
-          // For other roles (like boss), only show their own applications
-          setUsersList([{ _id: userData._id, name: 'My Applications' }]);
         }
 
         // Prepare dashboard props to avoid double loading
@@ -384,10 +368,22 @@ const BidHistory = () => {
     setTitleFilter('');
   };
 
-  // Update the displayedBids logic to always include user information
-  const displayedBids = showGlobalUserResults 
-    ? globalUserSearchResults 
-    : (globalSearchResults.length > 0 ? globalSearchResults : filteredBids);
+  // Update the displayedBids logic to filter search results for non-leads
+  const displayedBids = (() => {
+    let bids = showGlobalUserResults 
+      ? globalUserSearchResults 
+      : (globalSearchResults.length > 0 ? globalSearchResults : filteredBids);
+    
+    // Apply user filtering for non-leads
+    if (userRole !== 'lead') {
+      const allowedUserIds = usersList.map(user => user._id);
+      bids = bids.filter(bid => 
+        allowedUserIds.includes(bid.userId) || allowedUserIds.includes(selectedUser)
+      );
+    }
+    
+    return bids;
+  })();
 
   // Add a function to check if we should show the user column
   const shouldShowUserColumn = () => {
@@ -422,10 +418,19 @@ const BidHistory = () => {
   };
 
   const getTimeScatterData = (bids) => {
+    // Filter bids for chart based on user permissions
+    let chartBids = bids;
+    if (userRole !== 'lead') {
+      const allowedUserIds = usersList.map(user => user._id);
+      chartBids = bids.filter(bid => 
+        allowedUserIds.includes(bid.userId) || allowedUserIds.includes(selectedUser)
+      );
+    }
+    
     return {
       datasets: [{
         label: 'Bid Times',
-        data: bids.map(bid => ({
+        data: chartBids.map(bid => ({
           x: new Date(bid.timestamp).getHours() + (new Date(bid.timestamp).getMinutes() / 60),
           y: 1
         })),

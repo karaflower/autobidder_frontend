@@ -40,18 +40,35 @@ const Dashboard = ({ userRole: propUserRole, currentUserId: propCurrentUserId, t
       // Use preloaded data
       setUserRole(propUserRole);
       setCurrentUserId(propCurrentUserId);
-      setTeamMembers(propTeamMembers);
+      
+      // Apply same filtering logic as BidHistory
+      let filteredMembers = [];
+      if (propUserRole === 'lead') {
+        // Lead users can see all team members
+        filteredMembers = propTeamMembers;
+      } else {
+        // For non-leads: only show current user and their bidders (master relationship)
+        const myBidders = propTeamMembers.filter(user => 
+          user.master && user.master.toString() === propCurrentUserId.toString()
+        );
+        filteredMembers = [
+          propTeamMembers.find(user => user._id === propCurrentUserId),
+          ...myBidders
+        ].filter(Boolean); // Remove any undefined entries
+      }
+      
+      setTeamMembers(filteredMembers);
       
       // Generate colors for team members
       const colors = {};
-      propTeamMembers.forEach(member => {
+      filteredMembers.forEach(member => {
         colors[member._id] = getRandomColor();
       });
       setMemberColors(colors);
       
       // Set default selected member
-      if (propTeamMembers.length === 1) {
-        setSelectedMember(propTeamMembers[0]._id);
+      if (filteredMembers.length === 1) {
+        setSelectedMember(filteredMembers[0]._id);
       } else if (propUserRole === 'lead') {
         setSelectedMember('all');
       } else {
@@ -90,15 +107,15 @@ const Dashboard = ({ userRole: propUserRole, currentUserId: propCurrentUserId, t
         if (userResponse.data.role === 'lead') {
           // Lead users can see all team members
           filteredMembers = response.data;
-        } else if (userResponse.data.role === 'member') {
-          // Members can see all team members
-          filteredMembers = response.data;
-        } else if (userResponse.data.role === 'bidder') {
-          // Bidders can see all bidders in the same team
-          filteredMembers = response.data.filter(user => user.role === 'bidder');
         } else {
-          // For other roles, only show their own data
-          filteredMembers = [userResponse.data];
+          // For non-leads: only show current user and their bidders (master relationship)
+          const myBidders = response.data.filter(user => 
+            user.master && user.master.toString() === userResponse.data._id.toString()
+          );
+          filteredMembers = [
+            userResponse.data,
+            ...myBidders
+          ];
         }
         
         setTeamMembers(filteredMembers);
