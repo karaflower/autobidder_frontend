@@ -384,6 +384,36 @@ const Resume = () => {
     }
   }, [selectedResume]);
 
+  // Add useEffect to update Gmail and auto email settings when selected resume changes
+  useEffect(() => {
+    if (selectedResume) {
+      // Update auto email settings
+      setAutoEmailEnabled(!!selectedResume.auto_email_application);
+      setCoverLetterTitle(selectedResume.cover_letter_title || "");
+      setCoverLetterContent(selectedResume.cover_letter_content || "");
+      setEmailSendFrequencyDays(selectedResume.email_send_frequency_days || 1.5);
+      
+      // Update Gmail connection status
+      setGmailConnected(!!selectedResume.gmail_status?.connected);
+      setGmailEmail(selectedResume.gmail_status?.email || selectedResume.gmail_email || "");
+      setGmailTokenExpiryDate(
+        selectedResume.gmail_status?.tokenExpiryDate 
+          ? new Date(selectedResume.gmail_status.tokenExpiryDate) 
+          : null
+      );
+      
+      // Update Gmail cleanup settings
+      setGmailCleanup(!!selectedResume.gmail_cleanup_status?.gmail_auto_cleanup);
+      
+      // Update filters
+      if (selectedResume.auto_email_filters) {
+        setLocationFilter(selectedResume.auto_email_filters.location_filter || []);
+        setCategoryFilter(selectedResume.auto_email_filters.category_filter || []);
+        setQueryDateLimit(selectedResume.auto_email_filters.query_date_limit || [-1]);
+      }
+    }
+  }, [selectedResume]);
+
   const handleSave = async () => {
     if (!editedResume) return;
 
