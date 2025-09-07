@@ -121,46 +121,31 @@ const BidHistory = () => {
 
         console.log('User role:', userData.role);
 
-        // Set up users list based on role
-        if (userData.role === 'lead') {
-          // Lead users can see all team members
-          const otherUsers = teamData
-            .filter(user => user._id !== userData._id)
-            .sort((a, b) => {
-              // Sort members first, then bidders
-              if (a.role === 'bidder' && b.role !== 'bidder') return 1;
-              if (a.role !== 'bidder' && b.role === 'bidder') return -1;
-              return 0;
-            })
-            .map(user => ({
-              _id: user._id,
-              name: `${user.name || user.email} (${user.role === 'bidder' ? 'Bidder' : 'Member'})`
-            }));
+        // Set up users list - show all team members and bidders for everyone
+        const allTeamUsers = teamData
+          .filter(user => user._id !== userData._id)
+          .sort((a, b) => {
+            // Sort by role: lead first, then member, then bidder
+            const roleOrder = { 'lead': 0, 'member': 1, 'bidder': 2 };
+            const aOrder = roleOrder[a.role] || 3;
+            const bOrder = roleOrder[b.role] || 3;
+            
+            if (aOrder !== bOrder) {
+              return aOrder - bOrder;
+            }
+            
+            // If same role, sort alphabetically by name
+            return (a.name || a.email).localeCompare(b.name || b.email);
+          })
+          .map(user => ({
+            _id: user._id,
+            name: `${user.name || user.email} (${user.role === 'bidder' ? 'Bidder' : user.role === 'lead' ? 'Lead' : 'Member'})`
+          }));
 
-          setUsersList([
-            { _id: userData._id, name: 'My Applications' },
-            ...otherUsers
-          ]);
-        } else {
-          // For non-leads: only show current user and their bidders (master relationship)
-          const myBidders = teamData
-            .filter(user => user.master && user.master.toString() === userData._id.toString())
-            .sort((a, b) => {
-              // Sort members first, then bidders
-              if (a.role === 'bidder' && b.role !== 'bidder') return 1;
-              if (a.role !== 'bidder' && b.role === 'bidder') return -1;
-              return 0;
-            })
-            .map(user => ({
-              _id: user._id,
-              name: `${user.name || user.email} (${user.role === 'bidder' ? 'Bidder' : 'Member'})`
-            }));
-
-          setUsersList([
-            { _id: userData._id, name: 'My Applications' },
-            ...myBidders
-          ]);
-        }
+        setUsersList([
+          { _id: userData._id, name: 'My Applications' },
+          ...allTeamUsers
+        ]);
 
         // Prepare dashboard props to avoid double loading
         setDashboardProps({
@@ -368,20 +353,13 @@ const BidHistory = () => {
     setTitleFilter('');
   };
 
-  // Update the displayedBids logic to filter search results for non-leads
+  // Update the displayedBids logic to show all results without filtering
   const displayedBids = (() => {
     let bids = showGlobalUserResults 
       ? globalUserSearchResults 
       : (globalSearchResults.length > 0 ? globalSearchResults : filteredBids);
     
-    // Apply user filtering for non-leads
-    if (userRole !== 'lead') {
-      const allowedUserIds = usersList.map(user => user._id);
-      bids = bids.filter(bid => 
-        allowedUserIds.includes(bid.userId) || allowedUserIds.includes(selectedUser)
-      );
-    }
-    
+    // Remove user filtering - show all bids regardless of user role
     return bids;
   })();
 
