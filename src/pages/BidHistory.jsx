@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Paper,
   Table,
@@ -38,7 +38,7 @@ import ImageListItemBar from '@mui/material/ImageListItemBar';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import 'react-toastify/dist/ReactToastify.css';
 import Dashboard from './Dashboard';
-import { Scatter } from 'react-chartjs-2';
+import { Scatter, Line } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -53,6 +53,7 @@ import {
   Tooltip as ChartTooltip
 } from 'chart.js';
 import PeopleIcon from '@mui/icons-material/People';
+import BarChartIcon from '@mui/icons-material/BarChart';
 
 // Register ChartJS components
 ChartJS.register(
@@ -94,6 +95,30 @@ const BidHistory = () => {
 
   // Add these props to pass to Dashboard
   const [dashboardProps, setDashboardProps] = useState(null);
+
+  // Add new state variables for the call chart dialog
+  const [callChartOpen, setCallChartOpen] = useState(false);
+  const [selectedChartUser, setSelectedChartUser] = useState('');
+  const [selectedChartResume, setSelectedChartResume] = useState('');
+  const [userResumes, setUserResumes] = useState([]);
+  const [interviewData, setInterviewData] = useState([]);
+  const [chartLoading, setChartLoading] = useState(false);
+  const [callChartDateRange, setCallChartDateRange] = useState('14');
+
+  // Filter interview data based on selected date range (similar to bid chart dashboard)
+  const filteredInterviewData = useMemo(() => {
+    const rangeDays = parseInt(callChartDateRange, 10);
+    if (!Number.isFinite(rangeDays)) return interviewData;
+    const now = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - rangeDays);
+    const startOfDay = new Date(start.getFullYear(), start.getMonth(), start.getDate(), 0, 0, 0, 0);
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    return (interviewData || []).filter(item => {
+      const itemDate = new Date(item.date);
+      return itemDate >= startOfDay && itemDate <= endOfDay;
+    });
+  }, [interviewData, callChartDateRange]);
 
   // Add global user search state variables
   const [globalUserSearchResults, setGlobalUserSearchResults] = useState([]);
@@ -490,6 +515,80 @@ const BidHistory = () => {
       .catch(() => toast.error('Failed to copy links'));
   };
 
+  // Add new functions for the call chart
+  // ... existing code ...
+
+// Add new functions for the call chart
+const handleOpenCallChart = async () => {
+  setCallChartOpen(true);
+  setSelectedChartUser(selectedUser);
+  setSelectedChartResume('');
+  setUserResumes([]);
+  setInterviewData([]);
+  
+  // Automatically load resumes for the selected user
+  if (selectedUser) {
+    try {
+      setChartLoading(true);
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/resumes/by-user/${selectedUser}`);
+      setUserResumes(response.data);
+    } catch (error) {
+      console.error('Failed to fetch user resumes:', error);
+      toast.error('Failed to fetch user resumes');
+    } finally {
+      setChartLoading(false);
+    }
+  }
+};
+
+// ... existing code ...
+
+  const handleCloseCallChart = () => {
+    setCallChartOpen(false);
+    setSelectedChartUser('');
+    setSelectedChartResume('');
+    setUserResumes([]);
+    setInterviewData([]);
+  };
+
+  const handleChartUserChange = async (userId) => {
+    setSelectedChartUser(userId);
+    setSelectedChartResume('');
+    setUserResumes([]);
+    setInterviewData([]);
+    
+    if (userId) {
+      try {
+        setChartLoading(true);
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/resumes/by-user/${userId}`);
+        setUserResumes(response.data);
+      } catch (error) {
+        console.error('Failed to fetch user resumes:', error);
+        toast.error('Failed to fetch user resumes');
+      } finally {
+        setChartLoading(false);
+      }
+    }
+  };
+
+  const handleChartResumeChange = async (resumeId) => {
+    setSelectedChartResume(resumeId);
+    setInterviewData([]);
+    
+    if (resumeId) {
+      try {
+        setChartLoading(true);
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/applications/interview-invitations/${resumeId}`);
+        setInterviewData(response.data.data || []);
+      } catch (error) {
+        console.error('Failed to fetch interview data:', error);
+        toast.error('Failed to fetch interview invitation data');
+      } finally {
+        setChartLoading(false);
+      }
+    }
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
@@ -558,7 +657,15 @@ const BidHistory = () => {
               color="primary" 
               onClick={handleOpenDashboard}
             >
-              View Chart
+              View Bid Chart
+            </Button>
+            <Button
+              variant="contained" 
+              color="secondary" 
+              onClick={handleOpenCallChart}
+              startIcon={<BarChartIcon />}
+            >
+              View Call Chart
             </Button>
             <Button
               variant="contained" 
@@ -939,6 +1046,198 @@ const BidHistory = () => {
             </Box>
           )}
         </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={callChartOpen}
+        onClose={handleCloseCallChart}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>
+          <Typography variant="h6">Interview Invitation Call Chart</Typography>
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mt: 2 }}>
+            {/* User Selection */}
+            <Box>
+              <Typography variant="subtitle1" gutterBottom>Select User</Typography>
+              <TextField
+                select
+                fullWidth
+                value={selectedChartUser}
+                onChange={(e) => handleChartUserChange(e.target.value)}
+                variant="outlined"
+                size="small"
+              >
+                {usersList.map((user) => (
+                  <MenuItem key={user._id} value={user._id}>
+                    {user.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Box>
+
+            {/* Resume Selection */}
+            {selectedChartUser && (
+              <Box>
+                <Typography variant="subtitle1" gutterBottom>Select Resume</Typography>
+                <TextField
+                  select
+                  fullWidth
+                  value={selectedChartResume}
+                  onChange={(e) => handleChartResumeChange(e.target.value)}
+                  variant="outlined"
+                  size="small"
+                  disabled={chartLoading}
+                >
+                  {userResumes.map((resume) => (
+                    <MenuItem key={resume._id} value={resume._id}>
+                      {resume.content?.personal_info?.name || resume.nickname || 'Untitled Resume'}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Box>
+            )}
+
+            {/* Date Range Selection (similar to Bid Chart Dashboard) */}
+            <Box>
+              <Typography variant="subtitle1" gutterBottom>Date Range</Typography>
+              <TextField
+                select
+                value={callChartDateRange}
+                onChange={(e) => setCallChartDateRange(e.target.value)}
+                variant="outlined"
+                size="small"
+                sx={{ minWidth: 200 }}
+                disabled={chartLoading}
+              >
+                <MenuItem value="7">Last 7 Days</MenuItem>
+                <MenuItem value="14">Last 14 Days</MenuItem>
+                <MenuItem value="30">Last 30 Days</MenuItem>
+              </TextField>
+            </Box>
+
+            {/* Chart Display */}
+            {selectedChartResume && filteredInterviewData.length > 0 && (
+              <Box sx={{ height: '400px', mt: 2 }}>
+                <Line 
+                  data={{
+                    labels: filteredInterviewData.map(item => item.date),
+                    datasets: [{
+                      label: 'Unique Interview Invitations',
+                      data: filteredInterviewData.map(item => item.count),
+                      fill: false,
+                      borderColor: 'rgb(75, 192, 192)',
+                      backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                      tension: 0.1,
+                      pointRadius: 6,
+                      pointHoverRadius: 8
+                    }]
+                  }}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      title: {
+                        display: true,
+                        text: 'Interview Invitations by Day (Unique by From Address)'
+                      },
+                      legend: {
+                        display: true
+                      },
+                      tooltip: {
+                        callbacks: {
+                          title: function(context) {
+                            const dataIndex = context[0].dataIndex;
+                            const date = filteredInterviewData[dataIndex].date;
+                            return `Date: ${date}`;
+                          },
+                          label: function(context) {
+                            const dataIndex = context.dataIndex;
+                            const data = filteredInterviewData[dataIndex];
+                            return `Unique Invitations: ${data.count}`;
+                          },
+                          afterLabel: function(context) {
+                            const dataIndex = context.dataIndex;
+                            const data = filteredInterviewData[dataIndex];
+                            
+                            if (data.emails && data.emails.length > 0) {
+                              let tooltipContent = '\n\nEmails:';
+                              data.emails.forEach((email, index) => {
+                                const time = new Date(email.processedAt).toLocaleTimeString('en-US', {
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                });
+                                tooltipContent += `\n${index + 1}. ${email.subject}`;
+                                tooltipContent += `\n   From: ${email.from}`;
+                                tooltipContent += `\n   Time: ${time}`;
+                                if (index < data.emails.length - 1) {
+                                  tooltipContent += '\n';
+                                }
+                              });
+                              return tooltipContent;
+                            }
+                            return '';
+                          }
+                        },
+                        titleFont: {
+                          size: 14,
+                          weight: 'bold'
+                        },
+                        bodyFont: {
+                          size: 12
+                        },
+                        padding: 12,
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: 'white',
+                        bodyColor: 'white',
+                        borderColor: 'rgba(75, 192, 192, 0.8)',
+                        borderWidth: 1
+                      }
+                    },
+                    scales: {
+                      y: {
+                        beginAtZero: true,
+                        title: {
+                          display: true,
+                          text: 'Number of Unique Invitations'
+                        }
+                      },
+                      x: {
+                        title: {
+                          display: true,
+                          text: 'Date'
+                        }
+                      }
+                    },
+                    interaction: {
+                      intersect: false,
+                      mode: 'index'
+                    }
+                  }}
+                />
+              </Box>
+            )}
+
+            {selectedChartResume && filteredInterviewData.length === 0 && !chartLoading && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
+                <Typography variant="h6" color="text.secondary">
+                  No interview invitation data found for this resume
+                </Typography>
+              </Box>
+            )}
+
+            {chartLoading && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
+                <CircularProgress />
+              </Box>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseCallChart}>Close</Button>
+        </DialogActions>
       </Dialog>
     </>
   );

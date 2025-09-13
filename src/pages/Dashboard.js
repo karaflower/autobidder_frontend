@@ -28,6 +28,8 @@ const Dashboard = ({ userRole: propUserRole, currentUserId: propCurrentUserId, t
   const [selectedMember, setSelectedMember] = useState('all');
   const [teamMembers, setTeamMembers] = useState([]);
   const [dateRange, setDateRange] = useState('14');
+  const [resumeName, setResumeName] = useState(''); // Add resume name state
+  const [resumeNameFilter, setResumeNameFilter] = useState(''); // Add separate state for the actual filter value
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [memberColors, setMemberColors] = useState({});
@@ -146,7 +148,7 @@ const Dashboard = ({ userRole: propUserRole, currentUserId: propCurrentUserId, t
   }, [preloaded]);
 
   useEffect(() => {
-    // Fetch bid history when member or date range changes
+    // Fetch bid history when member, date range, or resume name filter changes
     const fetchBidHistory = async () => {
       if (!currentUserId) return;
 
@@ -157,7 +159,10 @@ const Dashboard = ({ userRole: propUserRole, currentUserId: propCurrentUserId, t
           // Fetch data for all team members (leads only)
           const promises = teamMembers.map(member =>
             axios.get(`${process.env.REACT_APP_API_URL}/applications/bid-history/${member._id}`, {
-              params: { days: dateRange }
+              params: { 
+                days: dateRange,
+                resumeName: resumeNameFilter.trim() || undefined // Only include if not empty
+              }
             })
           );
           const responses = await Promise.all(promises);
@@ -170,7 +175,10 @@ const Dashboard = ({ userRole: propUserRole, currentUserId: propCurrentUserId, t
           // Fetch data for single member (either selected member or current user)
           const memberId = selectedMember === 'all' ? currentUserId : selectedMember;
           const response = await axios.get(`${process.env.REACT_APP_API_URL}/applications/bid-history/${memberId}`, {
-            params: { days: dateRange }
+            params: { 
+              days: dateRange,
+              resumeName: resumeNameFilter.trim() || undefined // Only include if not empty
+            }
           });
           setBidData({ [memberId]: response.data });
         }
@@ -185,7 +193,19 @@ const Dashboard = ({ userRole: propUserRole, currentUserId: propCurrentUserId, t
     if (currentUserId && (teamMembers.length > 0 || userRole !== 'lead')) {
       fetchBidHistory();
     }
-  }, [selectedMember, dateRange, teamMembers, userRole, currentUserId]);
+  }, [selectedMember, dateRange, resumeNameFilter, teamMembers, userRole, currentUserId]); // Use resumeNameFilter instead of resumeName
+
+  // Handle Enter key press for resume name input
+  const handleResumeNameKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      setResumeNameFilter(resumeName); // Apply the filter when Enter is pressed
+    }
+  };
+
+  // Handle input change for resume name
+  const handleResumeNameChange = (e) => {
+    setResumeName(e.target.value);
+  };
 
   // Generate random color for each member
   const getRandomColor = () => {
@@ -293,6 +313,17 @@ const Dashboard = ({ userRole: propUserRole, currentUserId: propCurrentUserId, t
           <option value="14">Last 14 Days</option>
           <option value="30">Last 30 Days</option>
         </select>
+
+        {/* Add resume name input with Enter key handling */}
+        <input
+          type="text"
+          value={resumeName}
+          onChange={handleResumeNameChange}
+          onKeyPress={handleResumeNameKeyPress}
+          placeholder="Filter by resume name... (Press Enter to apply)"
+          className="resume-name-input"
+          disabled={isLoading}
+        />
       </div>
 
       <div className="chart-container">
@@ -320,11 +351,16 @@ const Dashboard = ({ userRole: propUserRole, currentUserId: propCurrentUserId, t
         }
 
         .member-select,
-        .date-range-select {
+        .date-range-select,
+        .resume-name-input {
           padding: 8px;
           border-radius: 4px;
           border: 1px solid #ccc;
           min-width: 200px;
+        }
+
+        .resume-name-input {
+          min-width: 300px;
         }
 
         .user-info {
