@@ -45,6 +45,22 @@ const formatFrequency = (schedule) => {
   }
 };
 
+const getElapsedTime = (startTime) => {
+  if (!startTime) return null;
+  
+  const start = new Date(startTime);
+  const now = new Date();
+  const elapsed = now - start;
+  
+  const minutes = Math.floor(elapsed / 60000);
+  const seconds = Math.floor((elapsed % 60000) / 1000);
+  
+  if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  }
+  return `${seconds}s`;
+};
+
 const ScheduledSearchesList = ({
   scheduledSearches,
   onEdit,
@@ -110,9 +126,16 @@ const ScheduledSearchesList = ({
                         {scheduled.progress.percentage}%
                       </Typography>
                     </Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Processing {scheduled.progress.current} of {scheduled.progress.total} queries
-                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+                      <Typography variant="caption" color="text.secondary">
+                        Processing {scheduled.progress.current} of {scheduled.progress.total} queries
+                      </Typography>
+                      {scheduled.startTime && (
+                        <Typography variant="caption" color="text.secondary">
+                          Elapsed: {getElapsedTime(scheduled.startTime)}
+                        </Typography>
+                      )}
+                    </Box>
                   </Box>
                 )}
               </>
