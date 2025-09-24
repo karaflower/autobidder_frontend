@@ -376,11 +376,13 @@ const Resume = () => {
     fetchTeamBidders();
   }, []);
 
-  // Add useEffect to update visibleToBidders when selected resume changes
+  // Add a new useEffect to fetch scheduled emails when selected resume changes
   useEffect(() => {
     if (selectedResume) {
       setShowToBidder(!!selectedResume.showToBidder);
       setVisibleToBidders(selectedResume.visibleToBidders || []);
+      // Add this line to fetch scheduled emails
+      fetchScheduledEmailApplications();
     }
   }, [selectedResume]);
 
